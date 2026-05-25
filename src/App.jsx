@@ -1,88 +1,108 @@
 import { useState } from "react";
+import "./App.css";
 
-const FOOD_DATA = [
+// ── DATA ────────────────────────────────────────────────────────────────────
+
+const RECOMMENDED = [
   {
     id: 1,
-    name: "Bunna Cafe",
-    type: "Ethiopian",
-    neighborhood: "Bushwick",
-    badge: "Hidden gem",
-    emoji: "🇪🇹",
-    price: "$$",
-    rating: 4.8,
-    searches: 47,
-    trending: "+34%",
-    menu: ["Injera platter", "Tibs", "Shiro", "Kitfo", "Tej honey wine"],
+    name: "Olive Bistro",
+    price: "₹1,500 for two",
+    rating: 4.7,
+    tag: "High rated",
+    img: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80",
   },
   {
     id: 2,
-    name: "Xi'an Famous Foods",
-    type: "Chinese",
-    neighborhood: "Flushing",
-    badge: "Affordable",
-    emoji: "🍜",
-    price: "$",
-    rating: 4.7,
-    searches: 134,
-    trending: "+12%",
-    menu: [
-      "Spicy cumin lamb noodles",
-      "Liang pi cold skin noodles",
-      "Stewed pork burger",
-      "Hot & sour soup dumplings",
-    ],
+    name: "Sakura Sushi",
+    price: "₹1,200 for two",
+    rating: 4.6,
+    tag: "Near you",
+    img: "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=400&q=80",
   },
   {
     id: 3,
-    name: "Abraço Espresso",
-    type: "Cafe",
-    neighborhood: "East Village",
-    badge: "Beloved local",
-    emoji: "☕",
-    price: "$",
-    rating: 4.9,
-    searches: 89,
-    trending: "+8%",
-    menu: ["Espresso", "Cortado", "Seasonal pastry", "Olive oil cake"],
+    name: "La Pizzeria",
+    price: "₹1,000 for two",
+    rating: 4.5,
+    tag: "Best for dinner",
+    img: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&q=80",
   },
   {
     id: 4,
-    name: "Tortilleria Nixtamal",
-    type: "Mexican",
-    neighborhood: "Corona, Queens",
-    badge: "Hidden gem",
-    emoji: "🌮",
-    price: "$",
+    name: "The Curry Leaf",
+    price: "₹800 for two",
     rating: 4.8,
-    searches: 62,
-    trending: "+22%",
-    menu: ["Handmade tortillas", "Tamales", "Mole verde", "Horchata"],
+    tag: "Hidden gem",
+    img: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80",
+  },
+];
+
+const CUISINES = [
+  {
+    id: 1,
+    name: "Italian",
+    img: "https://images.unsplash.com/photo-1555949258-eb67b1ef0ceb?w=300&q=80",
+    icon: "🏛️",
+  },
+  {
+    id: 2,
+    name: "Indian",
+    img: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=300&q=80",
+    icon: "🕌",
+  },
+  {
+    id: 3,
+    name: "Asian",
+    img: "https://images.unsplash.com/photo-1569050467447-ce54b3bbc37d?w=300&q=80",
+    icon: "🏯",
+  },
+  {
+    id: 4,
+    name: "Mexican",
+    img: "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=300&q=80",
+    icon: "🏟️",
   },
   {
     id: 5,
-    name: "Superiority Burger",
-    type: "Vegetarian",
-    neighborhood: "East Village",
-    badge: "Trending",
-    emoji: "🌿",
-    price: "$",
-    rating: 4.6,
-    searches: 78,
-    trending: "+41%",
-    menu: ["Superiority burger", "Sloppy Dave", "Greek salad", "Butterscotch pudding"],
+    name: "Japanese",
+    img: "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=300&q=80",
+    icon: "⛩️",
+  },
+];
+
+const CATEGORIES = [
+  { id: 1, name: "Fine Dining", icon: "🍽️" },
+  { id: 2, name: "Buffet", icon: "🥘" },
+  { id: 3, name: "Desserts", icon: "🍰" },
+  { id: 4, name: "Cafes", icon: "☕" },
+  { id: 5, name: "Pizza", icon: "🍕" },
+  { id: 6, name: "Bars", icon: "🍸" },
+  { id: 7, name: "Burgers", icon: "🍔" },
+  { id: 8, name: "Sushi", icon: "🍱" },
+];
+
+const OFFERS = [
+  {
+    id: 1,
+    name: "Steak House",
+    discount: "20% OFF",
+    img: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80",
+    discountColor: "#2d6a4f",
   },
   {
-    id: 6,
-    name: "Saravana Bhavan",
-    type: "Indian",
-    neighborhood: "Murray Hill",
-    badge: "Family fav",
-    emoji: "🍛",
-    price: "$$",
-    rating: 4.7,
-    searches: 103,
-    trending: "+15%",
-    menu: ["Masala dosa", "Idli sambar", "Thali", "Filter coffee", "Pongal"],
+    id: 2,
+    name: "The Grand Dining",
+    discount: "15% OFF",
+    img: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80",
+    discountColor: "#2d6a4f",
+  },
+  {
+    id: 3,
+    name: "Dessert Palace",
+    discount: "25% OFF",
+    img: "https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=400&q=80",
+    discountColor: "#2d6a4f",
   },
 ];
 
@@ -90,97 +110,54 @@ const EVENTS_DATA = [
   {
     id: 1,
     name: "Jazz Night at Nowadays",
-    date: "Sat May 24",
-    location: "Ridgewood, Queens",
+    date: "Sat May 31",
+    loc: "Ridgewood, Queens",
     badge: "Free entry",
-    emoji: "🎷",
+    emo: "🎷",
     host: "Marcus T.",
-    attendees: 34,
+    going: 34,
   },
   {
     id: 2,
     name: "Sunrise Run Club",
-    date: "Sun May 25",
-    location: "Prospect Park, BK",
+    date: "Sun Jun 1",
+    loc: "Prospect Park, BK",
     badge: "Outdoors",
-    emoji: "🏃",
+    emo: "🏃",
     host: "Priya K.",
-    attendees: 12,
+    going: 12,
   },
   {
     id: 3,
     name: "Dumpling Making Class",
-    date: "Sat May 24",
-    location: "Flushing, Queens",
-    badge: "Paid · $25",
-    emoji: "🥟",
+    date: "Sat May 31",
+    loc: "Flushing, Queens",
+    badge: "Paid · ₹800",
+    emo: "🥟",
     host: "Chef Lin",
-    attendees: 8,
+    going: 8,
   },
   {
     id: 4,
     name: "Brooklyn Night Bazaar",
-    date: "Fri May 23",
-    location: "Greenpoint, BK",
+    date: "Fri May 30",
+    loc: "Greenpoint, BK",
     badge: "Free",
-    emoji: "🛍️",
+    emo: "🛍️",
     host: "BK Collective",
-    attendees: 210,
+    going: 210,
   },
 ];
 
-const TRAVEL_DATA = [
-  {
-    id: 1,
-    emoji: "🌉",
-    name: "DUMBO",
-    neighborhood: "Brooklyn",
-    badge: "TikTok famous",
-  },
-  {
-    id: 2,
-    emoji: "🏝️",
-    name: "Little Island",
-    neighborhood: "Hudson River",
-    badge: "Hidden gem",
-  },
-  {
-    id: 3,
-    emoji: "🏛️",
-    name: "The Met Cloisters",
-    neighborhood: "Washington Heights",
-    badge: "Underrated",
-  },
-  {
-    id: 4,
-    emoji: "🌿",
-    name: "Inwood Hill Park",
-    neighborhood: "Inwood",
-    badge: "Hidden gem",
-  },
-  {
-    id: 5,
-    emoji: "🏚️",
-    name: "Smallpox Hospital",
-    neighborhood: "Roosevelt Island",
-    badge: "Hidden gem",
-  },
-  {
-    id: 6,
-    emoji: "🎨",
-    name: "5Pointz Site",
-    neighborhood: "LIC, Queens",
-    badge: "Cultural",
-  },
-];
-
-const CONNECTIONS_DATA = [
+const PEOPLE_DATA = [
   {
     id: 1,
     name: "Priya",
     age: 26,
-    neighborhood: "Astoria, Queens",
-    initials: "P",
+    hood: "Astoria, Queens",
+    ini: "P",
+    color: "#e8f5e9",
+    textColor: "#2d6a4f",
     interests: ["Football", "Books", "Cooking"],
     prompts: [
       {
@@ -192,7 +169,7 @@ const CONNECTIONS_DATA = [
         a: "I would make the subway free before 8am and after 9pm. The people who need it most often travel at those hours.",
       },
     ],
-    cityWant: "Go watch a new film at a cinema — any genre, just no superhero movies",
+    cityWant: "Watch a new film at an indie cinema — any genre, just no superhero movies",
     music: "Arooj Aftab — Vulture Prince",
     film: "All We Imagine as Light",
   },
@@ -200,8 +177,10 @@ const CONNECTIONS_DATA = [
     id: 2,
     name: "Marcus",
     age: 29,
-    neighborhood: "Crown Heights, BK",
-    initials: "M",
+    hood: "Crown Heights, BK",
+    ini: "M",
+    color: "#e3f2fd",
+    textColor: "#1565c0",
     interests: ["Jazz", "Urban history", "Running"],
     prompts: [
       {
@@ -221,8 +200,10 @@ const CONNECTIONS_DATA = [
     id: 3,
     name: "Sofia",
     age: 24,
-    neighborhood: "Williamsburg, BK",
-    initials: "S",
+    hood: "Williamsburg, BK",
+    ini: "S",
+    color: "#fce4ec",
+    textColor: "#c62828",
     interests: ["Architecture", "Street food", "Photography"],
     prompts: [
       {
@@ -240,1622 +221,592 @@ const CONNECTIONS_DATA = [
   },
 ];
 
-function GlobalStyles() {
+// ── ICONS ────────────────────────────────────────────────────────────────────
+
+function SearchIcon() {
   return (
-    <style>{`
-      @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap');
-
-      :root {
-        --bg: #F7F5F0;
-        --bg2: #EDEAE3;
-        --bg3: #E2DED5;
-        --card: #FFFFFF;
-        --text: #1A1814;
-        --text2: #6B6560;
-        --text3: #9B9590;
-        --accent: #2D6A4F;
-        --accent2: #40916C;
-        --accent-bg: #D8F3DC;
-        --amber: #E67E22;
-        --amber-bg: #FEF3E2;
-        --coral: #C0392B;
-        --coral-bg: #FDEDEC;
-        --purple: #6C3483;
-        --purple-bg: #F4ECF7;
-        --border: rgba(26,24,20,0.1);
-        --border2: rgba(26,24,20,0.07);
-        --shadow: 0 1px 3px rgba(26,24,20,0.08), 0 4px 12px rgba(26,24,20,0.04);
-        --shadow2: 0 10px 32px rgba(26,24,20,0.14);
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-
-      html,
-      body,
-      #root {
-        margin: 0 !important;
-        width: 100% !important;
-        max-width: none !important;
-        min-height: 100% !important;
-        background: #f1eee7 !important;
-        border: none !important;
-        text-align: initial !important;
-      }
-
-      body {
-        font-family: "DM Sans", system-ui, sans-serif;
-        overflow-x: hidden;
-      }
-
-      button,
-      input,
-      textarea {
-        font-family: inherit;
-      }
-
-      button {
-        cursor: pointer;
-      }
-
-      .app-page {
-        min-height: 100vh;
-        width: 100%;
-        background:
-          radial-gradient(circle at top left, rgba(216, 243, 220, 0.55), transparent 34%),
-          radial-gradient(circle at top right, rgba(244, 236, 247, 0.5), transparent 34%),
-          #f1eee7;
-        display: flex;
-        justify-content: center;
-      }
-
-      .app-shell {
-        width: min(100%, 1380px);
-        min-height: 100vh;
-        margin: 0 auto;
-        background: var(--bg);
-        color: var(--text);
-        position: relative;
-        overflow: visible;
-        border-left: 1px solid var(--border);
-        border-right: 1px solid var(--border);
-        box-shadow: 0 0 55px rgba(26,24,20,0.08);
-      }
-
-      .topbar {
-        height: 72px;
-        background: rgba(255,255,255,0.86);
-        backdrop-filter: blur(18px);
-        border-bottom: 1px solid var(--border);
-        padding: 14px 56px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        position: sticky;
-        top: 0;
-        z-index: 30;
-      }
-
-      .logo {
-        font-family: "DM Serif Display", serif;
-        font-size: 30px;
-        letter-spacing: -0.04em;
-        color: var(--text);
-      }
-
-      .logo span {
-        color: var(--accent);
-      }
-
-      .main {
-        min-height: calc(100vh - 72px);
-        overflow: visible;
-        padding-bottom: 112px;
-      }
-
-      .bottom-nav {
-        position: fixed;
-        bottom: 22px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: min(680px, calc(100% - 32px));
-        height: 66px;
-        background: rgba(255,255,255,0.94);
-        backdrop-filter: blur(18px);
-        border: 1px solid var(--border);
-        border-radius: 999px;
-        display: flex;
-        z-index: 40;
-        box-shadow: 0 12px 42px rgba(26,24,20,0.14);
-        overflow: hidden;
-      }
-
-      .nav-button {
-        flex: 1;
-        border: none;
-        background: transparent;
-        color: var(--text3);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 3px;
-        font-size: 10px;
-        font-weight: 700;
-        transition: 0.15s ease;
-      }
-
-      .nav-button.active {
-        color: var(--accent);
-        background: rgba(216, 243, 220, 0.5);
-      }
-
-      .section {
-        padding: 36px 56px 124px;
-      }
-
-      .section-tight {
-        padding: 36px 56px 0;
-        text-align: center;
-      }
-
-      .fade-in {
-        animation: fadeIn 0.22s ease;
-      }
-
-      @keyframes fadeIn {
-        from {
-          opacity: 0;
-          transform: translateY(6px);
-        }
-
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-
-      .card-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 22px;
-        margin-bottom: 38px;
-      }
-
-      .spot-card {
-        border: 1px solid var(--border);
-        border-radius: 22px;
-        background: var(--card);
-        overflow: hidden;
-        box-shadow: var(--shadow);
-        min-width: 0;
-      }
-
-      .spot-card-clickable {
-        cursor: pointer;
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
-      }
-
-      .spot-card-clickable:hover {
-        transform: translateY(-3px);
-        box-shadow: var(--shadow2);
-      }
-
-      .spot-emoji {
-        height: 118px;
-        background: linear-gradient(135deg, var(--bg2), #f9f6f0);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 42px;
-      }
-
-      .spot-body {
-        padding: 16px;
-        text-align: center;
-      }
-
-      .spot-title {
-        font-size: 16px;
-        font-weight: 700;
-        color: var(--text);
-        line-height: 1.25;
-        margin-bottom: 6px;
-      }
-
-      .spot-meta {
-        font-size: 13px;
-        color: var(--text3);
-        margin-bottom: 10px;
-        line-height: 1.35;
-      }
-
-      .pill {
-        display: inline-flex;
-        align-items: center;
-        border-radius: 999px;
-        padding: 5px 10px;
-        font-size: 11px;
-        font-weight: 700;
-        line-height: 1;
-      }
-
-      .pill-neutral {
-        background: var(--bg2);
-        color: var(--text2);
-      }
-
-      .pill-green {
-        background: var(--accent-bg);
-        color: var(--accent);
-      }
-
-      .pill-purple {
-        background: var(--purple-bg);
-        color: var(--purple);
-      }
-
-      .pill-amber {
-        background: var(--amber-bg);
-        color: var(--amber);
-      }
-
-      .section-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin: 12px 0 16px;
-      }
-
-      .section-header h2 {
-        margin: 0;
-        color: var(--text3);
-        font-size: 12px;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-      }
-
-      .section-header button {
-        border: none;
-        background: transparent;
-        color: var(--accent);
-        font-size: 12px;
-        font-weight: 700;
-      }
-
-      .tab-row {
-        display: flex;
-        justify-content: center;
-        gap: 10px;
-        overflow-x: auto;
-        padding-bottom: 4px;
-        margin-bottom: 30px;
-      }
-
-      .choice-tab {
-        border: 1px solid var(--border);
-        background: var(--card);
-        color: var(--text2);
-        border-radius: 999px;
-        padding: 9px 18px;
-        font-size: 13px;
-        font-weight: 700;
-        white-space: nowrap;
-        flex-shrink: 0;
-        transition: 0.15s ease;
-      }
-
-      .choice-tab.active {
-        background: var(--accent);
-        border-color: var(--accent);
-        color: white;
-      }
-
-      .wide-card {
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: 22px;
-        box-shadow: var(--shadow);
-        padding: 22px;
-        margin-bottom: 18px;
-      }
-
-      .event-card {
-        display: flex;
-        gap: 16px;
-        align-items: flex-start;
-      }
-
-      .event-icon {
-        width: 58px;
-        height: 58px;
-        border-radius: 16px;
-        background: var(--bg2);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 28px;
-        flex-shrink: 0;
-      }
-
-      .profile-header {
-        display: flex;
-        justify-content: space-between;
-        gap: 12px;
-        align-items: flex-start;
-        margin-bottom: 14px;
-      }
-
-      .avatar {
-        width: 50px;
-        height: 50px;
-        border-radius: 999px;
-        background: var(--accent-bg);
-        color: var(--accent);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 800;
-        flex-shrink: 0;
-      }
-
-      .quote {
-        background: var(--bg2);
-        border: 1px solid transparent;
-        border-radius: 16px;
-        padding: 14px;
-        cursor: pointer;
-        transition: 0.15s ease;
-      }
-
-      .quote:hover {
-        border-color: var(--accent2);
-        background: #edf7ef;
-      }
-
-      .detail-hero {
-        text-align: center;
-        padding: 28px 18px 22px;
-      }
-
-      .back-button {
-        border: none;
-        background: transparent;
-        color: var(--text2);
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 14px;
-        font-weight: 700;
-      }
-
-      .modal-backdrop {
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,0.45);
-        z-index: 100;
-        display: flex;
-        align-items: flex-end;
-        justify-content: center;
-      }
-
-      .modal-sheet {
-        width: 100%;
-        max-width: 560px;
-        background: var(--card);
-        border-radius: 26px 26px 0 0;
-        padding: 24px 24px 38px;
-      }
-
-      .primary-button {
-        width: 100%;
-        border: none;
-        border-radius: 16px;
-        background: var(--text);
-        color: var(--bg);
-        padding: 15px 16px;
-        font-size: 15px;
-        font-weight: 800;
-        transition: 0.15s ease;
-      }
-
-      .primary-button:hover {
-        transform: translateY(-1px);
-        box-shadow: var(--shadow2);
-      }
-
-      .primary-button:disabled {
-        background: var(--bg3);
-        color: var(--text3);
-        cursor: not-allowed;
-        box-shadow: none;
-        transform: none;
-      }
-
-      @media (max-width: 1100px) {
-        .app-shell {
-          width: 100%;
-        }
-
-        .card-grid {
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-
-        .section,
-        .section-tight {
-          padding-left: 36px;
-          padding-right: 36px;
-        }
-
-        .topbar {
-          padding-left: 36px;
-          padding-right: 36px;
-        }
-      }
-
-      @media (max-width: 720px) {
-        .app-shell {
-          width: 100%;
-          border-left: none;
-          border-right: none;
-          box-shadow: none;
-        }
-
-        .topbar {
-          height: 58px;
-          padding: 12px 18px;
-        }
-
-        .logo {
-          font-size: 24px;
-        }
-
-        .main {
-          min-height: calc(100vh - 58px);
-          padding-bottom: 96px;
-        }
-
-        .bottom-nav {
-          bottom: 12px;
-          width: calc(100% - 24px);
-          height: 62px;
-        }
-
-        .section,
-        .section-tight {
-          padding-left: 18px;
-          padding-right: 18px;
-        }
-
-        .section {
-          padding-bottom: 120px;
-        }
-
-        .section-tight {
-          text-align: left;
-        }
-
-        .tab-row {
-          justify-content: flex-start;
-        }
-
-        .card-grid {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 12px;
-          margin-bottom: 38px;
-        }
-
-        .spot-card {
-          border-radius: 16px;
-        }
-
-        .spot-emoji {
-          height: 78px;
-          font-size: 31px;
-        }
-
-        .spot-body {
-          padding: 11px 11px 13px;
-        }
-
-        .spot-title {
-          font-size: 13px;
-        }
-
-        .spot-meta {
-          font-size: 11px;
-        }
-
-        .wide-card {
-          border-radius: 16px;
-          padding: 15px;
-          margin-bottom: 14px;
-        }
-
-        .pill {
-          padding: 4px 9px;
-          font-size: 10px;
-        }
-
-        .modal-sheet {
-          max-width: 100%;
-          padding: 20px 18px 34px;
-        }
-      }
-    `}</style>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+    </svg>
+  );
+}
+function HeartIcon({ filled }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill={filled ? "#e53e3e" : "none"} stroke={filled ? "#e53e3e" : "white"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </svg>
+  );
+}
+function DiscoverIcon({ active }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? "#e53e3e" : "#aaa"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+    </svg>
+  );
+}
+function ConnectIcon({ active }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? "#e53e3e" : "#aaa"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+    </svg>
+  );
+}
+function ProfileIcon({ active }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? "#e53e3e" : "#aaa"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+    </svg>
+  );
+}
+function ArrowRight() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 12h14M12 5l7 7-7 7" />
+    </svg>
+  );
+}
+function StarIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="#f6ad55" stroke="#f6ad55" strokeWidth="1">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
   );
 }
 
-function badgeClass(badge) {
-  const lower = badge.toLowerCase();
+// ── SERVICES DATA & SCREEN ───────────────────────────────────────────────────
 
-  if (
-    lower.includes("hidden") ||
-    lower.includes("underrated") ||
-    lower.includes("cultural")
-  ) {
-    return "pill pill-purple";
-  }
+const SERVICES_DATA = [
+  { id: 1, name: "Private Chef", icon: "👨‍🍳", desc: "Book a personal chef for dinners, parties, or meal prep at home.", price: "From ₹2,500", badge: "Popular", badgeType: "green" },
+  { id: 2, name: "Food Photography", icon: "📸", desc: "Professional food & restaurant photography for menus and social media.", price: "From ₹3,000", badge: "New", badgeType: "blue" },
+  { id: 3, name: "Catering", icon: "🍱", desc: "Full-service catering for corporate events, weddings, and gatherings.", price: "From ₹500/head", badge: "Popular", badgeType: "green" },
+  { id: 4, name: "Cooking Classes", icon: "🧑‍🍳", desc: "Learn to cook a new cuisine with expert chefs. Group & private sessions.", price: "From ₹800", badge: "", badgeType: "" },
+  { id: 5, name: "Restaurant Consulting", icon: "📊", desc: "Menu design, pricing strategy, and operational advice for restaurant owners.", price: "From ₹5,000", badge: "B2B", badgeType: "purple" },
+  { id: 6, name: "Event Space Booking", icon: "🏛️", desc: "Find and book unique dining venues for private events and celebrations.", price: "From ₹8,000", badge: "New", badgeType: "blue" },
+];
 
-  if (
-    lower.includes("affordable") ||
-    lower.includes("free") ||
-    lower.includes("family")
-  ) {
-    return "pill pill-green";
-  }
-
-  if (
-    lower.includes("trending") ||
-    lower.includes("paid") ||
-    lower.includes("tiktok")
-  ) {
-    return "pill pill-amber";
-  }
-
-  return "pill pill-neutral";
-}
-
-export default function App() {
-  const [tab, setTab] = useState("discover");
-  const [discoverTab, setDiscoverTab] = useState("food");
-  const [selectedRestaurant, setSelectedRestaurant] = useState(null);
-  const [selectedProfile, setSelectedProfile] = useState(null);
-  const [agentTab, setAgentTab] = useState("menu");
-  const [resonateModal, setResonateModal] = useState(null);
-  const [sentResonances, setSentResonances] = useState([]);
-
-  const isDetail = selectedRestaurant || selectedProfile;
-
-  function clearDetail() {
-    setSelectedRestaurant(null);
-    setSelectedProfile(null);
-  }
-
-  function changeMainTab(nextTab) {
-    setTab(nextTab);
-    clearDetail();
-  }
-
+function ServicesContent() {
   return (
-    <div className="app-page">
-      <GlobalStyles />
-
-      <div className="app-shell">
-        <header className="topbar">
-          {isDetail ? (
-            <button className="back-button" onClick={clearDetail}>
-              ← Back
-            </button>
-          ) : (
-            <div className="logo">
-              near<span>met</span>
-            </div>
-          )}
-
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span className="pill pill-neutral">NYC</span>
-            <span
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: "50%",
-                background: "var(--accent-bg)",
-                color: "var(--accent)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 12,
-                fontWeight: 800,
-              }}
-            >
-              AK
-            </span>
-          </div>
-        </header>
-
-        <main className="main">
-          {tab === "discover" && !selectedRestaurant && (
-            <DiscoverTab
-              discoverTab={discoverTab}
-              setDiscoverTab={setDiscoverTab}
-              onSelectRestaurant={setSelectedRestaurant}
-            />
-          )}
-
-          {tab === "discover" && selectedRestaurant && (
-            <RestaurantDetail restaurant={selectedRestaurant} />
-          )}
-
-          {tab === "connect" && !selectedProfile && (
-            <ConnectTab
-              onSelectProfile={setSelectedProfile}
-              sentResonances={sentResonances}
-              setResonateModal={setResonateModal}
-            />
-          )}
-
-          {tab === "connect" && selectedProfile && (
-            <ProfileDetail
-              profile={selectedProfile}
-              sentResonances={sentResonances}
-              setResonateModal={setResonateModal}
-            />
-          )}
-
-          {tab === "agents" && (
-            <AgentsTab agentTab={agentTab} setAgentTab={setAgentTab} />
-          )}
-        </main>
-
-        <nav className="bottom-nav">
-          {[
-            { id: "discover", icon: "⊙", label: "Discover" },
-            { id: "connect", icon: "♡", label: "Connect" },
-            { id: "agents", icon: "✦", label: "Agents" },
-          ].map((item) => (
-            <button
-              key={item.id}
-              className={`nav-button ${tab === item.id ? "active" : ""}`}
-              onClick={() => changeMainTab(item.id)}
-            >
-              <span style={{ fontSize: 22, lineHeight: 1 }}>{item.icon}</span>
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </nav>
-
-        {resonateModal && (
-          <ResonateModal
-            modal={resonateModal}
-            onClose={() => setResonateModal(null)}
-            onSend={(text) => {
-              setSentResonances((prev) => [
-                ...prev,
-                {
-                  profileId: resonateModal.profile.id,
-                  promptIndex: resonateModal.promptIndex,
-                  text,
-                },
-              ]);
-              setResonateModal(null);
-            }}
-          />
-        )}
-      </div>
-    </div>
-  );
-}
-
-function DiscoverTab({ discoverTab, setDiscoverTab, onSelectRestaurant }) {
-  return (
-    <div className="fade-in">
-      <div className="section-tight">
-        <p style={{ margin: "0 0 4px", fontSize: 13, color: "var(--text3)" }}>
-          Good morning, Alex
-        </p>
-
-        <h1
-          style={{
-            margin: "0 0 16px",
-            fontSize: 28,
-            letterSpacing: "-0.04em",
-            fontWeight: 800,
-            color: "var(--text)",
-          }}
-        >
-          What are you looking for?
-        </h1>
-
-        <div className="tab-row">
-          {[
-            { id: "food", label: "🍽 Food" },
-            { id: "events", label: "🎭 Events" },
-            { id: "travel", label: "✈️ Travel" },
-          ].map((item) => (
-            <button
-              key={item.id}
-              className={`choice-tab ${
-                discoverTab === item.id ? "active" : ""
-              }`}
-              onClick={() => setDiscoverTab(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
+    <section className="section" style={{ marginTop: 32 }}>
+      <div className="section-header">
+        <div>
+          <div className="section-title">Services near you</div>
+          <div className="section-sub">Food-related services from trusted local professionals</div>
         </div>
       </div>
-
-      {discoverTab === "food" && (
-        <FoodSection onSelectRestaurant={onSelectRestaurant} />
-      )}
-      {discoverTab === "events" && <EventsSection />}
-      {discoverTab === "travel" && <TravelSection />}
-    </div>
-  );
-}
-
-function SectionHeader({ title }) {
-  return (
-    <div className="section-header">
-      <h2>{title}</h2>
-      <button>See all</button>
-    </div>
-  );
-}
-
-function FoodSection({ onSelectRestaurant }) {
-  return (
-    <div className="section" style={{ paddingTop: 0 }}>
-      <SectionHeader title="Popular right now" />
-
-      <div className="card-grid">
-        {FOOD_DATA.slice(0, 2).map((restaurant) => (
-          <FoodCard
-            key={restaurant.id}
-            restaurant={restaurant}
-            onClick={() => onSelectRestaurant(restaurant)}
-          />
-        ))}
-      </div>
-
-      <SectionHeader title="Hidden & unexplored" />
-
-      <div className="card-grid">
-        {FOOD_DATA.slice(2, 4).map((restaurant) => (
-          <FoodCard
-            key={restaurant.id}
-            restaurant={restaurant}
-            onClick={() => onSelectRestaurant(restaurant)}
-          />
-        ))}
-      </div>
-
-      <SectionHeader title="Vegetarian & vegan" />
-
-      <div className="card-grid">
-        {FOOD_DATA.slice(4, 6).map((restaurant) => (
-          <FoodCard
-            key={restaurant.id}
-            restaurant={restaurant}
-            onClick={() => onSelectRestaurant(restaurant)}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function FoodCard({ restaurant, onClick }) {
-  return (
-    <article className="spot-card spot-card-clickable" onClick={onClick}>
-      <div className="spot-emoji">{restaurant.emoji}</div>
-      <div className="spot-body">
-        <div className="spot-title">{restaurant.name}</div>
-        <div className="spot-meta">
-          {restaurant.neighborhood} · {restaurant.price}
-        </div>
-        <span className={badgeClass(restaurant.badge)}>
-          {restaurant.badge}
-        </span>
-      </div>
-    </article>
-  );
-}
-
-function EventsSection() {
-  return (
-    <div className="section" style={{ paddingTop: 0 }}>
-      <SectionHeader title="Happening this week" />
-
-      {EVENTS_DATA.map((event) => (
-        <article key={event.id} className="wide-card event-card">
-          <div className="event-icon">{event.emoji}</div>
-
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <h3
-              style={{
-                margin: "0 0 4px",
-                fontSize: 17,
-                lineHeight: 1.25,
-                color: "var(--text)",
-              }}
-            >
-              {event.name}
-            </h3>
-
-            <p
-              style={{
-                margin: "0 0 8px",
-                fontSize: 13,
-                color: "var(--text3)",
-                lineHeight: 1.45,
-              }}
-            >
-              {event.date} · {event.location}
-            </p>
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 10,
-                alignItems: "center",
-              }}
-            >
-              <span style={{ fontSize: 12, color: "var(--text3)" }}>
-                by {event.host} · {event.attendees} going
-              </span>
-              <span className={badgeClass(event.badge)}>{event.badge}</span>
+      <div className="services-grid">
+        {SERVICES_DATA.map((s) => (
+          <div className="service-card" key={s.id}>
+            <div className="service-icon">{s.icon}</div>
+            <div className="service-body">
+              <div className="service-header-row">
+                <div className="service-name">{s.name}</div>
+                {s.badge && (
+                  <span className={`service-badge service-badge--${s.badgeType}`}>{s.badge}</span>
+                )}
+              </div>
+              <div className="service-desc">{s.desc}</div>
+              <div className="service-price">{s.price}</div>
+              <button className="service-btn">Book now →</button>
             </div>
           </div>
-        </article>
-      ))}
-    </div>
-  );
-}
-
-function TravelSection() {
-  return (
-    <div className="section" style={{ paddingTop: 0 }}>
-      <SectionHeader title="Popular spots" />
-
-      <div className="card-grid">
-        {TRAVEL_DATA.slice(0, 2).map((spot) => (
-          <TravelCard key={spot.id} spot={spot} />
         ))}
       </div>
-
-      <SectionHeader title="Hidden & unexplored" />
-
-      <div className="card-grid">
-        {TRAVEL_DATA.slice(2).map((spot) => (
-          <TravelCard key={spot.id} spot={spot} />
-        ))}
-      </div>
-    </div>
+    </section>
   );
 }
 
-function TravelCard({ spot }) {
+// ── FOOD SCREEN ──────────────────────────────────────────────────────────────
+
+function FoodScreen() {
+  const [likes, setLikes] = useState({});
+  const [activeCategory, setActiveCategory] = useState(null);
+  const [subTab, setSubTab] = useState("food");
+
+  function toggleLike(id) {
+    setLikes((prev) => ({ ...prev, [id]: !prev[id] }));
+  }
+
+  const SUBTABS = [
+    { id: "food",     label: "Food",     icon: "🍔" },
+    { id: "events",   label: "Events",   icon: "🎟️" },
+    { id: "services", label: "Services", icon: "🔔", badge: "NEW" },
+  ];
+
   return (
-    <article className="spot-card">
-      <div className="spot-emoji">{spot.emoji}</div>
-      <div className="spot-body">
-        <div className="spot-title">{spot.name}</div>
-        <div className="spot-meta">{spot.neighborhood}</div>
-        <span className={badgeClass(spot.badge)}>{spot.badge}</span>
-      </div>
-    </article>
-  );
-}
-
-function RestaurantDetail({ restaurant }) {
-  return (
-    <div className="fade-in section">
-      <div className="detail-hero">
-        <div style={{ fontSize: 58, marginBottom: 10 }}>
-          {restaurant.emoji}
-        </div>
-
-        <h1
-          style={{
-            margin: "0 0 6px",
-            fontSize: 28,
-            letterSpacing: "-0.04em",
-            color: "var(--text)",
-          }}
-        >
-          {restaurant.name}
-        </h1>
-
-        <p style={{ margin: "0 0 12px", color: "var(--text3)", fontSize: 14 }}>
-          {restaurant.type} · {restaurant.neighborhood} · {restaurant.price}
-        </p>
-
-        <div style={{ display: "flex", justifyContent: "center", gap: 8 }}>
-          <span className="pill pill-amber">★ {restaurant.rating}</span>
-          <span className="pill pill-green">
-            {restaurant.trending} searches
-          </span>
+    <div className="food-screen">
+      {/* Search bar */}
+      <div className="search-bar-wrap">
+        <div className="search-bar">
+          <SearchIcon />
+          <span className="search-placeholder">Start your search</span>
         </div>
       </div>
 
-      <div className="wide-card">
-        <SectionLabel>Menu highlights</SectionLabel>
-
-        {restaurant.menu.map((dish, index) => (
-          <div
-            key={dish}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              padding: "11px 0",
-              borderBottom:
-                index < restaurant.menu.length - 1
-                  ? "1px solid var(--border2)"
-                  : "none",
-              fontSize: 14,
-            }}
-          >
-            <span>{dish}</span>
-            <span style={{ color: "var(--text3)" }}>→</span>
-          </div>
-        ))}
-      </div>
-
-      <div className="wide-card">
-        <SectionLabel>Demand intelligence</SectionLabel>
-
-        <p
-          style={{
-            margin: 0,
-            color: "var(--text2)",
-            fontSize: 13,
-            lineHeight: 1.6,
-          }}
-        >
-          <strong style={{ color: "var(--accent)" }}>
-            {restaurant.searches} people
-          </strong>{" "}
-          searched for food like this nearby this month. Nearmet can turn that
-          external search demand into menu and staffing recommendations for
-          local businesses.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function ConnectTab({ onSelectProfile, sentResonances, setResonateModal }) {
-  return (
-    <div className="fade-in section">
-      <div style={{ marginBottom: 18 }}>
-        <h1
-          style={{
-            margin: "0 0 5px",
-            fontSize: 28,
-            letterSpacing: "-0.04em",
-            color: "var(--text)",
-          }}
-        >
-          People exploring NYC
-        </h1>
-
-        <p
-          style={{
-            margin: 0,
-            color: "var(--text3)",
-            fontSize: 13,
-            lineHeight: 1.5,
-          }}
-        >
-          Tap a quote to resonate. No swiping — just genuine connection.
-        </p>
-      </div>
-
-      {CONNECTIONS_DATA.map((profile) => (
-        <ProfileCard
-          key={profile.id}
-          profile={profile}
-          onSelectProfile={onSelectProfile}
-          sentResonances={sentResonances}
-          setResonateModal={setResonateModal}
-        />
-      ))}
-    </div>
-  );
-}
-
-function ProfileCard({
-  profile,
-  onSelectProfile,
-  sentResonances,
-  setResonateModal,
-}) {
-  const sentCount = sentResonances.filter(
-    (item) => item.profileId === profile.id
-  ).length;
-
-  return (
-    <article className="wide-card">
-      <div className="profile-header" onClick={() => onSelectProfile(profile)}>
-        <div
-          style={{
-            display: "flex",
-            gap: 11,
-            alignItems: "center",
-            cursor: "pointer",
-          }}
-        >
-          <div className="avatar">{profile.initials}</div>
-
-          <div>
-            <h3 style={{ margin: "0 0 3px", fontSize: 16, color: "var(--text)" }}>
-              {profile.name}, {profile.age}
-            </h3>
-            <p style={{ margin: 0, fontSize: 12, color: "var(--text3)" }}>
-              📍 {profile.neighborhood}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <InterestRow interests={profile.interests} />
-
-      <QuoteBlock
-        profile={profile}
-        prompt={profile.prompts[0]}
-        promptIndex={0}
-        sentResonances={sentResonances}
-        setResonateModal={setResonateModal}
-      />
-
-      <div
-        style={{
-          marginTop: 12,
-          padding: "11px 12px",
-          borderRadius: 12,
-          background: "var(--accent-bg)",
-          borderLeft: "4px solid var(--accent)",
-        }}
-      >
-        <SectionLabel color="var(--accent)">Wants to do in NYC</SectionLabel>
-        <p style={{ margin: 0, fontSize: 12, lineHeight: 1.55 }}>
-          “{profile.cityWant}”
-        </p>
-      </div>
-
-      {sentCount > 0 && (
-        <p
-          style={{
-            margin: "11px 0 0",
-            padding: "8px 10px",
-            borderRadius: 10,
-            background: "var(--bg2)",
-            color: "var(--accent)",
-            fontSize: 12,
-            fontWeight: 600,
-          }}
-        >
-          ✓ You resonated with {sentCount} thing{sentCount > 1 ? "s" : ""}
-        </p>
-      )}
-    </article>
-  );
-}
-
-function InterestRow({ interests }) {
-  return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
-      {interests.map((interest) => (
-        <span key={interest} className="pill pill-neutral">
-          {interest}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function QuoteBlock({
-  profile,
-  prompt,
-  promptIndex,
-  sentResonances,
-  setResonateModal,
-}) {
-  const sent = sentResonances.some(
-    (item) => item.profileId === profile.id && item.promptIndex === promptIndex
-  );
-
-  return (
-    <div
-      className="quote"
-      onClick={() => {
-        if (!sent) {
-          setResonateModal({ profile, prompt, promptIndex });
-        }
-      }}
-    >
-      <SectionLabel>{prompt.q}</SectionLabel>
-
-      <p
-        style={{
-          margin: 0,
-          color: "var(--text2)",
-          fontSize: 12,
-          lineHeight: 1.6,
-        }}
-      >
-        “{prompt.a}”
-      </p>
-
-      {sent && (
-        <p
-          style={{
-            margin: "8px 0 0",
-            color: "var(--accent)",
-            fontSize: 12,
-            fontWeight: 700,
-          }}
-        >
-          ✓ Resonance sent
-        </p>
-      )}
-    </div>
-  );
-}
-
-function ProfileDetail({ profile, sentResonances, setResonateModal }) {
-  return (
-    <div className="fade-in section">
-      <div className="detail-hero">
-        <div
-          className="avatar"
-          style={{
-            width: 76,
-            height: 76,
-            fontSize: 26,
-            margin: "0 auto 12px",
-          }}
-        >
-          {profile.initials}
-        </div>
-
-        <h1 style={{ margin: "0 0 5px", fontSize: 28, color: "var(--text)" }}>
-          {profile.name}, {profile.age}
-        </h1>
-
-        <p style={{ margin: "0 0 12px", color: "var(--text3)", fontSize: 13 }}>
-          📍 {profile.neighborhood}
-        </p>
-
-        <InterestRow interests={profile.interests} />
-      </div>
-
-      {profile.prompts.map((prompt, index) => (
-        <div key={prompt.q} style={{ marginBottom: 12 }}>
-          <QuoteBlock
-            profile={profile}
-            prompt={prompt}
-            promptIndex={index}
-            sentResonances={sentResonances}
-            setResonateModal={setResonateModal}
-          />
-        </div>
-      ))}
-
-      <div className="wide-card">
-        <SectionLabel color="var(--accent)">Wants to do in NYC</SectionLabel>
-        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6 }}>
-          “{profile.cityWant}”
-        </p>
-      </div>
-
-      <div className="card-grid">
-        <div className="wide-card" style={{ marginBottom: 0 }}>
-          <SectionLabel>Listening</SectionLabel>
-          <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5 }}>
-            {profile.music}
-          </p>
-        </div>
-
-        <div className="wide-card" style={{ marginBottom: 0 }}>
-          <SectionLabel>Watching</SectionLabel>
-          <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5 }}>
-            {profile.film}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ResonateModal({ modal, onClose, onSend }) {
-  const [text, setText] = useState("");
-
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-sheet" onClick={(event) => event.stopPropagation()}>
-        <div
-          style={{
-            width: 38,
-            height: 4,
-            borderRadius: 999,
-            background: "var(--bg3)",
-            margin: "0 auto 16px",
-          }}
-        />
-
-        <SectionLabel>Resonating with</SectionLabel>
-
-        <div
-          style={{
-            background: "var(--accent-bg)",
-            borderRadius: 12,
-            padding: 12,
-            marginBottom: 14,
-            borderLeft: "4px solid var(--accent)",
-          }}
-        >
-          <p style={{ margin: 0, fontSize: 12, lineHeight: 1.55 }}>
-            “{modal.prompt.a}”
-          </p>
-        </div>
-
-        <textarea
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-          placeholder="What resonated with you? Be specific..."
-          maxLength={240}
-          style={{
-            width: "100%",
-            minHeight: 95,
-            resize: "none",
-            border: "1px solid var(--border)",
-            borderRadius: 14,
-            padding: 13,
-            fontSize: 13,
-            lineHeight: 1.55,
-            outline: "none",
-            background: "var(--bg)",
-            color: "var(--text)",
-          }}
-        />
-
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginTop: 12,
-            gap: 12,
-          }}
-        >
-          <span style={{ color: "var(--text3)", fontSize: 11 }}>
-            {text.length} / 240
-          </span>
-
+      {/* Sub-tabs — Food / Events / Services */}
+      <div className="main-tabs">
+        {SUBTABS.map((t) => (
           <button
-            disabled={text.trim().length < 10}
-            onClick={() => onSend(text.trim())}
-            style={{
-              border: "none",
-              borderRadius: 999,
-              padding: "10px 18px",
-              background:
-                text.trim().length >= 10 ? "var(--accent)" : "var(--bg3)",
-              color: text.trim().length >= 10 ? "white" : "var(--text3)",
-              fontSize: 13,
-              fontWeight: 700,
-            }}
+            key={t.id}
+            className={`main-tab ${subTab === t.id ? "main-tab--active" : ""}`}
+            onClick={() => setSubTab(t.id)}
           >
-            Send resonance
+            <span className="main-tab-icon">{t.icon}</span>
+            <span className="main-tab-label">{t.label}</span>
+            {t.badge && <span className="new-badge">{t.badge}</span>}
           </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AgentsTab({ agentTab, setAgentTab }) {
-  return (
-    <div className="fade-in">
-      <div className="section-tight">
-        <h1
-          style={{
-            margin: "0 0 5px",
-            fontSize: 28,
-            letterSpacing: "-0.04em",
-            color: "var(--text)",
-          }}
-        >
-          AI Agents
-        </h1>
-
-        <p style={{ margin: "0 0 16px", color: "var(--text3)", fontSize: 13 }}>
-          Intelligence layer for users, restaurants, and event organizers.
-        </p>
-
-        <div
-          style={{
-            display: "flex",
-            border: "1px solid var(--border)",
-            borderRadius: 14,
-            overflow: "hidden",
-            marginBottom: 18,
-          }}
-        >
-          {[
-            { id: "menu", label: "Menu Intelligence" },
-            { id: "city", label: "Personal City" },
-          ].map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setAgentTab(item.id)}
-              style={{
-                flex: 1,
-                border: "none",
-                padding: "10px 8px",
-                background: agentTab === item.id ? "var(--text)" : "transparent",
-                color: agentTab === item.id ? "var(--bg)" : "var(--text2)",
-                fontSize: 12,
-                fontWeight: 700,
-              }}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
+        ))}
       </div>
 
-      {agentTab === "menu" ? <MenuAgent /> : <CityAgent />}
-    </div>
-  );
-}
-
-function MenuAgent() {
-  const [restaurant, setRestaurant] = useState(FOOD_DATA[0]);
-  const [ran, setRan] = useState(false);
-
-  return (
-    <div className="section" style={{ paddingTop: 0 }}>
-      <div className="wide-card">
-        <SectionLabel>Select restaurant</SectionLabel>
-
-        <div
-          style={{
-            display: "flex",
-            gap: 8,
-            overflowX: "auto",
-            paddingBottom: 3,
-          }}
-        >
-          {FOOD_DATA.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                setRestaurant(item);
-                setRan(false);
-              }}
-              className={`choice-tab ${
-                restaurant.id === item.id ? "active" : ""
-              }`}
-              style={{ padding: "7px 12px", fontSize: 12 }}
-            >
-              {item.emoji} {item.name.split(" ")[0]}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="wide-card">
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: 12,
-            marginBottom: 10,
-          }}
-        >
-          <div>
-            <h3 style={{ margin: "0 0 3px", fontSize: 16, color: "var(--text)" }}>
-              {restaurant.name}
-            </h3>
-            <p style={{ margin: 0, color: "var(--text3)", fontSize: 12 }}>
-              {restaurant.neighborhood} · {restaurant.searches} searches this month
-            </p>
+      {/* ── EVENTS tab ── */}
+      {subTab === "events" && (
+        <div style={{ paddingTop: 32 }}>
+          <div className="section-header">
+            <div>
+              <div className="section-title">Events near you</div>
+              <div className="section-sub">What's happening in your city this week</div>
+            </div>
           </div>
-
-          <span className="pill pill-green">{restaurant.trending}</span>
-        </div>
-
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {restaurant.menu.map((dish) => (
-            <span key={dish} className="pill pill-neutral">
-              {dish}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      <button className="primary-button" onClick={() => setRan(true)}>
-        Run Menu Intelligence Agent
-      </button>
-
-      {ran && (
-        <div className="fade-in" style={{ marginTop: 16 }}>
-          <div className="card-grid">
-            <MetricCard label="Searches" value={`${restaurant.searches}/mo`} />
-            <MetricCard label="Trend" value={restaurant.trending} />
+          <div className="ev-list">
+            {EVENTS_DATA.map((e) => {
+              const l = e.badge.toLowerCase();
+              const cls = l.includes("free") ? "ev-badge ev-badge--green"
+                : l.includes("paid") ? "ev-badge ev-badge--amber"
+                : l.includes("outdoor") ? "ev-badge ev-badge--blue"
+                : "ev-badge ev-badge--gray";
+              return (
+                <div className="ev-item" key={e.id}>
+                  <div className="ev-icon-box">{e.emo}</div>
+                  <div className="ev-details">
+                    <div className="ev-name">{e.name}</div>
+                    <div className="ev-meta">{e.date} · {e.loc}</div>
+                    <div className="ev-footer">
+                      <span className="ev-host">by {e.host} · {e.going} going</span>
+                      <span className={cls}>{e.badge}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <button className="create-ev-btn">+ Create an event</button>
           </div>
-
-          <AgentInsight
-            color="green"
-            title="Demand opportunity"
-            data={`People nearby are searching for ${restaurant.type.toLowerCase()} options, but only a few places are getting clicked.`}
-            action="Promote top dishes"
-          />
-
-          <AgentInsight
-            color="amber"
-            title="Menu placement issue"
-            data={`${
-              restaurant.menu[restaurant.menu.length - 1]
-            } has low discovery compared with other dishes.`}
-            action="Reposition or rename"
-          />
-
-          <AgentInsight
-            color="purple"
-            title="Local growth angle"
-            data={`Dine-in demand near ${restaurant.neighborhood} is stronger than delivery-style discovery.`}
-            action="Push walk-in offers"
-          />
         </div>
+      )}
+
+      {/* ── SERVICES tab ── */}
+      {subTab === "services" && <ServicesContent />}
+
+      {/* ── FOOD tab ── */}
+      {subTab === "food" && (
+        <>
+          {/* Recommended */}
+          <section className="section">
+            <div className="section-header">
+              <div>
+                <div className="section-title">Recommended for you</div>
+                <div className="section-sub">Based on your taste and favorites</div>
+              </div>
+              <button className="see-all-btn" aria-label="See all recommended">
+                <ArrowRight />
+              </button>
+            </div>
+            <div className="horiz-scroll">
+              {RECOMMENDED.map((r) => (
+                <div className="rec-card" key={r.id}>
+                  <div className="rec-img-wrap">
+                    <img src={r.img} alt={r.name} className="rec-img" loading="lazy" />
+                    <button
+                      className="heart-btn"
+                      onClick={() => toggleLike(r.id)}
+                      aria-label={`Like ${r.name}`}
+                    >
+                      <HeartIcon filled={!!likes[r.id]} />
+                    </button>
+                    <span className="rec-tag">{r.tag}</span>
+                  </div>
+                  <div className="rec-info">
+                    <div className="rec-name">{r.name}</div>
+                    <div className="rec-price">{r.price}</div>
+                    <div className="rec-rating">
+                      <StarIcon />
+                      <span>{r.rating}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Explore cuisine */}
+          <section className="section">
+            <div className="section-header">
+              <div>
+                <div className="section-title">Explore new cuisine</div>
+                <div className="section-sub">Discover flavors from around the world</div>
+              </div>
+              <button className="see-all-btn" aria-label="See all cuisines">
+                <ArrowRight />
+              </button>
+            </div>
+            <div className="horiz-scroll">
+              {CUISINES.map((c) => (
+                <div className="cuisine-card" key={c.id}>
+                  <img src={c.img} alt={c.name} className="cuisine-img" loading="lazy" />
+                  <div className="cuisine-overlay">
+                    <span className="cuisine-icon">{c.icon}</span>
+                    <span className="cuisine-name">{c.name}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Browse by category */}
+          <section className="section">
+            <div className="section-title" style={{ marginBottom: 4 }}>Browse by category</div>
+            <div className="section-sub" style={{ marginBottom: 14 }}>Find the perfect spot for any craving</div>
+            <div className="categories-grid">
+              {CATEGORIES.map((cat) => (
+                <button
+                  key={cat.id}
+                  className={`cat-btn ${activeCategory === cat.id ? "cat-btn--active" : ""}`}
+                  onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
+                >
+                  <span className="cat-icon">{cat.icon}</span>
+                  <span className="cat-name">{cat.name}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {/* Top offers */}
+          <section className="section section--last">
+            <div className="section-header">
+              <div>
+                <div className="section-title">Top offers near you</div>
+                <div className="section-sub">Great food at great prices</div>
+              </div>
+              <button className="see-all-btn" aria-label="See all offers">
+                <ArrowRight />
+              </button>
+            </div>
+            <div className="horiz-scroll">
+              {OFFERS.map((o) => (
+                <div className="offer-card" key={o.id}>
+                  <div className="offer-img-wrap">
+                    <img src={o.img} alt={o.name} className="offer-img" loading="lazy" />
+                    <button
+                      className="heart-btn"
+                      onClick={() => toggleLike(`offer-${o.id}`)}
+                      aria-label={`Like ${o.name}`}
+                    >
+                      <HeartIcon filled={!!likes[`offer-${o.id}`]} />
+                    </button>
+                    <span className="discount-badge" style={{ background: o.discountColor }}>
+                      {o.discount}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </>
       )}
     </div>
   );
 }
 
-function CityAgent() {
-  const [query, setQuery] = useState("");
-  const [answer, setAnswer] = useState("");
+// ── EVENTS SCREEN ────────────────────────────────────────────────────────────
 
-  function askAgent() {
-    const trimmed = query.trim();
+function EventsScreen() {
+  function badgeCls(b) {
+    const l = b.toLowerCase();
+    if (l.includes("free")) return "ev-badge ev-badge--green";
+    if (l.includes("paid")) return "ev-badge ev-badge--amber";
+    if (l.includes("outdoor")) return "ev-badge ev-badge--blue";
+    return "ev-badge ev-badge--gray";
+  }
 
-    if (!trimmed) return;
+  return (
+    <div className="generic-screen">
+      <div className="generic-header">
+        <h1 className="generic-title">Events near you</h1>
+        <p className="generic-sub">What's happening in your city this week</p>
+      </div>
+      <div className="ev-list">
+        {EVENTS_DATA.map((e) => (
+          <div className="ev-item" key={e.id}>
+            <div className="ev-icon-box">{e.emo}</div>
+            <div className="ev-details">
+              <div className="ev-name">{e.name}</div>
+              <div className="ev-meta">{e.date} · {e.loc}</div>
+              <div className="ev-footer">
+                <span className="ev-host">by {e.host} · {e.going} going</span>
+                <span className={badgeCls(e.badge)}>{e.badge}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+        <button className="create-ev-btn">+ Create an event</button>
+      </div>
+    </div>
+  );
+}
 
-    setAnswer(
-      `For "${trimmed}", I would start with a low-friction plan: pick one strong nearby option, one backup, and one small add-on experience. In NYC, that means matching the place to time of day, neighborhood energy, and how social you want the outing to be. For a vegetarian food request, I’d suggest Saravana Bhavan in Murray Hill for reliable South Indian food, then a short walk nearby for coffee.`
+// ── CONNECT / PROFILE SCREEN ─────────────────────────────────────────────────
+
+function ConnectScreen() {
+  const [resonances, setResonances] = useState([]);
+  const [modal, setModal] = useState(null);
+  const [modalTxt, setModalTxt] = useState("");
+  const [chats, setChats] = useState({});
+  const [openChat, setOpenChat] = useState(null);
+  const [chatInput, setChatInput] = useState("");
+
+  function openResonate(person, qi) {
+    if (resonances.some((r) => r.pid === person.id && r.qi === qi)) return;
+    setModal({ person, qi });
+    setModalTxt("");
+  }
+
+  function sendRes() {
+    if (!modal || modalTxt.trim().length < 10) return;
+    setResonances((prev) => [...prev, { pid: modal.person.id, qi: modal.qi, accepted: false }]);
+    setModal(null);
+    setTimeout(() => {
+      setResonances((prev) =>
+        prev.map((r) =>
+          r.pid === modal.person.id && r.qi === modal.qi ? { ...r, accepted: true } : r
+        )
+      );
+    }, 1600);
+  }
+
+  function sendChat(pid) {
+    if (!chatInput.trim()) return;
+    const replies = [
+      "That's so interesting, I never thought about it that way!",
+      "Haha yes! We should definitely do that sometime.",
+      "Okay now I really want to check that place out.",
+      "Same! Let's plan something.",
+    ];
+    setChats((prev) => ({
+      ...prev,
+      [pid]: [...(prev[pid] || []), { text: chatInput, me: true }],
+    }));
+    setChatInput("");
+    setTimeout(() => {
+      setChats((prev) => ({
+        ...prev,
+        [pid]: [...(prev[pid] || []), { text: replies[Math.floor(Math.random() * replies.length)], me: false }],
+      }));
+    }, 900 + Math.random() * 400);
+  }
+
+  if (openChat) {
+    const p = openChat;
+    const msgs = chats[p.id] || [];
+    return (
+      <div className="chat-screen">
+        <div className="chat-topbar">
+          <button className="back-btn" onClick={() => setOpenChat(null)}>←</button>
+          <div className="chat-avatar" style={{ background: p.color, color: p.textColor }}>{p.ini}</div>
+          <div>
+            <div className="chat-name">{p.name}</div>
+            <div className="chat-status">● Connected</div>
+          </div>
+        </div>
+        <div className="chat-messages">
+          {msgs.length === 0 && (
+            <div className="chat-empty">
+              <div style={{ fontSize: 32, marginBottom: 8 }}>✦</div>
+              <p>You connected with {p.name}.</p>
+              <p style={{ marginTop: 4, opacity: 0.6 }}>Say hello.</p>
+            </div>
+          )}
+          {msgs.map((m, i) => (
+            <div key={i} className={`chat-bubble ${m.me ? "chat-bubble--me" : ""}`}>{m.text}</div>
+          ))}
+        </div>
+        <div className="chat-input-row">
+          <input
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && sendChat(p.id)}
+            placeholder="Say something..."
+            className="chat-input"
+          />
+          <button onClick={() => sendChat(p.id)} className="chat-send">Send</button>
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="section" style={{ paddingTop: 0 }}>
-      <div className="wide-card">
-        <SectionLabel>Ask your city agent</SectionLabel>
-
-        <textarea
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Example: Suggest a vegetarian restaurant near me..."
-          style={{
-            width: "100%",
-            minHeight: 92,
-            resize: "none",
-            border: "1px solid var(--border)",
-            borderRadius: 14,
-            padding: 13,
-            fontSize: 13,
-            lineHeight: 1.55,
-            outline: "none",
-            background: "var(--bg)",
-            color: "var(--text)",
-            marginTop: 6,
-          }}
-        />
-
-        <button className="primary-button" style={{ marginTop: 12 }} onClick={askAgent}>
-          Ask Agent
-        </button>
+    <div className="generic-screen">
+      <div className="generic-header">
+        <h1 className="generic-title">People exploring NYC</h1>
+        <p className="generic-sub">Tap a quote to resonate. No swiping.</p>
+      </div>
+      <div className="people-list">
+        {PEOPLE_DATA.map((p) => {
+          const rc = resonances.filter((r) => r.pid === p.id).length;
+          const accepted = resonances.some((r) => r.pid === p.id && r.accepted);
+          return (
+            <div className="person-card" key={p.id}>
+              <div className="person-header">
+                <div className="person-avatar" style={{ background: p.color, color: p.textColor }}>{p.ini}</div>
+                <div>
+                  <div className="person-name">{p.name}, {p.age}</div>
+                  <div className="person-hood">📍 {p.hood}</div>
+                </div>
+              </div>
+              <div className="interest-row">
+                {p.interests.map((i) => <span key={i} className="interest-chip">{i}</span>)}
+              </div>
+              <div className="quote-card" onClick={() => openResonate(p, 0)}>
+                <div className="quote-q">{p.prompts[0].q}</div>
+                <div className="quote-a">"{p.prompts[0].a}"</div>
+                {resonances.some((r) => r.pid === p.id && r.qi === 0) && (
+                  <div className="res-sent">✓ Resonance sent</div>
+                )}
+              </div>
+              <div className="city-want">
+                <div className="city-want-label">Wants to do in NYC</div>
+                <div className="city-want-text">"{p.cityWant}"</div>
+              </div>
+              {rc > 0 && (
+                <div className="resonance-count">✓ You resonated with {rc} thing{rc > 1 ? "s" : ""}</div>
+              )}
+              {accepted && (
+                <button className="open-chat-btn" onClick={() => setOpenChat(p)}>
+                  Chat with {p.name} →
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
 
-      {answer && (
-        <div className="wide-card fade-in">
-          <SectionLabel color="var(--accent)">Agent response</SectionLabel>
-          <p
-            style={{
-              margin: 0,
-              color: "var(--text2)",
-              fontSize: 13,
-              lineHeight: 1.65,
-            }}
-          >
-            {answer}
-          </p>
+      {modal && (
+        <div className="modal-overlay" onClick={() => setModal(null)}>
+          <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-handle" />
+            <div className="modal-label">Resonating with {modal.person.name}</div>
+            <div className="modal-quote">"{modal.person.prompts[modal.qi].a}"</div>
+            <textarea
+              className="modal-textarea"
+              rows={3}
+              placeholder="What resonated with you? Be specific..."
+              maxLength={240}
+              value={modalTxt}
+              onChange={(e) => setModalTxt(e.target.value)}
+            />
+            <div className="modal-footer">
+              <span className="modal-count">{modalTxt.length} / 240</span>
+              <button
+                className="modal-send-btn"
+                disabled={modalTxt.trim().length < 10}
+                onClick={sendRes}
+              >
+                Send Resonance
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-function MetricCard({ label, value }) {
+// ── PROFILE SCREEN ────────────────────────────────────────────────────────────
+
+function ProfileScreen() {
   return (
-    <div className="wide-card" style={{ marginBottom: 0, textAlign: "center" }}>
-      <div style={{ fontSize: 20, fontWeight: 800 }}>{value}</div>
-      <div style={{ color: "var(--text3)", fontSize: 11, marginTop: 3 }}>
-        {label}
+    <div className="generic-screen">
+      <div className="profile-page-hero">
+        <div className="profile-page-avatar">AK</div>
+        <div className="profile-page-name">Alex Kumar</div>
+        <div className="profile-page-sub">NYC · Member since 2025</div>
+      </div>
+      <div className="profile-stats">
+        {[["12", "Places visited"], ["5", "Events attended"], ["3", "Connections"]].map(([val, lbl]) => (
+          <div key={lbl} className="profile-stat">
+            <div className="profile-stat-val">{val}</div>
+            <div className="profile-stat-lbl">{lbl}</div>
+          </div>
+        ))}
+      </div>
+      <div className="profile-section">
+        {["Edit Profile", "My Favorites", "My Events", "Notifications", "Privacy Settings", "Help & Support", "Sign Out"].map((item) => (
+          <div key={item} className="profile-row">
+            <span>{item}</span>
+            <ArrowRight />
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-function AgentInsight({ color, title, data, action }) {
-  const styles = {
-    green: {
-      bg: "var(--accent-bg)",
-      text: "var(--accent)",
-      border: "var(--accent)",
-    },
-    amber: {
-      bg: "var(--amber-bg)",
-      text: "var(--amber)",
-      border: "var(--amber)",
-    },
-    purple: {
-      bg: "var(--purple-bg)",
-      text: "var(--purple)",
-      border: "var(--purple)",
-    },
-  };
+// ── APP ROOT ──────────────────────────────────────────────────────────────────
 
-  const s = styles[color];
+export default function App() {
+  const [activeTab, setActiveTab] = useState("discovery");
 
   return (
-    <div
-      className="wide-card"
-      style={{
-        background: s.bg,
-        borderLeft: `4px solid ${s.border}`,
-      }}
-    >
-      <SectionLabel color={s.text}>{title}</SectionLabel>
+    <div className="site-root">
+      {/* ── TOP NAVBAR ── */}
+      <header className="topnav">
+        <div className="topnav-inner">
+          <div className="topnav-logo">
+            near<span>met</span>
+          </div>
 
-      <p
-        style={{
-          margin: "0 0 10px",
-          color: "var(--text2)",
-          fontSize: 13,
-          lineHeight: 1.55,
-        }}
-      >
-        {data}
-      </p>
+          <nav className="topnav-links">
+            <button
+              className={`topnav-link ${activeTab === "discovery" ? "topnav-link--active" : ""}`}
+              onClick={() => setActiveTab("discovery")}
+            >
+              <DiscoverIcon active={activeTab === "discovery"} />
+              Discovery
+            </button>
+            <button
+              className={`topnav-link ${activeTab === "events" ? "topnav-link--active" : ""}`}
+              onClick={() => setActiveTab("events")}
+            >
+              <span className="topnav-link-icon">🎭</span>
+              Events
+            </button>
+            <button
+              className={`topnav-link ${activeTab === "connection" ? "topnav-link--active" : ""}`}
+              onClick={() => setActiveTab("connection")}
+            >
+              <ConnectIcon active={activeTab === "connection"} />
+              Connection
+            </button>
+            <button
+              className={`topnav-link ${activeTab === "profile" ? "topnav-link--active" : ""}`}
+              onClick={() => setActiveTab("profile")}
+            >
+              <ProfileIcon active={activeTab === "profile"} />
+              Profile
+            </button>
+          </nav>
 
-      <span className="pill" style={{ background: "white", color: s.text }}>
-        {action}
-      </span>
-    </div>
-  );
-}
+          <div className="topnav-right">
+            <span className="city-chip">📍 NYC</span>
+            <div className="user-avatar">AK</div>
+          </div>
+        </div>
+      </header>
 
-function SectionLabel({ children, color = "var(--text3)" }) {
-  return (
-    <div
-      style={{
-        color,
-        fontSize: 10,
-        fontWeight: 800,
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: 7,
-      }}
-    >
-      {children}
+      {/* ── PAGE CONTENT ── */}
+      <main className="site-main">
+        {activeTab === "discovery" && <FoodScreen />}
+        {activeTab === "events" && <EventsScreen />}
+        {activeTab === "connection" && <ConnectScreen />}
+        {activeTab === "profile" && <ProfileScreen />}
+      </main>
     </div>
   );
 }
