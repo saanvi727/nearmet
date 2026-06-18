@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import "./App.css";
 import { useAuth } from "./context/AuthContext.jsx";
 import AuthPage from "./pages/AuthPage.jsx";
-import { signOut, updateProfile } from "./lib/supabase.js";
+import { signOut, updateProfile, uploadProfilePhoto, uploadFoodExperiencePhoto, getFoodExperiences, shareFoodExperience, deleteFoodExperience } from "./lib/supabase.js";
 
 // ─── LOGO ────────────────────────────────────────────────────────────────────
 function NearMetLogo({ size = 28, dark = false }) {
@@ -169,7 +169,11 @@ const CITIES = {
       { id:83, name:"Ramen Bar Wagamama", cuisine:"Japanese / Asian Restaurant", price:"₹600-1000 for two", rating:4.8, tag:"Global chain favourite", hood:"Churchgate", address:"Cambata, Maharshi Karve Rd, Churchgate, Mumbai, Maharashtra 400020", desc:"A popular Japanese restaurant in Churchgate known for its authentic flavours and comforting dining experience. Guests often appreciate the quality of the food, attentive service and consistent experience that keeps regulars coming back.", phone:"+91 97027 03111", img:"https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&q=80", photos:["https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80","https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80"], menu:[{item:"Khao Soi Chicken Ramen",price:"₹—"},{item:"Gyoza",price:"₹—"},{item:"Gochujang Chicken Rice",price:"₹—"},{item:"Kokopanko Chicken",price:"₹—"}] },
       { id:84, name:"Roofberries Rooftop", cuisine:"Rooftop Bar", price:"₹600-1000 for two", rating:4.1, tag:"Celebration spot", hood:"Bandra", address:"Rooftop, Crystal Shoppers Paradise, Junction of 24th and 33rd Rd, off Linking Rd, Bandra West, Mumbai, Maharashtra 400050", desc:"A rooftop spot in Bandra known for its lively atmosphere and city views. Guests often appreciate the vibrant setting, attentive service and enjoyable dining experience making it a popular choice for evenings out with friends and family.", phone:"+91 73043 55403", img:"https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80", photos:["https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80","https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80"], menu:[{item:"Mini Burgers",price:"₹—"},{item:"Dim Sum",price:"₹—"},{item:"Salmon Crostini",price:"₹—"},{item:"Signature Cocktails",price:"₹—"}] },
       { id:85, name:"Taftoon Bar & Kitchen", cuisine:"North Indian / Afghani", price:"₹1800-3000 for two", rating:4.3, tag:"BKC fine dine", hood:"BKC", address:"Naman Centre, G Block Rd, opp. SIDBI, BKC, Bandra East, Mumbai, Maharashtra 400051", desc:"An acclaimed restaurant in BKC known for showcasing regional Indian flavours from across the country. Guests often appreciate the quality of the food, attentive service and thoughtfully crafted dining experience that celebrates India's diverse culinary traditions.", phone:"+91 22 4973 5748", img:"https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Dahi Ke Kebab",price:"₹—"},{item:"Mirchi Ke Pakode",price:"₹—"},{item:"Dal Bati Churma",price:"₹—"},{item:"Paan Chocolate",price:"₹—"}] },
-      { id:86, name:"Yoko Sizzlers", cuisine:"Sizzler Restaurant", price:"₹800-1300 for two", rating:4.3, tag:"Old-school sizzlers", hood:"Santacruz", address:"10, 11, Swami Vivekanand Rd, Saraswat Nagar, Santacruz West, Mumbai, Maharashtra 400054", desc:"A long-standing restaurant in Santacruz known for its signature sizzlers and generous portions. Guests often appreciate the consistent quality, lively dining experience, and familiar flavors that have made it a favorite across generations.", phone:"+91 91678 68641", img:"https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=600&q=80", photos:["https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80","https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&q=80"], menu:[{item:"Yoko Special Chicken Sizzler",price:"₹—"},{item:"Prawns Fried Rice",price:"₹—"},{item:"Paneer Sizzler",price:"₹—"},{item:"Exotic Veg Sizzler",price:"₹—"}] }
+      { id:86, name:"Yoko Sizzlers", cuisine:"Sizzler Restaurant", price:"₹800-1300 for two", rating:4.3, tag:"Old-school sizzlers", hood:"Santacruz", address:"10, 11, Swami Vivekanand Rd, Saraswat Nagar, Santacruz West, Mumbai, Maharashtra 400054", desc:"A long-standing restaurant in Santacruz known for its signature sizzlers and generous portions. Guests often appreciate the consistent quality, lively dining experience, and familiar flavors that have made it a favorite across generations.", phone:"+91 91678 68641", img:"https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=600&q=80", photos:["https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80","https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&q=80"], menu:[{item:"Yoko Special Chicken Sizzler",price:"₹—"},{item:"Prawns Fried Rice",price:"₹—"},{item:"Paneer Sizzler",price:"₹—"},{item:"Exotic Veg Sizzler",price:"₹—"}] },
+      { id:87, name:"Mia Cuccinna", cuisine:"Italian Restaurant", price:"₹1200-1800 for two", rating:4.1, tag:"Wood-fired Italian", hood:"Bandra West", address:"C'est la Vie Club, 164, Hill Rd, next to Holy Family Hospital, Bandra West, Mumbai, Maharashtra 400050", desc:"A cozy Bandra spot with a European-inspired ambience, known for wood-fired pizzas, fresh pastas and a well-loved tiramisu. A popular pick for casual lunches and celebrations alike.", phone:"+91 96199 54545", img:"https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=600&q=80", photos:["https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80","https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&q=80","https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400&q=80","https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80"], menu:[{item:"Pesto Tagliatelle",price:"₹—"},{item:"Penne Arrabiata",price:"₹—"},{item:"Wood-fired Pizzetta",price:"₹—"},{item:"Tiramisu",price:"₹—"}] },
+      { id:88, name:"Salt Water Cafe", cuisine:"Continental", price:"₹1800-3000 for two", rating:4.3, tag:"Bandra institution", hood:"Bandra West", address:"Annexe, 87, Rose Minar, Chapel Rd, Reclamation, Bandra West, Mumbai, Maharashtra 400050", desc:"A long-running Bandra café known for generous portions and a consistently strong menu spanning pastas, burgers and hearty breakfasts. A reliable favorite for both casual brunches and bigger appetites.", phone:"+91 86575 31985", img:"https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=600&q=80", photos:["https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&q=80","https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400&q=80","https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80"], menu:[{item:"Fish Burger",price:"₹—"},{item:"Fish & Chips",price:"₹—"},{item:"Flourless Chocolate Fudge",price:"₹—"},{item:"Tiramisu",price:"₹—"}] },
+      { id:89, name:"Maiz Mexican Kitchen", cuisine:"Mexican Restaurant", price:"₹1200-1800 for two", rating:4.5, tag:"Fresh Mexican bowls", hood:"Lower Parel", address:"Gala 21A, Lakshmi Industrial Estate, Shankar Rao Naram Path, Lower Parel, Mumbai, Maharashtra 400013", desc:"A Lower Parel kitchen serving customizable burrito bowls, tacos and nachos made with fresh, quality ingredients. Known for generous portions and well-balanced house sauces.", phone:"+91 98922 89611", img:"https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=600&q=80", photos:["https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400&q=80","https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80"], menu:[{item:"Burrito Bowl",price:"₹—"},{item:"Tofu Quesadilla",price:"₹—"},{item:"Loaded Nachos",price:"₹—"},{item:"Chipotle Tacos",price:"₹—"}] },
+      { id:90, name:"Mezcalita Bandra", cuisine:"Mexican Restaurant", price:"₹1200-1800 for two", rating:4.7, tag:"Mexican cantina", hood:"Bandra West", address:"320, Madhu Milan Building, Dr Ambedkar Road, Pali Hill Rd, Bandra West, Mumbai, Maharashtra 400051", desc:"A bright, lively Mexican cantina in Bandra blending creative and traditional flavors, with a vibrant menu of tacos, guacamole and margaritas. A go-to spot for a fun night out.", phone:"+91 91520 17980", img:"https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Guacamole",price:"₹—"},{item:"Chicken Taco",price:"₹—"},{item:"Margarita",price:"₹—"},{item:"Elote (Mexican Street Corn)",price:"₹—"}] }
     ],
     mapPlaces: [
       {id:1,name:"Leopold Cafe",rating:4.2,top:"15%",left:"55%"},{id:2,name:"Brooke Bond Taj Mahal Tea House",rating:4.5,top:"28%",left:"18%"},{id:3,name:"Britannia & Co. Restaurant",rating:4.1,top:"28%",left:"65%"},{id:4,name:"Gajalee",rating:4.3,top:"42%",left:"32%"},{id:5,name:"Prithvi Cafe",rating:4.4,top:"48%",left:"62%"},{id:6,name:"Mahesh Lunch Home",rating:4.2,top:"56%",left:"22%"},{id:7,name:"Bombay Coffee House",rating:4.2,top:"60%",left:"66%"},{id:8,name:"Mamledar Misal",rating:4.2,top:"68%",left:"40%"},
@@ -459,25 +463,93 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
 }
 
 // ─── FOOD DETAIL ──────────────────────────────────────────────────────────────
-function FoodDetail({ restaurant, onBack }) {
-  const [saved, setSaved] = useState(false);
-  const [photoIdx, setPhotoIdx] = useState(0);
+function FoodDetail({ restaurant, onBack, userId, userName, isSaved, onToggleSave }) {
+  const [shareFeedback, setShareFeedback] = useState("");
+  const [experiences, setExperiences] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
+  const [note, setNote] = useState("");
+  const [favoriteItem, setFavoriteItem] = useState("");
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setLoadError("");
+    getFoodExperiences(restaurant.name)
+      .then(data => { if (active) setExperiences(data || []); })
+      .catch(e => { console.error("Failed to load experiences:", e); if (active) setLoadError("Couldn't load community experiences right now."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [restaurant.name]);
+
+  const handlePhotoPick = (file) => {
+    setPhotoFile(file);
+    setPhotoPreview(file ? URL.createObjectURL(file) : null);
+  };
+
+  const handleShare = async () => {
+    const shareText = `${restaurant.name} — ${restaurant.cuisine} in ${restaurant.hood}`;
+    const shareUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurant.address || restaurant.name + " " + restaurant.hood)}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: restaurant.name, text: shareText, url: shareUrl });
+      } else {
+        await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+        setShareFeedback("Link copied!");
+        setTimeout(()=>setShareFeedback(""), 2000);
+      }
+    } catch (e) {
+      if (e.name !== "AbortError") console.error("Share failed:", e); // AbortError = user cancelled the share sheet, not an error
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!userId) { setSubmitError("Sign in to share your experience."); return; }
+    if (!photoFile && !note.trim() && !favoriteItem.trim()) { setSubmitError("Add a photo, a note, or a favorite item before sharing."); return; }
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      let photoUrl = null;
+      if (photoFile) photoUrl = await uploadFoodExperiencePhoto(userId, photoFile);
+      const saved = await shareFoodExperience(userId, userName || "Someone", restaurant.name, { photoUrl, note: note.trim(), favoriteItem: favoriteItem.trim() });
+      setExperiences(prev => [saved, ...prev]);
+      setNote(""); setFavoriteItem(""); setPhotoFile(null); setPhotoPreview(null); setFormOpen(false);
+    } catch (e) {
+      console.error("Failed to share experience:", e);
+      setSubmitError("Couldn't share that — please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    const prev = experiences;
+    setExperiences(experiences.filter(e => e.id !== id));
+    try { await deleteFoodExperience(id); } catch (e) { console.error("Delete failed:", e); setExperiences(prev); }
+  };
+
   return (
     <div className="detail-root">
       <div className="detail-header">
         <button className="detail-back" onClick={onBack}>←</button>
         <div className="detail-header-title"><div>Spot details</div><div className="detail-header-sub">Click on a spot to view details</div></div>
-        <div className="detail-header-actions"><button className="detail-action-btn" onClick={()=>setSaved(s=>!s)}>🔖</button><button className="detail-action-btn">↗</button></div>
+        <div className="detail-header-actions"><button className="detail-action-btn" onClick={()=>onToggleSave(restaurant.name)}>{isSaved ? "🔖" : "📑"}</button><button className="detail-action-btn" onClick={handleShare}>↗</button></div>
       </div>
-      <div className="detail-hero-img-wrap"><img src={restaurant.img} alt={restaurant.name} className="detail-hero-img"/><div className="detail-photo-counter">{photoIdx+1}/5</div></div>
+      <div className="detail-hero-img-wrap"><img src={restaurant.img} alt={restaurant.name} className="detail-hero-img"/></div>
       <div className="detail-body">
         <div className="detail-name-row"><div className="detail-name">{restaurant.name}</div><div className="detail-rating-pill">★ {restaurant.rating}</div></div>
         <div className="detail-meta">{restaurant.cuisine} • {restaurant.hood}</div>
+        {shareFeedback && <div className="share-feedback">✓ {shareFeedback}</div>}
         <div className="detail-actions-row">
           <a className="detail-act-item" href={`tel:${restaurant.phone}`}><span className="detail-act-icon">📞</span><span className="detail-act-label">Call</span></a>
           <a className="detail-act-item" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurant.address || restaurant.name + " " + restaurant.hood)}`} target="_blank" rel="noopener noreferrer"><span className="detail-act-icon">📍</span><span className="detail-act-label">Directions</span></a>
-          <button className="detail-act-item"><span className="detail-act-icon">↗</span><span className="detail-act-label">Share</span></button>
-          <button className="detail-act-item" onClick={()=>setSaved(s=>!s)}><span className="detail-act-icon">🔖</span><span className="detail-act-label">Save</span></button>
+          <button className="detail-act-item" onClick={handleShare}><span className="detail-act-icon">↗</span><span className="detail-act-label">Share</span></button>
+          <button className="detail-act-item" onClick={()=>onToggleSave(restaurant.name)}><span className="detail-act-icon">{isSaved ? "🔖" : "📑"}</span><span className="detail-act-label">{isSaved ? "Saved" : "Save"}</span></button>
         </div>
         <div className="detail-divider"/>
         <div className="detail-section-title">About</div>
@@ -485,12 +557,44 @@ function FoodDetail({ restaurant, onBack }) {
         {restaurant.address && <p className="detail-about-meta">📍 {restaurant.address}</p>}
         {restaurant.phone && <p className="detail-about-meta">📞 {restaurant.phone}</p>}
         <div className="detail-divider"/>
-        <div className="detail-photos-header"><span className="detail-section-title">Photos</span><button className="detail-viewall">View all</button></div>
-        <div className="detail-photos-grid">{restaurant.photos.map((p,i)=><img key={i} src={p} alt="" className="detail-photo-thumb" onClick={()=>setPhotoIdx(i)}/>)}</div>
-        <div className="detail-divider"/>
-        <div className="detail-section-title">Menu Highlights</div>
-        <div className="detail-menu">{restaurant.menu.map((m,i)=><div key={i} className="detail-menu-row"><span className="detail-menu-dot">•</span><span className="detail-menu-item">{m.item}</span><span className="detail-menu-price">{m.price}</span></div>)}</div>
-        <button className="detail-fullmenu">View full menu</button>
+
+        <div className="detail-photos-header">
+          <span className="detail-section-title">Community experiences</span>
+          <button className="detail-viewall" onClick={()=>setFormOpen(o=>!o)}>{formOpen ? "Cancel" : "Share your experience"}</button>
+        </div>
+        <p className="detail-experiences-sub">Real photos and moments from people who've been here — not stock photos.</p>
+
+        {formOpen && (
+          <div className="experience-form">
+            {submitError && <div className="profile-save-error" style={{marginTop:0}}>⚠️ {submitError}</div>}
+            <label className="experience-photo-picker">
+              {photoPreview ? <img src={photoPreview} alt="" className="experience-photo-preview"/> : <span>📷 Add a photo (optional)</span>}
+              <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>handlePhotoPick(e.target.files?.[0] || null)}/>
+            </label>
+            <input className="ob-input" style={{marginTop:10}} placeholder="Your favorite item here (optional)" value={favoriteItem} onChange={e=>setFavoriteItem(e.target.value)}/>
+            <textarea className="ob-input experience-textarea" style={{marginTop:10}} placeholder="What was it like? (optional)" value={note} onChange={e=>setNote(e.target.value)} rows={3}/>
+            <button className="filter-apply" style={{marginTop:12}} disabled={submitting} onClick={handleSubmit}>{submitting ? "Sharing…" : "Share with the community"}</button>
+          </div>
+        )}
+
+        {loading && <div className="food-empty-state" style={{padding:"20px 0"}}>Loading experiences…</div>}
+        {!loading && loadError && <div className="food-empty-state" style={{padding:"20px 0"}}>{loadError}</div>}
+        {!loading && !loadError && experiences.length === 0 && (
+          <div className="food-empty-state" style={{padding:"20px 0"}}>No one's shared an experience here yet — be the first.</div>
+        )}
+        {!loading && experiences.map(exp => (
+          <div key={exp.id} className="experience-card">
+            {exp.photo_url && <img src={exp.photo_url} alt="" className="experience-card-img"/>}
+            <div className="experience-card-body">
+              <div className="experience-card-row">
+                <span className="experience-card-user">{exp.user_name}</span>
+                {userId === exp.user_id && <button className="experience-delete" onClick={()=>handleDelete(exp.id)}>Remove</button>}
+              </div>
+              {exp.favorite_item && <div className="experience-card-fav">⭐ Favorite: {exp.favorite_item}</div>}
+              {exp.note && <p className="experience-card-note">{exp.note}</p>}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -562,22 +666,64 @@ function scoreFoodPlace(place, userCuisines, userBudget) {
   return score;
 }
 
+// Maps "Browse by category" pills to substrings matched against a place's cuisine field
+const CATEGORY_TAG_MAP = {
+  Cafes: ["café","cafe","coffee","tea house"],
+  Nightlife: ["rooftop","bar"],
+  Desserts: ["bakery","ice cream","dessert","pâtisserie","mithai"],
+  Buffet: ["thali","buffet"],
+  // "Restaurants" has no map — it's the catch-all for anything not matched above
+};
+// Maps "Explore cuisines" circles to substrings matched against a place's cuisine field
+const CIRCLE_TAG_MAP = {
+  Indian: ["indian","punjabi","maharashtrian","parsi","gujarati","rajasthani","north indian","south indian","tandoor","thali","seafood","mangalorean","goan","manipuri","street food","mithai"],
+  Italian: ["italian","pizza","continental"],
+  Chinese: ["chinese"],
+  Mexican: ["mexican"],
+  Japanese: ["japanese","sushi","sizzler"],
+};
+function matchesCategory(place, category) {
+  const subs = CATEGORY_TAG_MAP[category];
+  if (!subs) return !Object.values(CATEGORY_TAG_MAP).flat().some(s => place.cuisine.toLowerCase().includes(s)); // Restaurants = catch-all
+  return subs.some(s => place.cuisine.toLowerCase().includes(s));
+}
+function matchesCircle(place, circle) {
+  const subs = CIRCLE_TAG_MAP[circle] || [];
+  return subs.some(s => place.cuisine.toLowerCase().includes(s));
+}
+
 function FoodScreen({ city, onOpenMap, onOpenDetail, userCuisines, userBudget }) {
   const [likes, setLikes] = useState({});
   const [activeCat, setActiveCat] = useState(null);
+  const [activeCircle, setActiveCircle] = useState(null);
   const [activeArea, setActiveArea] = useState("All");
+  const [justRefreshed, setJustRefreshed] = useState(false);
   const cd = CITIES[city];
   const CATS = [{name:"Restaurants",icon:"🍴"},{name:"Cafes",icon:"☕"},{name:"Nightlife",icon:"🍸"},{name:"Buffet",icon:"🥘"},{name:"Desserts",icon:"🍰"}];
   const CUISINE_CIRCLES = [{name:"Indian",img:"https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=200&q=80"},{name:"Italian",img:"https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=200&q=80"},{name:"Chinese",img:"https://images.unsplash.com/photo-1569050467447-ce54b3bbc37d?w=200&q=80"},{name:"Mexican",img:"https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=200&q=80"},{name:"Japanese",img:"https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=200&q=80"}];
   const cityAreas = ["All", ...Array.from(new Set(cd.food.map(r=>r.hood)))];
-  const filteredFood = activeArea==="All" ? cd.food : cd.food.filter(r=>r.hood===activeArea);
+  let filteredFood = activeArea==="All" ? cd.food : cd.food.filter(r=>r.hood===activeArea);
+  if (activeCat) filteredFood = filteredFood.filter(r=>matchesCategory(r, activeCat));
+  if (activeCircle) filteredFood = filteredFood.filter(r=>matchesCircle(r, activeCircle));
   const hasPrefs = userCuisines && userCuisines.length > 0;
+  // Recomputed fresh on every render — always reflects the latest cuisine ranking/budget from the profile.
   const recommendedFood = hasPrefs
     ? [...filteredFood].sort((a,b)=>scoreFoodPlace(b,userCuisines,userBudget) - scoreFoodPlace(a,userCuisines,userBudget))
     : filteredFood;
+  const activeFilterLabel = [activeCat, activeCircle].filter(Boolean).join(" + ");
+  const handleRefresh = () => { setJustRefreshed(true); setTimeout(()=>setJustRefreshed(false), 1500); };
   return (
     <div className="screen-body">
-      <div className="section-hdr"><div><div className="sec-title">Recommendations for you</div><div className="sec-sub">{hasPrefs ? "Matched to your cuisine picks & budget" : "Based on your taste and favorites"}</div></div><button className="arrow-circ-btn" onClick={onOpenMap}>→</button></div>
+      <div className="section-hdr">
+        <div>
+          <div className="sec-title">Recommendations for you</div>
+          <div className="sec-sub">{justRefreshed ? "✓ Updated to match your latest preferences" : hasPrefs ? "Matched to your cuisine picks & budget" : "Based on your taste and favorites"}</div>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <button className="refresh-circ-btn" onClick={handleRefresh} title="Refresh recommendations">↻</button>
+          <button className="arrow-circ-btn" onClick={onOpenMap}>→</button>
+        </div>
+      </div>
       <div className="area-filter-row">
         {cityAreas.map(a=><button key={a} className={`area-filter-chip ${activeArea===a?"active":""}`} onClick={()=>setActiveArea(a)}>{a}</button>)}
       </div>
@@ -588,13 +734,13 @@ function FoodScreen({ city, onOpenMap, onOpenDetail, userCuisines, userBudget })
             <div className="food-card-body"><div className="food-name">{r.name}</div><div className="food-card-hood">📍 {r.hood}</div><div className="food-price">{r.price}</div><div className="food-rating">⭐ {r.rating}</div></div>
           </div>
         ))}
-        {recommendedFood.length===0 && <div className="food-empty-state">No places found in {activeArea} yet.</div>}
+        {recommendedFood.length===0 && <div className="food-empty-state">No {activeFilterLabel ? `${activeFilterLabel} ` : ""}places found{activeArea!=="All" ? ` in ${activeArea}` : ""} yet.</div>}
       </div>
       <div className="section-hdr" style={{marginTop:8}}><div className="sec-title">Browse by category</div></div>
       <div className="sec-sub" style={{marginBottom:14}}>Find the perfect spot for any craving</div>
       <div className="cat-row">{CATS.map(c=><button key={c.name} className={`cat-circle-btn ${activeCat===c.name?"active":""}`} onClick={()=>setActiveCat(activeCat===c.name?null:c.name)}><div className="cat-circle-icon">{c.icon}</div><div className="cat-circle-label">{c.name}</div></button>)}</div>
       <div className="section-hdr" style={{marginTop:24}}><div><div className="sec-title">Explore cuisines</div><div className="sec-sub">Discover flavors from around the world</div></div></div>
-      <div className="cuisine-circles-row">{CUISINE_CIRCLES.map(c=><div key={c.name} className="cuisine-circle"><img src={c.img} alt={c.name} className="cuisine-circle-img"/><div className="cuisine-circle-name">{c.name}</div></div>)}</div>
+      <div className="cuisine-circles-row">{CUISINE_CIRCLES.map(c=><button key={c.name} className={`cuisine-circle ${activeCircle===c.name?"active":""}`} onClick={()=>setActiveCircle(activeCircle===c.name?null:c.name)}><img src={c.img} alt={c.name} className="cuisine-circle-img"/><div className="cuisine-circle-name">{c.name}</div></button>)}</div>
       <div className="section-hdr" style={{marginTop:24}}><div><div className="sec-title">Top offers near you</div><div className="sec-sub">Great food at great prices</div></div><button className="arrow-circ-btn">→</button></div>
       <div className="offers-row">{cd.food.slice(0,3).map((r,i)=><div key={r.id} className="offer-card" onClick={()=>onOpenDetail(r)}><img src={r.img} alt={r.name} className="offer-img"/><button className="heart-btn offer-heart" onClick={e=>{e.stopPropagation();setLikes(p=>({...p,[`o${r.id}`]:!p[`o${r.id}`]}))}}>{likes[`o${r.id}`]?"❤️":"🤍"}</button><span className="discount-pill">{["20% OFF","15% OFF","25% OFF"][i]}</span></div>)}</div>
     </div>
@@ -831,12 +977,12 @@ function ThirdPlacesScreen({ city }) {
 }
 
 // ─── DISCOVERY SCREEN (unchanged structure) ───────────────────────────────────
-function DiscoveryScreen({ city, userCuisines, userBudget }) {
+function DiscoveryScreen({ city, userCuisines, userBudget, userId, userName, savedPlaces, onToggleSave }) {
   const [subTab, setSubTab] = useState("food");
   const [mapOpen, setMapOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(null);
   if (mapOpen) return <MapView city={city} onBack={()=>setMapOpen(false)} onSelectPlace={r=>{setMapOpen(false);setDetailOpen(r);}}/>;
-  if (detailOpen) return <FoodDetail restaurant={detailOpen} onBack={()=>setDetailOpen(null)}/>;
+  if (detailOpen) return <FoodDetail restaurant={detailOpen} onBack={()=>setDetailOpen(null)} userId={userId} userName={userName} isSaved={(savedPlaces||[]).includes(detailOpen.name)} onToggleSave={onToggleSave}/>;
   return (
     <div className="discovery-root">
       <div className="search-wrap">
@@ -1042,31 +1188,78 @@ function EditableField({ label, value, onSave, type="text", icon }) {
   );
 }
 
-function ProfileScreen({ user, onSignOut, onUpdateProfile }) {
+function ProfileScreen({ user, userId, onSignOut, onUpdateProfile }) {
   const cd = CITIES[user.city];
-  const p = cd.people[0]; // sample person for demo data (prompts/things/recs sections)
+  const p = cd.people[0]; // sample person — still used for Food/In-City recs sections below (not yet wired to real user data)
   const [cuisines, setCuisines] = useState(user.cuisines || []);
   const [budget, setBudget] = useState(user.budget || "flexible");
+  const [things, setThings] = useState(user.things || []);
   const [cityPickerOpen, setCityPickerOpen] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [photos, setPhotos] = useState(user.photo_urls || []);
+  const [uploadingSlot, setUploadingSlot] = useState(null);
   useEffect(()=>{ setCuisines(user.cuisines || []); setBudget(user.budget || "flexible"); }, [user.cuisines, user.budget]);
+  useEffect(()=>{ setPhotos(user.photo_urls || []); }, [user.photo_urls]);
+  useEffect(()=>{ setThings(user.things || []); }, [user.things]);
 
-  const save = (updates) => { if (onUpdateProfile) onUpdateProfile(updates); };
-  const moveCuisine = (id, dir) => {
-    setCuisines(prev => {
-      const idx = prev.indexOf(id); const newIdx = idx + dir;
-      if (newIdx < 0 || newIdx >= prev.length) return prev;
-      const next = [...prev]; [next[idx], next[newIdx]] = [next[newIdx], next[idx]];
-      save({ cuisines: next });
-      return next;
-    });
+  const save = async (updates, revert) => {
+    setSaveError("");
+    try {
+      if (onUpdateProfile) await onUpdateProfile(updates);
+    } catch (e) {
+      console.error("Profile save failed:", e);
+      setSaveError("Couldn't save that change — please try again.");
+      if (revert) revert();
+    }
   };
-  const removeCuisine = id => { const next = cuisines.filter(c=>c!==id); setCuisines(next); save({ cuisines: next }); };
-  const addCuisine = id => { const next = [...cuisines, id]; setCuisines(next); save({ cuisines: next }); };
+  const addThing = (t) => { const prev = things; const next = [...things, t]; setThings(next); save({ city_wants: next }, ()=>setThings(prev)); };
+  const removeThing = (t) => { const prev = things; const next = things.filter(x=>x!==t); setThings(next); save({ city_wants: next }, ()=>setThings(prev)); };
+  const handlePhotoSelect = async (slot, file) => {
+    if (!file) return;
+    setSaveError("");
+    setUploadingSlot(slot);
+    try {
+      let url;
+      if (userId) {
+        url = await uploadProfilePhoto(userId, file, slot);
+      } else {
+        url = URL.createObjectURL(file); // local demo mode: preview-only, not persisted
+      }
+      const next = [...photos]; next[slot] = url; setPhotos(next);
+      await save({ photo_urls: next });
+    } catch (e) {
+      console.error("Photo upload failed:", e);
+      setSaveError("Couldn't upload that photo — please try again.");
+    } finally {
+      setUploadingSlot(null);
+    }
+  };
+  const removePhoto = async (slot) => {
+    const prev = photos; const next = [...photos]; next[slot] = null;
+    setPhotos(next); await save({ photo_urls: next.filter(Boolean) }, ()=>setPhotos(prev));
+  };
+  const moveCuisine = (id, dir) => {
+    const prev = cuisines;
+    const idx = prev.indexOf(id); const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= prev.length) return;
+    const next = [...prev]; [next[idx], next[newIdx]] = [next[newIdx], next[idx]];
+    setCuisines(next);
+    save({ cuisines: next }, ()=>setCuisines(prev));
+  };
+  const removeCuisine = id => {
+    const prev = cuisines; const next = cuisines.filter(c=>c!==id);
+    setCuisines(next); save({ cuisines: next }, ()=>setCuisines(prev));
+  };
+  const addCuisine = id => {
+    const prev = cuisines; const next = [...cuisines, id];
+    setCuisines(next); save({ cuisines: next }, ()=>setCuisines(prev));
+  };
 
   return (
     <div className="profile-root">
       <div className="profile-header-row"><div className="profile-title">Complete your profile</div><div className="profile-progress"><svg width="44" height="44"><circle cx="22" cy="22" r="18" fill="none" stroke="#e0e0e0" strokeWidth="3"/><circle cx="22" cy="22" r="18" fill="none" stroke="#2d6a2d" strokeWidth="3" strokeDasharray="113" strokeDashoffset="28" strokeLinecap="round" transform="rotate(-90 22 22)"/><text x="22" y="26" textAnchor="middle" fontSize="10" fontWeight="700" fill="#2d6a2d">75%</text></svg></div></div>
       <div className="profile-header-sub">Add a few details to help others know the real you.</div>
+      {saveError && <div className="profile-save-error">⚠️ {saveError}</div>}
 
       {/* 1 Basic info */}
       <div className="profile-section">
@@ -1095,37 +1288,47 @@ function ProfileScreen({ user, onSignOut, onUpdateProfile }) {
       <div className="profile-section">
         <div className="profile-sec-num">2</div>
         <div className="profile-sec-body">
-          <div className="profile-sec-title">Personal photos <span className="profile-sec-count">3/3 photos added</span></div>
+          <div className="profile-sec-title">Personal photos <span className="profile-sec-count">{photos.filter(Boolean).length}/3 photos added</span></div>
           <div className="profile-sec-sub">Add 3 photos to help others recognize you.</div>
-          <div className="photos-grid">{[1,2,3].map(i=><div key={i} className="photo-slot"><div className="photo-num">{i}</div><div className="photo-placeholder">📷</div><div className="photo-remove">×</div></div>)}<div className="photo-add">📷<br/>Add Photo</div></div>
+          <div className="photos-grid">
+            {[0,1,2].map(i=>(
+              <label key={i} className="photo-slot" style={{cursor:"pointer"}}>
+                <div className="photo-num">{i+1}</div>
+                {photos[i] ? (
+                  <>
+                    <img src={photos[i]} alt={`Photo ${i+1}`} className="photo-img"/>
+                    <button type="button" className="photo-remove" onClick={e=>{e.preventDefault();removePhoto(i);}}>×</button>
+                  </>
+                ) : uploadingSlot===i ? (
+                  <div className="photo-placeholder">⏳</div>
+                ) : (
+                  <div className="photo-placeholder">📷</div>
+                )}
+                <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>handlePhotoSelect(i, e.target.files?.[0])}/>
+              </label>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* 3 Prompts */}
+      {/* 3 Things */}
       <div className="profile-section">
         <div className="profile-sec-num">3</div>
         <div className="profile-sec-body">
-          <div className="profile-sec-title">Prompts <span className="profile-sec-count">2/3 completed</span></div>
-          <div className="profile-sec-sub">Answer at least 2 prompts. The 3rd one is optional.</div>
-          {p.prompts.map((pr,i)=>(
-            <div key={i} className="profile-prompt-item"><div className="profile-prompt-q">{i===2&&<span className="ob-optional">Optional: </span>}{pr.q}<span className="profile-prompt-chevron">↓</span></div><div className="profile-prompt-a">{pr.a}</div><div className="profile-prompt-count">{pr.a.length}/200</div></div>
-          ))}
-          <button className="ob-link-btn">🎲 Choose from 20 prompts</button>
+          <div className="profile-sec-title">Things I want to do in the city <span className="profile-sec-count">{things.length} added</span></div>
+          <div className="ob-tags-row">{things.map((w,i)=><span key={i} className="ob-tag">{w}<button onClick={()=>removeThing(w)}>×</button></span>)}</div>
+          {things.length===0 && <p className="profile-sec-sub" style={{marginTop:8}}>No selections yet — add a few below.</p>}
+          <div className="ob-chips-grid" style={{marginTop:14}}>
+            {THINGS_OPTIONS.filter(t=>!things.includes(t)).map(t=>(
+              <button key={t} className="ob-thing-chip" onClick={()=>addThing(t)}>{t}</button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* 4 Things */}
+      {/* 4 Cuisine preferences + budget — drives food recommendations */}
       <div className="profile-section">
         <div className="profile-sec-num">4</div>
-        <div className="profile-sec-body">
-          <div className="profile-sec-title">Things I want to do in the city <span className="profile-sec-count">5/5 added</span></div>
-          <div className="ob-tags-row">{p.cityWants.map((w,i)=><span key={i} className="ob-tag">{w}<button>×</button></span>)}</div>
-        </div>
-      </div>
-
-      {/* 5 Cuisine preferences + budget — drives food recommendations */}
-      <div className="profile-section">
-        <div className="profile-sec-num">5</div>
         <div className="profile-sec-body">
           <div className="profile-sec-title">Food preferences <span className="profile-sec-count">{cuisines.length} cuisine{cuisines.length===1?"":"s"}</span></div>
           <div className="profile-sec-sub">This powers your food recommendations. Reorder to update your priority.</div>
@@ -1155,7 +1358,7 @@ function ProfileScreen({ user, onSignOut, onUpdateProfile }) {
           <div className="profile-sec-title" style={{marginTop:20,fontSize:14}}>Your budget</div>
           <div className="profile-budget-row">
             {BUDGET_OPTIONS.map(b=>(
-              <button key={b.id} className={`profile-budget-chip ${budget===b.id?"active":""}`} onClick={()=>{ setBudget(b.id); save({budget:b.id}); }}>
+              <button key={b.id} className={`profile-budget-chip ${budget===b.id?"active":""}`} onClick={()=>{ const prevBudget=budget; setBudget(b.id); save({budget:b.id}, ()=>setBudget(prevBudget)); }}>
                 <span>{b.icon}</span>{b.label}
               </button>
             ))}
@@ -1163,22 +1366,25 @@ function ProfileScreen({ user, onSignOut, onUpdateProfile }) {
         </div>
       </div>
 
-      {/* 6 Food recs */}
+      {/* 5 Food recs */}
       <div className="profile-section">
-        <div className="profile-sec-num">6</div>
+        <div className="profile-sec-num">5</div>
         <div className="profile-sec-body">
-          <div className="profile-sec-title">Food places recommendation <span className="profile-sec-count">3/3 added</span></div>
-          <div className="profile-sec-sub">Share your favourite food spots in {cd.label}.</div>
-          {(p.foodRecs||[]).map((r,i)=>(
-            <div key={i} className="profile-rec-row"><img src={r.img} alt={r.name} className="profile-rec-img"/><div><div className="profile-rec-name">{r.name}</div><div className="profile-rec-desc">{r.desc}</div></div><button className="profile-rec-actions">⚙ ✏️ ×</button></div>
-          ))}
-          <button className="profile-rec-add">⊕ Add food place</button>
+          <div className="profile-sec-title">Your top food matches <span className="profile-sec-count">Based on your ranking above</span></div>
+          <div className="profile-sec-sub">The same recommendation logic used on the Discovery tab — reorder your cuisines above and this updates instantly.</div>
+          {cuisines.length === 0 ? (
+            <p className="profile-sec-sub" style={{marginTop:8}}>Add a cuisine above to see matches here.</p>
+          ) : (
+            [...cd.food].sort((a,b)=>scoreFoodPlace(b,cuisines,budget)-scoreFoodPlace(a,cuisines,budget)).slice(0,3).map(r=>(
+              <div key={r.id} className="profile-rec-row"><img src={r.img} alt={r.name} className="profile-rec-img"/><div><div className="profile-rec-name">{r.name}</div><div className="profile-rec-desc">{r.cuisine} · {r.hood}</div></div></div>
+            ))
+          )}
         </div>
       </div>
 
-      {/* 7 City recs */}
+      {/* 6 City recs */}
       <div className="profile-section">
-        <div className="profile-sec-num">7</div>
+        <div className="profile-sec-num">6</div>
         <div className="profile-sec-body">
           <div className="profile-sec-title">In-City recommendations <span className="profile-sec-count">3/3 added</span></div>
           <div className="profile-sec-sub">Share places you love in {cd.label}.</div>
@@ -1231,6 +1437,8 @@ export default function App() {
         things: profile.city_wants || [],
         cuisines: profile.cuisines || [],
         budget: profile.budget || "flexible",
+        photo_urls: profile.photo_urls || [],
+        saved_food_places: profile.saved_food_places || [],
       };
       return (
         <div className="app-root">
@@ -1249,10 +1457,10 @@ export default function App() {
             </div>
           </header>
           <main className="site-main">
-            {tab==="discovery"  && <DiscoveryScreen city={user.city} userCuisines={user.cuisines} userBudget={user.budget}/>}
+            {tab==="discovery"  && <DiscoveryScreen city={user.city} userCuisines={user.cuisines} userBudget={user.budget} userId={session.user.id} userName={user.name} savedPlaces={user.saved_food_places} onToggleSave={async(name)=>{ const cur=user.saved_food_places||[]; const next=cur.includes(name)?cur.filter(n=>n!==name):[...cur,name]; try{ await updateProfile(session.user.id,{saved_food_places:next}); await refreshProfile(); }catch(e){ console.error("Save toggle failed:",e); } }}/>}
             {tab==="events"     && <EventsMapScreen city={user.city}/>}
             {tab==="connection" && <ConnectionScreen city={user.city} userInterests={user.interests} userThings={user.things}/>}
-            {tab==="profile"    && <ProfileScreen user={user} onSignOut={handleSignOut} onUpdateProfile={async(updates)=>{ await updateProfile(session.user.id, updates); await refreshProfile(); }}/>}
+            {tab==="profile"    && <ProfileScreen user={user} userId={session.user.id} onSignOut={handleSignOut} onUpdateProfile={async(updates)=>{ await updateProfile(session.user.id, updates); await refreshProfile(); }}/>}
           </main>
         </div>
       );
@@ -1306,10 +1514,10 @@ export default function App() {
           </div>
         </header>
         <main className="site-main">
-          {tab==="discovery"  && <DiscoveryScreen city={localUser.city} userCuisines={localUser.cuisines||[]} userBudget={localUser.budget||"flexible"}/>}
+          {tab==="discovery"  && <DiscoveryScreen city={localUser.city} userCuisines={localUser.cuisines||[]} userBudget={localUser.budget||"flexible"} userId={null} userName={localUser.name} savedPlaces={localUser.saved_food_places||[]} onToggleSave={(name)=>{ setLocalUser(u=>{ const cur=u.saved_food_places||[]; const next=cur.includes(name)?cur.filter(n=>n!==name):[...cur,name]; return {...u, saved_food_places:next}; }); }}/>}
           {tab==="events"     && <EventsMapScreen city={localUser.city}/>}
           {tab==="connection" && <ConnectionScreen city={localUser.city} userInterests={localUser.interests||[]} userThings={localUser.things||[]}/>}
-          {tab==="profile"    && <ProfileScreen user={localUser} onSignOut={()=>{setLocalUser(null);setScreen("landing");}} onUpdateProfile={async(updates)=>{ setLocalUser(u=>({...u,...updates})); }}/>}
+          {tab==="profile"    && <ProfileScreen user={localUser} userId={null} onSignOut={()=>{setLocalUser(null);setScreen("landing");}} onUpdateProfile={async(updates)=>{ setLocalUser(u=>({...u,...updates})); }}/>}
         </main>
       </div>
     );

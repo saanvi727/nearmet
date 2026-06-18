@@ -72,6 +72,51 @@ export async function uploadProfilePhoto(userId, file, slot) {
   return data.publicUrl
 }
 
+// ─── FOOD EXPERIENCES (community photos/notes on food places) ────────────────
+
+export async function uploadFoodExperiencePhoto(userId, file) {
+  const ext = file.name.split('.').pop()
+  const path = `experiences/${userId}/${Date.now()}.${ext}`
+  const { error } = await supabase.storage
+    .from('place-photos')
+    .upload(path, file, { upsert: false })
+  if (error) throw error
+  const { data } = supabase.storage.from('place-photos').getPublicUrl(path)
+  return data.publicUrl
+}
+
+export async function getFoodExperiences(foodPlaceKey) {
+  const { data, error } = await supabase
+    .from('food_experiences')
+    .select('*')
+    .eq('food_place_key', foodPlaceKey)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data
+}
+
+export async function shareFoodExperience(userId, userName, foodPlaceKey, { photoUrl, note, favoriteItem }) {
+  const { data, error } = await supabase
+    .from('food_experiences')
+    .insert({
+      food_place_key: foodPlaceKey,
+      user_id: userId,
+      user_name: userName,
+      photo_url: photoUrl || null,
+      note: note || null,
+      favorite_item: favoriteItem || null,
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function deleteFoodExperience(experienceId) {
+  const { error } = await supabase.from('food_experiences').delete().eq('id', experienceId)
+  if (error) throw error
+}
+
 // ─── RESTAURANTS ──────────────────────────────────────────────────────────────
 
 export async function getRestaurants(city, filters = {}) {
