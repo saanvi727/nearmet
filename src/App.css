@@ -447,6 +447,7 @@ html,body{font-family:'Outfit',system-ui,sans-serif;background:var(--bg);color:v
 .pv-recs-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:8px}
 .pv-rec-count{font-size:12px;color:var(--green2);font-weight:600;float:right}
 .pv-rec-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.pv-rec-item.shared{background:#fefce8;border-radius:10px;padding:10px 10px;border-bottom:1px solid #f6c90e}
 .pv-rec-item:last-child{border-bottom:none}
 .pv-rec-img{width:52px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0}
 .pv-rec-name{font-size:13px;font-weight:600;color:var(--text);line-height:1.3}
@@ -457,7 +458,9 @@ html,body{font-family:'Outfit',system-ui,sans-serif;background:var(--bg);color:v
 .chat-root{display:flex;flex-direction:column;max-width:680px;margin:0 auto;padding-top:20px}
 .chat-header{display:flex;align-items:center;gap:12px;padding:14px 18px;border:1px solid var(--border);border-radius:var(--radius) var(--radius) 0 0;background:var(--white)}
 .chat-back{font-size:18px;color:var(--text3);font-weight:700}
-.chat-avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;flex-shrink:0}
+.chat-avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;flex-shrink:0;background:var(--green-light);color:var(--green2)}
+.conn-img-placeholder{display:flex;align-items:center;justify-content:center;background:var(--green-light);color:var(--green2);font-size:48px;font-weight:800}
+.pv-photo-placeholder{display:flex;align-items:center;justify-content:center;background:var(--green-light);color:var(--green2);font-size:32px;font-weight:800;width:100%;height:100%;border-radius:12px}
 .chat-uname{font-size:15px;font-weight:700}
 .chat-ustatus{font-size:11px;color:var(--green2)}
 .chat-msgs{min-height:320px;padding:16px;display:flex;flex-direction:column;gap:8px;border-left:1px solid var(--border);border-right:1px solid var(--border);background:var(--bg);overflow-y:auto}

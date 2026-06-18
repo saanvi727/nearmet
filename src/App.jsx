@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import "./App.css";
 import { useAuth } from "./context/AuthContext.jsx";
 import AuthPage from "./pages/AuthPage.jsx";
-import { signOut, updateProfile, uploadProfilePhoto, uploadFoodExperiencePhoto, getFoodExperiences, shareFoodExperience, deleteFoodExperience } from "./lib/supabase.js";
+import { signOut, updateProfile, uploadProfilePhoto, uploadFoodExperiencePhoto, getFoodExperiences, shareFoodExperience, deleteFoodExperience, getPeople, passProfile, getOrCreateConnection, getMessages, sendMessage } from "./lib/supabase.js";
 
 // ─── LOGO ────────────────────────────────────────────────────────────────────
 function NearMetLogo({ size = 28, dark = false }) {
@@ -666,6 +666,21 @@ function scoreFoodPlace(place, userCuisines, userBudget) {
   return score;
 }
 
+// Scores how good a match two people are, highest weight first:
+// 1) shared saved food places (highest — proxy for "shared recommendations" until
+//    events/third-place saving exist, at which point those should be added here too)
+// 2) shared things-to-do
+// 3) shared interests (lowest)
+// Prompt-theme overlap is intentionally NOT included yet — no real user has
+// ever been able to answer a prompt anywhere in the app, so there's nothing to match on.
+function scoreConnection(me, other) {
+  const sharedFood = (me.saved_food_places || []).filter(f => (other.saved_food_places || []).includes(f));
+  const sharedThings = (me.things || []).filter(t => (other.things || []).includes(t));
+  const sharedInterests = (me.interests || []).filter(i => (other.interests || []).includes(i));
+  const score = sharedFood.length * 30 + sharedThings.length * 12 + sharedInterests.length * 5;
+  return { score, sharedFood, sharedThings, sharedInterests };
+}
+
 // Maps "Browse by category" pills to substrings matched against a place's cuisine field
 const CATEGORY_TAG_MAP = {
   Cafes: ["café","cafe","coffee","tea house"],
@@ -1006,154 +1021,185 @@ function DiscoveryScreen({ city, userCuisines, userBudget, userId, userName, sav
 }
 
 // ─── CONNECTION — updated with yellow shared highlights + food/city recs ──────
-function ConnectionScreen({ city, userInterests, userThings }) {
-  const cd = CITIES[city];
-  const [passed, setPassed] = useState([]);
+function ConnectionScreen({ city, userId, me }) {
+  const [people, setPeople] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [idx, setIdx] = useState(0);
+  const [photoIdx, setPhotoIdx] = useState(0);
   const [openProfile, setOpenProfile] = useState(null);
-  const [resonateModal, setResonateModal] = useState(null);
-  const [resonateText, setResonateText] = useState("");
-  const [resonated, setResonated] = useState({});
-  const [accepted, setAccepted] = useState({});
   const [chatOpen, setChatOpen] = useState(null);
   const [chatInput, setChatInput] = useState("");
-  const [chats, setChats] = useState({});
-  const [photoIdx, setPhotoIdx] = useState(0);
+  const [chatMsgs, setChatMsgs] = useState([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState("");
+  const [connectError, setConnectError] = useState("");
+  const [connecting, setConnecting] = useState(false);
+  const cd = CITIES[city];
 
-  const people = cd.people.filter(p=>!passed.includes(p.id));
-  const current = people[0];
+  useEffect(() => {
+    if (!userId) { setLoading(false); return; }
+    let active = true;
+    setLoading(true);
+    setLoadError("");
+    getPeople(city, userId)
+      .then(data => {
+        if (!active) return;
+        const ranked = (data || [])
+          .map(p => ({ ...p, _match: scoreConnection(me, p) }))
+          .sort((a,b) => b._match.score - a._match.score);
+        setPeople(ranked);
+      })
+      .catch(e => { console.error("Failed to load people:", e); if (active) setLoadError("Couldn't load people right now."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [city, userId]);
 
-  const passProfile = () => { if(!current) return; setPassed(p=>[...p,current.id]); setPhotoIdx(0); };
-  const sendResonate = () => {
-    if (!resonateModal||resonateText.trim().length<5) return;
-    const key=`${resonateModal.pid}-${resonateModal.qi}`;
-    setResonated(r=>({...r,[key]:true})); const m=resonateModal; setResonateModal(null); setResonateText("");
-    setTimeout(()=>setAccepted(a=>({...a,[m.pid]:true})),1500);
+  const current = people[idx];
+
+  const passProfileAndNext = async () => {
+    if (!current) return;
+    setIdx(i => i+1); setPhotoIdx(0);
+    try { await passProfile(userId, current.id); } catch (e) { console.error("Pass failed:", e); }
   };
-  const sendChat = pid => {
-    if (!chatInput.trim()) return;
-    const replies=["That's so interesting!","Haha yes! We should do that.","Same! Let's plan something.","Okay now I really want to check that out."];
-    setChats(c=>({...c,[pid]:[...(c[pid]||[]),{text:chatInput,me:true}]})); setChatInput("");
-    setTimeout(()=>setChats(c=>({...c,[pid]:[...(c[pid]||[]),{text:replies[Math.floor(Math.random()*replies.length)],me:false}]})),900);
+
+  const openChat = async (person) => {
+    setConnectError(""); setConnecting(true);
+    try {
+      const conn = await getOrCreateConnection(userId, person.id);
+      setChatOpen({ person, connectionId: conn.id });
+      setChatLoading(true);
+      const msgs = await getMessages(conn.id);
+      setChatMsgs(msgs || []);
+    } catch (e) {
+      console.error("Failed to open chat:", e);
+      setConnectError("Couldn't start that conversation — please try again.");
+    } finally {
+      setConnecting(false); setChatLoading(false);
+    }
   };
+
+  const sendChatMessage = async () => {
+    if (!chatInput.trim() || !chatOpen) return;
+    const text = chatInput.trim();
+    setChatInput("");
+    setChatError("");
+    try {
+      const msg = await sendMessage(chatOpen.connectionId, userId, text);
+      setChatMsgs(prev => [...prev, msg]);
+    } catch (e) {
+      console.error("Send failed:", e);
+      setChatError("Couldn't send that — please try again.");
+    }
+  };
+
+  if (!userId) {
+    return (
+      <div className="conn-root">
+        <div className="conn-empty">
+          <div style={{fontSize:42}}>👋</div>
+          <div className="conn-empty-title">Sign in to connect with people</div>
+          <p style={{color:"var(--text3)",fontSize:13,marginTop:6}}>Connections are matched between real registered NearMet users, so this needs a real account.</p>
+        </div>
+      </div>
+    );
+  }
 
   // Chat screen
   if (chatOpen) {
-    const p=chatOpen; const msgs=chats[p.id]||[];
+    const person = chatOpen.person;
     return (
       <div className="chat-root">
-        <div className="chat-header"><button className="chat-back" onClick={()=>setChatOpen(null)}>←</button><div className="chat-avatar" style={{background:p.color,color:p.tc}}>{p.ini}</div><div><div className="chat-uname">{p.name}</div><div className="chat-ustatus">● Connected</div></div></div>
-        <div className="chat-msgs">{msgs.length===0&&<div className="chat-empty"><div style={{fontSize:28}}>✦</div><p>Connected with {p.name}. Say hello.</p></div>}{msgs.map((m,i)=><div key={i} className={`chat-bubble ${m.me?"me":""}`}>{m.text}</div>)}</div>
-        <div className="chat-input-row"><input className="chat-input" value={chatInput} onChange={e=>setChatInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendChat(p.id)} placeholder="Say something..."/><button className="chat-send" onClick={()=>sendChat(p.id)}>Send</button></div>
+        <div className="chat-header"><button className="chat-back" onClick={()=>setChatOpen(null)}>←</button><div className="chat-avatar">{(person.name||"?").slice(0,2).toUpperCase()}</div><div><div className="chat-uname">{person.name}</div><div className="chat-ustatus">● Connected</div></div></div>
+        <div className="chat-msgs">
+          {chatLoading && <div className="chat-empty"><p>Loading conversation…</p></div>}
+          {!chatLoading && chatMsgs.length===0 && <div className="chat-empty"><div style={{fontSize:28}}>✦</div><p>Connected with {person.name}. Say hello.</p></div>}
+          {!chatLoading && chatMsgs.map((m,i)=><div key={m.id||i} className={`chat-bubble ${m.sender_id===userId?"me":""}`}>{m.text}</div>)}
+        </div>
+        {chatError && <div className="profile-save-error" style={{margin:"0 16px"}}>⚠️ {chatError}</div>}
+        <div className="chat-input-row"><input className="chat-input" value={chatInput} onChange={e=>setChatInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendChatMessage()} placeholder="Say something..."/><button className="chat-send" onClick={sendChatMessage}>Send</button></div>
       </div>
     );
   }
 
-  // Full profile view — with yellow shared highlights + food/city recs
+  // Full profile view
   if (openProfile) {
-    const p=openProfile;
+    const p = openProfile;
+    const sharedFood = (me.saved_food_places||[]).filter(f=>(p.saved_food_places||[]).includes(f));
+    const sharedThings = (me.things||[]).filter(t=>(p.things||[]).includes(t));
+    const sharedInterests = (me.interests||[]).filter(i=>(p.interests||[]).includes(i));
+    const recommendedPlaces = (p.saved_food_places||[]).map(name=>cd.food.find(f=>f.name===name)).filter(Boolean);
     return (
       <div className="pv-root">
-        <div className="pv-header"><button className="pv-back" onClick={()=>setOpenProfile(null)}>←</button><div className="pv-menu">···</div></div>
-        {/* Photos */}
+        <div className="pv-header"><button className="pv-back" onClick={()=>setOpenProfile(null)}>←</button></div>
         <div className="pv-photos-strip">
-          <div className="pv-photos">{p.photos.map((ph,i)=><img key={i} src={ph} alt="" className="pv-photo"/>)}</div>
+          <div className="pv-photos">{(p.photo_urls&&p.photo_urls.length>0) ? p.photo_urls.filter(Boolean).map((ph,i)=><img key={i} src={ph} alt="" className="pv-photo"/>) : <div className="pv-photo pv-photo-placeholder">{(p.name||"?").slice(0,2).toUpperCase()}</div>}</div>
         </div>
-        <div className="pv-name">{p.name}, {p.age}</div>
-        <div className="pv-city">📍 {p.city}</div>
+        <div className="pv-name">{p.name}{p.age ? `, ${p.age}` : ""}</div>
+        <div className="pv-city">📍 {cd.label}</div>
 
-        {/* Interests — shared ones yellow */}
         <div className="pv-section-title">Interests</div>
         <div className="pv-interest-chips">
-          {(p.interests||[]).map(i=><span key={i} className={`pv-interest-chip ${(p.sharedInterests||[]).includes(i)?"shared":""}`}>{i}</span>)}
+          {(p.interests||[]).length===0 && <span style={{fontSize:13,color:"var(--text3)"}}>No interests added yet.</span>}
+          {(p.interests||[]).map(i=>{ const opt=INTEREST_OPTIONS.find(o=>o.id===i); return <span key={i} className={`pv-interest-chip ${sharedInterests.includes(i)?"shared":""}`}>{opt?.icon} {opt?.label||i}</span>; })}
         </div>
 
-        {/* Prompts */}
-        <div className="pv-section-title">Prompts</div>
-        {p.prompts.map((pr,qi)=>{
-          const key=`${p.id}-${qi}`;
-          return (<div key={qi} className="pv-prompt" onClick={()=>{if(!resonated[key]){setResonateModal({pid:p.id,qi,text:pr.a});setResonateText("");}}}>
-            <div className="pv-prompt-q">{pr.q}</div><div className="pv-prompt-a">{pr.a}</div>
-            {resonated[key]?<div className="pv-resonated">💬 Resonated</div>:<div className="pv-tap">💬 Tap to resonate</div>}
-          </div>);
-        })}
-
-        {/* Things I want to do — shared ones yellow */}
         <div className="pv-section-title">Things I want to do</div>
         <div className="pv-things-list">
-          {(p.cityWants||[]).map(t=><div key={t} className={`pv-thing-row ${(p.sharedThings||[]).includes(t)?"shared":""}`}><span className="pv-thing-icon">📌</span><span>{t}</span></div>)}
+          {(p.things||[]).length===0 && <span style={{fontSize:13,color:"var(--text3)"}}>No selections yet.</span>}
+          {(p.things||[]).map(t=><div key={t} className={`pv-thing-row ${sharedThings.includes(t)?"shared":""}`}><span className="pv-thing-icon">📌</span><span>{t}</span></div>)}
         </div>
 
-        {/* Food & city recs */}
-        <div className="pv-recs-grid">
-          <div className="pv-recs-col">
-            <div className="pv-section-title">Food places recommendation <span className="pv-rec-count">{(p.foodRecs||[]).length}/3 added</span></div>
-            {(p.foodRecs||[]).map((r,i)=><div key={i} className="pv-rec-item"><img src={r.img} alt={r.name} className="pv-rec-img"/><div><div className="pv-rec-name">{r.name}</div><div className="pv-rec-desc">{r.desc}</div></div></div>)}
-          </div>
-          <div className="pv-recs-col">
-            <div className="pv-section-title">In-City recommendations <span className="pv-rec-count">{(p.cityRecs||[]).length}/3 added</span></div>
-            {(p.cityRecs||[]).map((r,i)=><div key={i} className="pv-rec-item"><img src={r.img} alt={r.name} className="pv-rec-img"/><div><div className="pv-rec-name">{r.name}</div><div className="pv-rec-desc">{r.desc}</div></div></div>)}
-          </div>
-        </div>
+        <div className="pv-section-title">Food places recommendation <span className="pv-rec-count">{recommendedPlaces.length} saved</span></div>
+        {recommendedPlaces.length===0 && <p style={{fontSize:13,color:"var(--text3)",marginBottom:12}}>Hasn't saved any food places yet.</p>}
+        {recommendedPlaces.map(r=>(
+          <div key={r.id} className={`pv-rec-item ${sharedFood.includes(r.name)?"shared":""}`}><img src={r.img} alt={r.name} className="pv-rec-img"/><div><div className="pv-rec-name">{r.name}</div><div className="pv-rec-desc">{r.cuisine} · {r.hood}</div></div></div>
+        ))}
 
-        {accepted[p.id]&&<button className="pv-chat-btn" onClick={()=>{setOpenProfile(null);setChatOpen(p);}}>Chat with {p.name} →</button>}
+        {connectError && <div className="profile-save-error">⚠️ {connectError}</div>}
+        <button className="pv-chat-btn" disabled={connecting} onClick={()=>openChat(p)}>{connecting ? "Connecting…" : `Message ${p.name} →`}</button>
       </div>
     );
   }
 
-  // Main connection feed
+  // Main feed
   return (
     <div className="conn-root">
-      {current ? (
+      {loading && <div className="conn-empty"><p>Finding people near you…</p></div>}
+      {!loading && loadError && <div className="conn-empty"><p>{loadError}</p></div>}
+      {!loading && !loadError && current ? (
         <div className="conn-layout">
           <div className="conn-card">
             <div className="conn-img-wrap">
-              <img src={current.photos[photoIdx]||current.photos[0]} alt={current.name} className="conn-img"/>
-              <div className="conn-nav-prev" onClick={()=>setPhotoIdx(i=>Math.max(0,i-1))}/>
-              <div className="conn-nav-next" onClick={()=>setPhotoIdx(i=>Math.min(current.photos.length-1,i+1))}/>
-              <div className="conn-info"><div className="conn-name">{current.name}, {current.age}</div><div className="conn-city">{current.city}</div></div>
-              <div className="conn-dots">{current.photos.map((_,i)=><span key={i} className={`conn-dot ${i===photoIdx?"active":""}`}/>)}</div>
+              {(current.photo_urls&&current.photo_urls.filter(Boolean).length>0) ? (
+                <img src={current.photo_urls.filter(Boolean)[photoIdx]||current.photo_urls.filter(Boolean)[0]} alt={current.name} className="conn-img"/>
+              ) : (
+                <div className="conn-img conn-img-placeholder">{(current.name||"?").slice(0,2).toUpperCase()}</div>
+              )}
+              <div className="conn-info"><div className="conn-name">{current.name}{current.age ? `, ${current.age}` : ""}</div><div className="conn-city">{cd.label}</div></div>
             </div>
             <button className="conn-view-profile" onClick={()=>setOpenProfile(current)}>Tap to view the profile</button>
           </div>
           <div className="conn-prompts">
-            {/* Shared interests banner — yellow */}
-            {(current.sharedInterests||[]).length>0&&(
-              <div className="conn-shared-banner">
-                <span style={{fontSize:16}}>✨</span>
-                <span>You both like <strong>{current.sharedInterests.join(", ")}</strong></span>
-              </div>
+            {current._match.sharedFood.length>0 && (
+              <div className="conn-shared-banner"><span style={{fontSize:16}}>🍽️</span><span>You both love <strong>{current._match.sharedFood.slice(0,2).join(", ")}</strong></span></div>
             )}
-            {current.prompts.slice(0,2).map((pr,qi)=>{
-              const key=`${current.id}-${qi}`;
-              return (<div key={qi} className="conn-prompt" onClick={()=>{if(!resonated[key]){setResonateModal({pid:current.id,qi,text:pr.a});setResonateText("");}}}>
-                <div className="conn-prompt-q">{pr.q}</div><div className="conn-prompt-a">{pr.a}</div>
-                {resonated[key]?<div className="conn-resonated">✓ Resonated</div>:<div className="conn-tap-hint">💬 Tap to resonate</div>}
-              </div>);
-            })}
-            {/* Shared things banner — yellow */}
-            {(current.sharedThings||[]).length>0&&(
+            {current._match.sharedInterests.length>0 && (
+              <div className="conn-shared-banner"><span style={{fontSize:16}}>✨</span><span>You both like <strong>{current._match.sharedInterests.map(i=>INTEREST_OPTIONS.find(o=>o.id===i)?.label||i).join(", ")}</strong></span></div>
+            )}
+            {current._match.sharedThings.length>0 && (
               <div className="conn-shared-things">
                 <div className="conn-shared-things-label">Also wants to</div>
-                {current.sharedThings.map(t=><div key={t} className="conn-shared-thing-row">✦ {t}</div>)}
+                {current._match.sharedThings.map(t=><div key={t} className="conn-shared-thing-row">✦ {t}</div>)}
               </div>
             )}
-            {accepted[current.id]&&<button className="conn-chat-btn" onClick={()=>setChatOpen(current)}>Chat with {current.name} →</button>}
-            <button className="conn-pass-btn" onClick={passProfile}>Pass ›</button>
+            {current._match.score===0 && <p style={{fontSize:13,color:"var(--text3)"}}>No overlap yet — but everyone starts somewhere.</p>}
+            {connectError && <div className="profile-save-error">⚠️ {connectError}</div>}
+            <button className="conn-chat-btn" disabled={connecting} onClick={()=>openChat(current)}>{connecting ? "Connecting…" : `Message ${current.name} →`}</button>
+            <button className="conn-pass-btn" onClick={passProfileAndNext}>Pass ›</button>
           </div>
         </div>
-      ) : <div className="conn-empty"><div style={{fontSize:42}}>🎉</div><div className="conn-empty-title">You're all caught up!</div></div>}
-
-      {resonateModal&&(
-        <div className="modal-bg" onClick={()=>setResonateModal(null)}>
-          <div className="modal-sheet" onClick={e=>e.stopPropagation()}>
-            <div className="modal-handle"/>
-            <div className="modal-label">Resonating with this answer</div>
-            <div className="modal-quote">"{resonateModal.text}"</div>
-            <textarea className="modal-ta" rows={3} value={resonateText} onChange={e=>setResonateText(e.target.value)} placeholder="What resonated with you? Be specific..."/>
-            <div className="modal-footer"><span className="modal-count">{resonateText.length}/240</span><button className="modal-send" disabled={resonateText.trim().length<5} onClick={sendResonate}>Send</button></div>
-          </div>
-        </div>
-      )}
+      ) : (!loading && !loadError && <div className="conn-empty"><div style={{fontSize:42}}>🎉</div><div className="conn-empty-title">You're all caught up!</div><p style={{color:"var(--text3)",fontSize:13,marginTop:6}}>No more registered people to show in {cd.label} right now.</p></div>)}
     </div>
   );
 }
@@ -1459,7 +1505,7 @@ export default function App() {
           <main className="site-main">
             {tab==="discovery"  && <DiscoveryScreen city={user.city} userCuisines={user.cuisines} userBudget={user.budget} userId={session.user.id} userName={user.name} savedPlaces={user.saved_food_places} onToggleSave={async(name)=>{ const cur=user.saved_food_places||[]; const next=cur.includes(name)?cur.filter(n=>n!==name):[...cur,name]; try{ await updateProfile(session.user.id,{saved_food_places:next}); await refreshProfile(); }catch(e){ console.error("Save toggle failed:",e); } }}/>}
             {tab==="events"     && <EventsMapScreen city={user.city}/>}
-            {tab==="connection" && <ConnectionScreen city={user.city} userInterests={user.interests} userThings={user.things}/>}
+            {tab==="connection" && <ConnectionScreen city={user.city} userId={session.user.id} me={user}/>}
             {tab==="profile"    && <ProfileScreen user={user} userId={session.user.id} onSignOut={handleSignOut} onUpdateProfile={async(updates)=>{ await updateProfile(session.user.id, updates); await refreshProfile(); }}/>}
           </main>
         </div>
@@ -1516,7 +1562,7 @@ export default function App() {
         <main className="site-main">
           {tab==="discovery"  && <DiscoveryScreen city={localUser.city} userCuisines={localUser.cuisines||[]} userBudget={localUser.budget||"flexible"} userId={null} userName={localUser.name} savedPlaces={localUser.saved_food_places||[]} onToggleSave={(name)=>{ setLocalUser(u=>{ const cur=u.saved_food_places||[]; const next=cur.includes(name)?cur.filter(n=>n!==name):[...cur,name]; return {...u, saved_food_places:next}; }); }}/>}
           {tab==="events"     && <EventsMapScreen city={localUser.city}/>}
-          {tab==="connection" && <ConnectionScreen city={localUser.city} userInterests={localUser.interests||[]} userThings={localUser.things||[]}/>}
+          {tab==="connection" && <ConnectionScreen city={localUser.city} userId={null} me={localUser}/>}
           {tab==="profile"    && <ProfileScreen user={localUser} userId={null} onSignOut={()=>{setLocalUser(null);setScreen("landing");}} onUpdateProfile={async(updates)=>{ setLocalUser(u=>({...u,...updates})); }}/>}
         </main>
       </div>

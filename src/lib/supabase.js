@@ -1,12 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
-
+ 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-
+ 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-
+ 
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
-
+ 
 export async function signUp({ email, password, name, age, city, phone }) {
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -28,18 +28,18 @@ export async function signUp({ email, password, name, age, city, phone }) {
   }
   return data
 }
-
+ 
 export async function signIn({ email, password }) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password })
   if (error) throw error
   return data
 }
-
+ 
 export async function signOut() {
   const { error } = await supabase.auth.signOut()
   if (error) throw error
 }
-
+ 
 export async function getProfile(userId) {
   const { data, error } = await supabase
     .from('profiles')
@@ -49,7 +49,7 @@ export async function getProfile(userId) {
   if (error) throw error
   return data
 }
-
+ 
 export async function updateProfile(userId, updates) {
   const { data, error } = await supabase
     .from('profiles')
@@ -60,7 +60,7 @@ export async function updateProfile(userId, updates) {
   if (error) throw error
   return data
 }
-
+ 
 export async function uploadProfilePhoto(userId, file, slot) {
   const ext = file.name.split('.').pop()
   const path = `${userId}/photo_${slot}.${ext}`
@@ -71,9 +71,9 @@ export async function uploadProfilePhoto(userId, file, slot) {
   const { data } = supabase.storage.from('profile-photos').getPublicUrl(path)
   return data.publicUrl
 }
-
+ 
 // ─── FOOD EXPERIENCES (community photos/notes on food places) ────────────────
-
+ 
 export async function uploadFoodExperiencePhoto(userId, file) {
   const ext = file.name.split('.').pop()
   const path = `experiences/${userId}/${Date.now()}.${ext}`
@@ -84,7 +84,7 @@ export async function uploadFoodExperiencePhoto(userId, file) {
   const { data } = supabase.storage.from('place-photos').getPublicUrl(path)
   return data.publicUrl
 }
-
+ 
 export async function getFoodExperiences(foodPlaceKey) {
   const { data, error } = await supabase
     .from('food_experiences')
@@ -94,7 +94,7 @@ export async function getFoodExperiences(foodPlaceKey) {
   if (error) throw error
   return data
 }
-
+ 
 export async function shareFoodExperience(userId, userName, foodPlaceKey, { photoUrl, note, favoriteItem }) {
   const { data, error } = await supabase
     .from('food_experiences')
@@ -111,21 +111,21 @@ export async function shareFoodExperience(userId, userName, foodPlaceKey, { phot
   if (error) throw error
   return data
 }
-
+ 
 export async function deleteFoodExperience(experienceId) {
   const { error } = await supabase.from('food_experiences').delete().eq('id', experienceId)
   if (error) throw error
 }
-
+ 
 // ─── RESTAURANTS ──────────────────────────────────────────────────────────────
-
+ 
 export async function getRestaurants(city, filters = {}) {
   let query = supabase
     .from('restaurants')
     .select('*')
     .eq('city', city)
     .eq('approved', true)
-
+ 
   if (filters.cuisine && filters.cuisine !== 'All') {
     query = query.eq('cuisine', filters.cuisine)
   }
@@ -134,12 +134,12 @@ export async function getRestaurants(city, filters = {}) {
   } else {
     query = query.order('search_count', { ascending: false })
   }
-
+ 
   const { data, error } = await query
   if (error) throw error
   return data
 }
-
+ 
 export async function toggleRestaurantLike(userId, restaurantId) {
   const { data: existing } = await supabase
     .from('restaurant_likes')
@@ -147,7 +147,7 @@ export async function toggleRestaurantLike(userId, restaurantId) {
     .eq('user_id', userId)
     .eq('restaurant_id', restaurantId)
     .single()
-
+ 
   if (existing) {
     await supabase.from('restaurant_likes').delete().eq('id', existing.id)
     return false
@@ -156,9 +156,9 @@ export async function toggleRestaurantLike(userId, restaurantId) {
     return true
   }
 }
-
+ 
 // ─── EVENTS ───────────────────────────────────────────────────────────────────
-
+ 
 export async function getEvents(city) {
   const { data, error } = await supabase
     .from('events')
@@ -168,7 +168,7 @@ export async function getEvents(city) {
   if (error) throw error
   return data
 }
-
+ 
 export async function createEvent(userId, eventData) {
   const { data, error } = await supabase
     .from('events')
@@ -178,7 +178,7 @@ export async function createEvent(userId, eventData) {
   if (error) throw error
   return data
 }
-
+ 
 export async function toggleEventInterest(userId, eventId) {
   const { data: existing } = await supabase
     .from('event_interests')
@@ -186,7 +186,7 @@ export async function toggleEventInterest(userId, eventId) {
     .eq('user_id', userId)
     .eq('event_id', eventId)
     .single()
-
+ 
   if (existing) {
     await supabase.from('event_interests').delete().eq('id', existing.id)
     return false
@@ -195,9 +195,9 @@ export async function toggleEventInterest(userId, eventId) {
     return true
   }
 }
-
+ 
 // ─── THIRD PLACES ─────────────────────────────────────────────────────────────
-
+ 
 export async function getThirdPlaces(city, category = 'All') {
   let query = supabase
     .from('third_places')
@@ -205,16 +205,16 @@ export async function getThirdPlaces(city, category = 'All') {
     .eq('city', city)
     .eq('approved', true)
     .order('visitor_count', { ascending: false })
-
+ 
   if (category !== 'All') {
     query = query.contains('categories', [category])
   }
-
+ 
   const { data, error } = await query
   if (error) throw error
   return data
 }
-
+ 
 export async function submitThirdPlace(userId, placeData) {
   const { data, error } = await supabase
     .from('third_places')
@@ -224,17 +224,17 @@ export async function submitThirdPlace(userId, placeData) {
   if (error) throw error
   return data
 }
-
+ 
 // ─── CONNECTION ───────────────────────────────────────────────────────────────
-
+ 
 export async function getPeople(city, userId) {
   const { data: passed } = await supabase
     .from('profile_passes')
     .select('passed_id')
     .eq('user_id', userId)
-
+ 
   const passedIds = (passed || []).map(p => p.passed_id)
-
+ 
   let query = supabase
     .from('profiles')
     .select('*')
@@ -243,16 +243,16 @@ export async function getPeople(city, userId) {
     .neq('id', userId)
     .order('last_active', { ascending: false })
     .limit(20)
-
+ 
   if (passedIds.length > 0) {
     query = query.not('id', 'in', `(${passedIds.join(',')})`)
   }
-
+ 
   const { data, error } = await query
   if (error) throw error
   return data
 }
-
+ 
 export async function passProfile(userId, passedId) {
   await supabase.from('profile_passes').insert({
     user_id: userId,
@@ -260,7 +260,7 @@ export async function passProfile(userId, passedId) {
     passed_at: new Date().toISOString(),
   })
 }
-
+ 
 export async function sendResonance(fromUserId, toUserId, promptIndex, message) {
   const { data, error } = await supabase
     .from('resonances')
@@ -277,7 +277,24 @@ export async function sendResonance(fromUserId, toUserId, promptIndex, message) 
   if (error) throw error
   return data
 }
-
+ 
+export async function getOrCreateConnection(userId, otherId) {
+  const { data: existing } = await supabase
+    .from('connections')
+    .select('*')
+    .or(`and(user1_id.eq.${userId},user2_id.eq.${otherId}),and(user1_id.eq.${otherId},user2_id.eq.${userId})`)
+    .maybeSingle()
+  if (existing) return existing
+ 
+  const { data, error } = await supabase
+    .from('connections')
+    .insert({ user1_id: userId, user2_id: otherId })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+ 
 export async function getConnections(userId) {
   const { data, error } = await supabase
     .from('connections')
@@ -287,9 +304,9 @@ export async function getConnections(userId) {
   if (error) throw error
   return data
 }
-
+ 
 // ─── MESSAGES ─────────────────────────────────────────────────────────────────
-
+ 
 export async function getMessages(connectionId) {
   const { data, error } = await supabase
     .from('messages')
@@ -299,7 +316,7 @@ export async function getMessages(connectionId) {
   if (error) throw error
   return data
 }
-
+ 
 export async function sendMessage(connectionId, senderId, text) {
   const { data, error } = await supabase
     .from('messages')
@@ -309,7 +326,7 @@ export async function sendMessage(connectionId, senderId, text) {
   if (error) throw error
   return data
 }
-
+ 
 export function subscribeToMessages(connectionId, callback) {
   return supabase
     .channel(`messages:${connectionId}`)
