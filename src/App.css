@@ -558,8 +558,12 @@ html,body{font-family:'Outfit',system-ui,sans-serif;background:var(--bg);color:v
   .pv-recs-grid{grid-template-columns:1fr}
 }
 @media(max-width:640px){
-  .topnav-inner{padding:0 14px}
-  .topnav-links .tnav-link:not(.active){display:none}
+  .topnav-inner{padding:0 14px;gap:10px}
+  .topnav-links{overflow-x:auto;scrollbar-width:none;flex:0 1 auto;min-width:0}
+  .topnav-links::-webkit-scrollbar{display:none}
+  .tnav-link{white-space:nowrap;flex-shrink:0}
+  .topnav-right{flex-shrink:0}
+  .nm-logo{flex-shrink:0}
   .site-main{padding:0 14px 60px}
   .food-hscroll{display:flex!important;grid-template-columns:unset!important;overflow-x:auto;scrollbar-width:none;gap:10px;-webkit-overflow-scrolling:touch}
   .food-hscroll::-webkit-scrollbar{display:none}
