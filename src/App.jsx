@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import "./App.css";
 import { useAuth } from "./context/AuthContext.jsx";
 import AuthPage from "./pages/AuthPage.jsx";
-import { signOut, updateProfile, uploadProfilePhoto, uploadFoodExperiencePhoto, getFoodExperiences, shareFoodExperience, deleteFoodExperience, getPeople, passProfile, getOrCreateConnection, getMessages, sendMessage } from "./lib/supabase.js";
+import { signOut, updateProfile, uploadProfilePhoto, uploadFoodExperiencePhoto, getFoodExperiences, shareFoodExperience, deleteFoodExperience, getPeople, passProfile, getOrCreateConnection, getConnections, getMessages, sendMessage } from "./lib/supabase.js";
 
 // ─── LOGO ────────────────────────────────────────────────────────────────────
 function NearMetLogo({ size = 28, dark = false }) {
@@ -1021,6 +1021,116 @@ function DiscoveryScreen({ city, userCuisines, userBudget, userId, userName, sav
 }
 
 // ─── CONNECTION — updated with yellow shared highlights + food/city recs ──────
+function ChatView({ connectionId, person, userId, onBack }) {
+  const [chatInput, setChatInput] = useState("");
+  const [chatMsgs, setChatMsgs] = useState([]);
+  const [chatLoading, setChatLoading] = useState(true);
+  const [chatError, setChatError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    setChatLoading(true);
+    getMessages(connectionId)
+      .then(msgs => { if (active) setChatMsgs(msgs || []); })
+      .catch(e => { console.error("Failed to load messages:", e); if (active) setChatError("Couldn't load this conversation."); })
+      .finally(() => { if (active) setChatLoading(false); });
+    return () => { active = false; };
+  }, [connectionId]);
+
+  const sendChatMessage = async () => {
+    if (!chatInput.trim()) return;
+    const text = chatInput.trim();
+    setChatInput("");
+    setChatError("");
+    try {
+      const msg = await sendMessage(connectionId, userId, text);
+      setChatMsgs(prev => [...prev, msg]);
+    } catch (e) {
+      console.error("Send failed:", e);
+      setChatError("Couldn't send that — please try again.");
+    }
+  };
+
+  return (
+    <div className="chat-root">
+      <div className="chat-header"><button className="chat-back" onClick={onBack}>←</button><div className="chat-avatar">{(person.name||"?").slice(0,2).toUpperCase()}</div><div><div className="chat-uname">{person.name}</div><div className="chat-ustatus">● Connected</div></div></div>
+      <div className="chat-msgs">
+        {chatLoading && <div className="chat-empty"><p>Loading conversation…</p></div>}
+        {!chatLoading && chatMsgs.length===0 && <div className="chat-empty"><div style={{fontSize:28}}>✦</div><p>Connected with {person.name}. Say hello.</p></div>}
+        {!chatLoading && chatMsgs.map((m,i)=><div key={m.id||i} className={`chat-bubble ${m.sender_id===userId?"me":""}`}>{m.text}</div>)}
+      </div>
+      {chatError && <div className="profile-save-error" style={{margin:"0 16px"}}>⚠️ {chatError}</div>}
+      <div className="chat-input-row"><input className="chat-input" value={chatInput} onChange={e=>setChatInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendChatMessage()} placeholder="Say something..."/><button className="chat-send" onClick={sendChatMessage}>Send</button></div>
+    </div>
+  );
+}
+
+function MessagesPanel({ userId, onClose }) {
+  const [connections, setConnections] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [openChat, setOpenChat] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setLoadError("");
+    getConnections(userId)
+      .then(data => { if (active) setConnections(data || []); })
+      .catch(e => { console.error("Failed to load connections:", e); if (active) setLoadError("Couldn't load your messages right now."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [userId]);
+
+  if (openChat) {
+    return (
+      <div className="msgs-overlay">
+        <div className="msgs-overlay-bg" onClick={onClose}/>
+        <div className="msgs-panel msgs-panel-chat">
+          <ChatView connectionId={openChat.id} person={openChat.otherPerson} userId={userId} onBack={()=>setOpenChat(null)}/>
+        </div>
+      </div>
+    );
+  }
+
+  const visibleConnections = connections.filter(c => {
+    const otherPerson = c.user1_id === userId ? c.user2 : c.user1;
+    return otherPerson && otherPerson.id !== userId; // defensive: never show a "conversation" with yourself
+  });
+
+  return (
+    <div className="msgs-overlay">
+      <div className="msgs-overlay-bg" onClick={onClose}/>
+      <div className="msgs-panel">
+        <div className="msgs-panel-header"><div className="msgs-panel-title">Messages</div><button className="msgs-panel-close" onClick={onClose}>×</button></div>
+        <div className="msgs-list">
+          {loading && <div className="conn-empty" style={{padding:"40px 16px"}}><p>Loading messages…</p></div>}
+          {!loading && loadError && <div className="conn-empty" style={{padding:"40px 16px"}}><p>{loadError}</p></div>}
+          {!loading && !loadError && visibleConnections.length===0 && (
+            <div className="conn-empty" style={{padding:"40px 16px"}}>
+              <div style={{fontSize:36}}>💬</div>
+              <div className="conn-empty-title">No conversations yet</div>
+              <p style={{color:"var(--text3)",fontSize:13,marginTop:6}}>Message someone from the Connection tab to start chatting.</p>
+            </div>
+          )}
+          {!loading && visibleConnections.map(c => {
+            const otherPerson = c.user1_id === userId ? c.user2 : c.user1;
+            const initials = (otherPerson.name||"?").slice(0,2).toUpperCase();
+            const photo = (otherPerson.photo_urls||[]).filter(Boolean)[0];
+            return (
+              <button key={c.id} className="msgs-list-row" onClick={()=>setOpenChat({ id: c.id, otherPerson })}>
+                {photo ? <img src={photo} alt="" className="msgs-list-avatar-img"/> : <div className="msgs-list-avatar">{initials}</div>}
+                <div className="msgs-list-info"><div className="msgs-list-name">{otherPerson.name}{otherPerson.age ? `, ${otherPerson.age}` : ""}</div><div className="msgs-list-sub">Tap to open conversation</div></div>
+                <span className="msgs-list-chevron">›</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ConnectionScreen({ city, userId, me }) {
   const [people, setPeople] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1029,10 +1139,6 @@ function ConnectionScreen({ city, userId, me }) {
   const [photoIdx, setPhotoIdx] = useState(0);
   const [openProfile, setOpenProfile] = useState(null);
   const [chatOpen, setChatOpen] = useState(null);
-  const [chatInput, setChatInput] = useState("");
-  const [chatMsgs, setChatMsgs] = useState([]);
-  const [chatLoading, setChatLoading] = useState(false);
-  const [chatError, setChatError] = useState("");
   const [connectError, setConnectError] = useState("");
   const [connecting, setConnecting] = useState(false);
   const cd = CITIES[city];
@@ -1068,28 +1174,11 @@ function ConnectionScreen({ city, userId, me }) {
     try {
       const conn = await getOrCreateConnection(userId, person.id);
       setChatOpen({ person, connectionId: conn.id });
-      setChatLoading(true);
-      const msgs = await getMessages(conn.id);
-      setChatMsgs(msgs || []);
     } catch (e) {
       console.error("Failed to open chat:", e);
       setConnectError("Couldn't start that conversation — please try again.");
     } finally {
-      setConnecting(false); setChatLoading(false);
-    }
-  };
-
-  const sendChatMessage = async () => {
-    if (!chatInput.trim() || !chatOpen) return;
-    const text = chatInput.trim();
-    setChatInput("");
-    setChatError("");
-    try {
-      const msg = await sendMessage(chatOpen.connectionId, userId, text);
-      setChatMsgs(prev => [...prev, msg]);
-    } catch (e) {
-      console.error("Send failed:", e);
-      setChatError("Couldn't send that — please try again.");
+      setConnecting(false);
     }
   };
 
@@ -1107,19 +1196,7 @@ function ConnectionScreen({ city, userId, me }) {
 
   // Chat screen
   if (chatOpen) {
-    const person = chatOpen.person;
-    return (
-      <div className="chat-root">
-        <div className="chat-header"><button className="chat-back" onClick={()=>setChatOpen(null)}>←</button><div className="chat-avatar">{(person.name||"?").slice(0,2).toUpperCase()}</div><div><div className="chat-uname">{person.name}</div><div className="chat-ustatus">● Connected</div></div></div>
-        <div className="chat-msgs">
-          {chatLoading && <div className="chat-empty"><p>Loading conversation…</p></div>}
-          {!chatLoading && chatMsgs.length===0 && <div className="chat-empty"><div style={{fontSize:28}}>✦</div><p>Connected with {person.name}. Say hello.</p></div>}
-          {!chatLoading && chatMsgs.map((m,i)=><div key={m.id||i} className={`chat-bubble ${m.sender_id===userId?"me":""}`}>{m.text}</div>)}
-        </div>
-        {chatError && <div className="profile-save-error" style={{margin:"0 16px"}}>⚠️ {chatError}</div>}
-        <div className="chat-input-row"><input className="chat-input" value={chatInput} onChange={e=>setChatInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendChatMessage()} placeholder="Say something..."/><button className="chat-send" onClick={sendChatMessage}>Send</button></div>
-      </div>
-    );
+    return <ChatView connectionId={chatOpen.connectionId} person={chatOpen.person} userId={userId} onBack={()=>setChatOpen(null)}/>;
   }
 
   // Full profile view
@@ -1451,6 +1528,7 @@ export default function App() {
   const { session, profile, loading, refreshProfile } = useAuth();
   const [localUser, setLocalUser] = useState(null);
   const [tab, setTab] = useState("discovery");
+  const [messagesOpen, setMessagesOpen] = useState(false);
   const [screen, setScreen] = useState("landing"); // landing | signin | onboarding | app
 
   async function handleSignOut() {
@@ -1498,10 +1576,12 @@ export default function App() {
               </nav>
               <div className="topnav-right">
                 <span className="city-pill">📍 {user.city==="nyc"?"NYC":"Mumbai"}</span>
+                <button className="topnav-msg-btn" onClick={()=>setMessagesOpen(true)} title="Messages">💬</button>
                 <div className="user-chip">{(user.name||"U").slice(0,2).toUpperCase()}</div>
               </div>
             </div>
           </header>
+          {messagesOpen && <MessagesPanel userId={session.user.id} onClose={()=>setMessagesOpen(false)}/>}
           <main className="site-main">
             {tab==="discovery"  && <DiscoveryScreen city={user.city} userCuisines={user.cuisines} userBudget={user.budget} userId={session.user.id} userName={user.name} savedPlaces={user.saved_food_places} onToggleSave={async(name)=>{ const cur=user.saved_food_places||[]; const next=cur.includes(name)?cur.filter(n=>n!==name):[...cur,name]; try{ await updateProfile(session.user.id,{saved_food_places:next}); await refreshProfile(); }catch(e){ console.error("Save toggle failed:",e); } }}/>}
             {tab==="events"     && <EventsMapScreen city={user.city}/>}
@@ -1555,6 +1635,7 @@ export default function App() {
             </nav>
             <div className="topnav-right">
               <span className="city-pill">📍 {localUser.city==="nyc"?"NYC":"Mumbai"}</span>
+              <button className="topnav-msg-btn" disabled title="Sign in to use messaging" onClick={()=>alert("Messaging needs a real account — sign up to chat with people.")}>💬</button>
               <div className="user-chip">{(localUser.name||"U").slice(0,2).toUpperCase()}</div>
             </div>
           </div>
