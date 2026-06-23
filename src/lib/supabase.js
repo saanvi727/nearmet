@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js'
  
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
@@ -115,6 +116,47 @@ export async function shareFoodExperience(userId, userName, foodPlaceKey, { phot
 export async function deleteFoodExperience(experienceId) {
   const { error } = await supabase.from('food_experiences').delete().eq('id', experienceId)
   if (error) throw error
+}
+ 
+// ─── COMMUNITY PLACES (user-submitted food places) ────────────────────────────
+ 
+export async function getCommunityPlaces(city) {
+  const { data, error } = await supabase
+    .from('community_places')
+    .select('*')
+    .eq('city', city)
+    .eq('status', 'approved')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data
+}
+ 
+export async function uploadCommunityPlacePhoto(userId, file) {
+  const ext = file.name.split('.').pop()
+  const path = `community-places/${userId}/${Date.now()}.${ext}`
+  const { error } = await supabase.storage
+    .from('place-photos')
+    .upload(path, file, { upsert: false })
+  if (error) throw error
+  const { data } = supabase.storage.from('place-photos').getPublicUrl(path)
+  return data.publicUrl
+}
+ 
+export async function submitCommunityPlace(userId, userName, { city, name, area, cuisine, description, photoUrl }) {
+  const { data, error } = await supabase
+    .from('community_places')
+    .insert({
+      city, name, area,
+      cuisine: cuisine || null,
+      description: description || null,
+      photo_url: photoUrl || null,
+      submitted_by: userId,
+      submitter_name: userName,
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return data
 }
  
 // ─── RESTAURANTS ──────────────────────────────────────────────────────────────
@@ -259,6 +301,11 @@ export async function passProfile(userId, passedId) {
     passed_id: passedId,
     passed_at: new Date().toISOString(),
   })
+}
+ 
+export async function resetPasses(userId) {
+  const { error } = await supabase.from('profile_passes').delete().eq('user_id', userId)
+  if (error) throw error
 }
  
 export async function sendResonance(fromUserId, toUserId, promptIndex, message) {

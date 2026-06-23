@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import "./App.css";
 import { useAuth } from "./context/AuthContext.jsx";
 import AuthPage from "./pages/AuthPage.jsx";
-import { signOut, updateProfile, uploadProfilePhoto, uploadFoodExperiencePhoto, getFoodExperiences, shareFoodExperience, deleteFoodExperience, getPeople, passProfile, getOrCreateConnection, getConnections, getMessages, sendMessage } from "./lib/supabase.js";
+import { signOut, updateProfile, uploadProfilePhoto, uploadFoodExperiencePhoto, getFoodExperiences, shareFoodExperience, deleteFoodExperience, getPeople, passProfile, resetPasses, getOrCreateConnection, getConnections, getMessages, sendMessage, getCommunityPlaces, uploadCommunityPlacePhoto, submitCommunityPlace } from "./lib/supabase.js";
 
 // ─── LOGO ────────────────────────────────────────────────────────────────────
 function NearMetLogo({ size = 28, dark = false }) {
@@ -13,6 +13,47 @@ function NearMetLogo({ size = 28, dark = false }) {
     </span>
   );
 }
+
+// ─── PRODUCT TOUR ──────────────────────────────────────────────────────────────
+// Diverse mixed names for the seeded shared experience on food detail pages
+const SHARED_EXP_NAMES = ["Rohan","Priya","Arjun","Meera","Karan","Aditi","Rahul","Ishaan","Pooja","Vikram","Nisha","Aarav","Kavya","Dev","Sanya","Nikhil","Riya","Aman","Sneha","Yash","Ananya","Aditya","Zara","Kabir","Tanvi","Siddharth","Diya","Mihir","Simran","Neil"];
+
+const TOUR_STEPS = [
+  { icon:"👋", title:"Welcome to NearMet", body:"Quick tour — find food spots worth trying, meet people nearby who share your taste, and discover what's happening in your city. Takes about a minute." },
+  { icon:"🍽️", title:"Food Places", body:"Browse curated food spots across Mumbai — cafés, restaurants, street food, bakeries and more. Filter by area or category, or search by name and cuisine." },
+  { icon:"⭐", title:"Recommendations for you", body:"The more you set up your food preferences in your profile, the more personalized your recommendations get — matched to your exact cuisines and budget." },
+  { icon:"📸", title:"Community experiences", body:"Every place has real shared experiences from people like you — the dish they tried, what they loved, and photos. Tap any place to explore it." },
+  { icon:"🎟️", title:"Events", body:"See what's happening around the city — gigs, festivals, open mics and meetups — matched to your interests from your profile." },
+  { icon:"👥", title:"Connections", body:"Meet other registered NearMet users nearby. We rank matches by shared food places, things you both want to do, and shared interests — no random strangers." },
+  { icon:"💬", title:"Direct messaging", body:"Tap 'Message' on any profile to start a real conversation. All your chats are accessible from the 💬 icon in the top bar, from any screen." },
+  { icon:"🧭", title:"Your profile", body:"Set your food preferences, cuisines, and budget here — this directly powers what you see recommended on the Food Places screen. It gets better the more you fill in." },
+  { icon:"✅", title:"You're all set!", body:"Explore the city, find your people, and share your favorite spots. You can replay this tour anytime from your Profile tab." },
+];
+
+function TourOverlay({ stepIndex, onNext, onBack, onSkip }) {
+  const step = TOUR_STEPS[stepIndex];
+  const isLast = stepIndex === TOUR_STEPS.length - 1;
+  const progress = ((stepIndex + 1) / TOUR_STEPS.length) * 100;
+  return (
+    <div className="tour-modal-bg">
+      <div className="tour-modal">
+        <div className="tour-progress-bar"><div className="tour-progress-fill" style={{width:`${progress}%`}}/></div>
+        <div className="tour-step-icon">{step.icon}</div>
+        <div className="tour-card-step">{stepIndex+1} / {TOUR_STEPS.length}</div>
+        <div className="tour-card-title">{step.title}</div>
+        <p className="tour-card-body">{step.body}</p>
+        <div className="tour-card-footer">
+          <button className="tour-skip-btn" onClick={onSkip}>Skip tour</button>
+          <div className="tour-nav-btns">
+            {stepIndex > 0 && <button className="tour-back-btn" onClick={onBack}>Back</button>}
+            <button className="tour-next-btn" onClick={onNext}>{isLast ? "Start exploring →" : "Next →"}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 // ─── DATA ─────────────────────────────────────────────────────────────────────
 const CITIES = {
@@ -84,99 +125,55 @@ const CITIES = {
   mumbai: {
     label: "Mumbai", cur: "₹",
     food: [
-      { id:1, name:"Leopold Cafe", cuisine:"Multi-cuisine", price:"₹2600 for two", rating:4.2, tag:"Trending", hood:"Colaba", address:"Shahid Bhagat Singh Road, Colaba Causeway, Apollo Bandar, Colaba, Mumbai, Maharashtra 400001", desc:"Multi-cuisine spot in Colaba. Known for chicken tikka, sizzlers.", phone:"+91 85858 28201", img:"https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Chicken Tikka",price:"₹—"},{item:"Sizzlers",price:"₹—"},{item:"Beer",price:"₹—"},{item:"Club Sandwich",price:"₹—"}] },
-      { id:2, name:"Mag St.", cuisine:"Café & Restaurant", price:"₹2000-2900 for two", rating:4.4, tag:"Must visit", hood:"Colaba", address:"Mag St., 4, Mandlik Rd, Apollo Bandar, Colaba, Mumbai, Maharashtra 400001", desc:"A popular Colaba café known for its inviting atmosphere, excellent bakery selection and diverse menu — a favourite for everything from casual meals to weekend outings.", phone:"+91 72085 44366", img:"https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Lobster Roll",price:"₹—"},{item:"Truffle Fries",price:"₹—"},{item:"Wasabi Prawns",price:"₹—"},{item:"Avocado Salad",price:"₹—"}] },
-      { id:3, name:"Aram Vada Pav", cuisine:"Street Food", price:"₹200 for two", rating:4.3, tag:"Popular", hood:"CST", address:"Capital Cinema Building, 126, Dr Dadabhai Naoroji Rd, opp. CSMT, Fort, Mumbai, Maharashtra 400001", desc:"Street Food spot in CST. Known for vada pav, cheese vada pav.", phone:"+91 86557 12155", img:"https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Vada Pav",price:"₹—"},{item:"Cheese Vada Pav",price:"₹—"},{item:"Butter Vada Pav",price:"₹—"},{item:"Samosa Pav",price:"₹—"}] },
-      { id:4, name:"Araku Coffee", cuisine:"Specialty Coffee Café", price:"₹2000 for two", rating:4.2, tag:"Local fav", hood:"Colaba", address:"Sunny House, Mandlik Rd, Apollo Bandar, Colaba, Mumbai, Maharashtra 400001", desc:"Specialty Coffee Café spot in CST. Known for pour over coffee, nitro cold brew.", phone:"+91 73372 05222", img:"https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Pour Over Coffee",price:"₹—"},{item:"Nitro Cold Brew",price:"₹—"},{item:"Cappuccino",price:"₹—"},{item:"Banana Bread",price:"₹—"}] },
-      { id:5, name:"Mockingbird Café Bar", cuisine:"Café & Bar", price:"₹1700-2600 for two", rating:4.4, tag:"Worth the trip", hood:"Churchgate", address:"80, Veer Nariman Rd, Churchgate, Mumbai, Maharashtra 400020", desc:"Café & Bar spot in Churchgate. Known for flowerpot tiramisu, spicy cajun chicken.", phone:"+91 80976 06010", img:"https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Flowerpot Tiramisu",price:"₹—"},{item:"Spicy Cajun Chicken",price:"₹—"},{item:"Beetroot Hummus",price:"₹—"},{item:"Akuri on Toast",price:"₹—"}] },
-      { id:6, name:"Kyani & Co.", cuisine:"Irani Café & Bakery", price:"₹300 for two", rating:4.1, tag:"Iconic", hood:"Marine Lines", address:"Jer Mahal Building, 657, Jagannath Shankar Seth Rd, Marine Lines, Mumbai, Maharashtra 400002", desc:"Irani Café & Bakery spot in Marine Lines. Known for bun maska, irani chai.", phone:"+91 89286 16793", img:"https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Bun Maska",price:"₹—"},{item:"Irani Chai",price:"₹—"},{item:"Keema Pav",price:"₹—"},{item:"Mawa Cake",price:"₹—"}] },
-      { id:7, name:"Ashok Vada Pav", cuisine:"Street Food", price:"₹150 for two", rating:4.2, tag:"Late night", hood:"Dadar", address:"Kashinath Dhuru Marg, Dadar West, Mumbai, Maharashtra 400028", desc:"Street Food spot in Dadar. Known for vada pav, cheese vada pav.", phone:"+91 85918 94170", img:"https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Vada Pav",price:"₹—"},{item:"Cheese Vada Pav",price:"₹—"},{item:"Chura Vada Pav",price:"₹—"},{item:"Misal Pav",price:"₹—"}] },
-      { id:8, name:"Muthu Dosa Corner", cuisine:"South Indian Street Food", price:"₹150-200 for two", rating:4.3, tag:"Cozy spot", hood:"Dadar", address:"St Paul St, Hindmata, Dadar East, Mumbai, Maharashtra 400014", desc:"South Indian Street Food spot in Dadar. Known for mysore masala dosa, cheese masala dosa.", phone:"+91 22-0000-0000", img:"https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Mysore Masala Dosa",price:"₹—"},{item:"Cheese Masala Dosa",price:"₹—"},{item:"Rava Dosa",price:"₹—"},{item:"Filter Coffee",price:"₹—"}] },
-      { id:9, name:"Brooke Bond Taj Mahal Tea House", cuisine:"Tea House", price:"₹600-900 for two", rating:4.5, tag:"Top rated", hood:"Bandra", address:"Sanatan Pereira Bungalow, 36/A, St John Baptist Rd, Mount Mary, Bandra West, Mumbai, Maharashtra 400050", desc:"Tea House spot in Bandra. Known for parsi brun maska, kashmiri saffron chai.", phone:"+91 84339 53420", img:"https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Parsi Brun Maska",price:"₹—"},{item:"Kashmiri Saffron Chai",price:"₹—"},{item:"Apple Crumble",price:"₹—"},{item:"Fluffy Omelette",price:"₹—"}] },
-      { id:10, name:"Café Irani Chaii", cuisine:"Café", price:"₹400 for two", rating:4.4, tag:"Hidden gem", hood:"Mahim", address:"Rosary Building, Mia Mohd Chhotani Rd, Geeta Nagar, Mahim West, Mumbai, Maharashtra 400016", desc:"Café spot in Bandra. Known for bun maska, irani chai.", phone:"+91 98202 85577", img:"https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Bun Maska",price:"₹—"},{item:"Irani Chai",price:"₹—"},{item:"Berry Pulao",price:"₹—"},{item:"Mutton Dhansak",price:"₹—"}] },
-      { id:11, name:"The Nutcracker", cuisine:"Café", price:"₹1800-1900 for two", rating:4.4, tag:"Trending", hood:"Bandra", address:"St John Baptist Rd, St Sebastian Colony, Mount Mary, Bandra West, Mumbai, Maharashtra 400050", desc:"Café spot in Bandra. Known for buttermilk pancakes, belgian hot chocolate.", phone:"+91 93217 67726", img:"https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Buttermilk Pancakes",price:"₹—"},{item:"Belgian Hot Chocolate",price:"₹—"},{item:"Black Bean Burger",price:"₹—"},{item:"Eggs Kejriwal",price:"₹—"}] },
-      { id:12, name:"Bombay Brioche", cuisine:"Café & Bakery", price:"₹1200 for two", rating:4.6, tag:"Must visit", hood:"Bandra", address:"Simple Apts, 1, 16th Rd, Bandra West, Mumbai, Maharashtra 400050", desc:"Café & Bakery spot in Bandra. Known for truffle mushroom croissant, san sebastián cheesecake.", phone:"+91 98196 54950", img:"https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Truffle Mushroom Croissant",price:"₹—"},{item:"San Sebastián Cheesecake",price:"₹—"},{item:"Korean Egg Sando",price:"₹—"},{item:"Nutella Bomboloni",price:"₹—"}] },
-      { id:13, name:"Shakey Wakey", cuisine:"Café & Fast Food", price:"₹400-550 for two", rating:3.9, tag:"Popular", hood:"Bandra", address:"Elko Arcade Shopping Centre, Waterfield Rd, Bandra West, Mumbai, Maharashtra 400050", desc:"Café & Fast Food spot in Bandra. Known for oreo thick shake, chicken hot garlic roll.", phone:"+91 98200 07442", img:"https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Oreo Thick Shake",price:"₹—"},{item:"Chicken Hot Garlic Roll",price:"₹—"},{item:"Mango Django Juice",price:"₹—"},{item:"Chocolate Brownie Sundae",price:"₹—"}] },
-      { id:14, name:"Candies", cuisine:"Café & Bakery", price:"₹400-850 for two", rating:4.3, tag:"Local fav", hood:"Bandra", address:"5AA, Pali Hill, next to Learners Academy School, Bandra West, Mumbai, Maharashtra 400050", desc:"Café & Bakery spot in Bandra. Known for chicken lasagna, chocolate mousse.", phone:"+91 85911 49713", img:"https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Chicken Lasagna",price:"₹—"},{item:"Chocolate Mousse",price:"₹—"},{item:"Blueberry Cheesecake",price:"₹—"},{item:"Banoffee Pie",price:"₹—"}] },
-      { id:15, name:"Aromas Café", cuisine:"Café", price:"₹1000-1300 for two", rating:4.3, tag:"Worth the trip", hood:"Bandra", address:"Ground Floor, Mamta Building, Waterfield Rd, near National College, Bandra West, Mumbai, Maharashtra 400050", desc:"Café spot in Bandra. Known for peri peri chicken sandwich, nutella pancakes.", phone:"+91 22 6897 6429", img:"https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Peri Peri Chicken Sandwich",price:"₹—"},{item:"Nutella Pancakes",price:"₹—"},{item:"Alfredo Pasta",price:"₹—"},{item:"Sizzling Brownie",price:"₹—"}] },
-      { id:16, name:"Boojee Cafe", cuisine:"Café", price:"₹1200-1300 for two", rating:4.4, tag:"Iconic", hood:"Bandra", address:"Shop No 6, 29, New Kantwadi Rd, off Perry Cross Rd, Bandra West, Mumbai, Maharashtra 400050", desc:"Café spot in Bandra. Known for truffled avocado toast, turkish eggs.", phone:"+91 99302 03882", img:"https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Truffled Avocado Toast",price:"₹—"},{item:"Turkish Eggs",price:"₹—"},{item:"Hot Chocolate",price:"₹—"},{item:"Pistachio Baklava Croissant",price:"₹—"}] },
-      { id:17, name:"Bombay Coffee House", cuisine:"Café", price:"₹900-950 for two", rating:4.2, tag:"Late night", hood:"Bandra", address:"Neelkamal Building, 248, Waterfield Rd, opp. National College, Bandra West, Mumbai, Maharashtra 400050", desc:"Café spot in Bandra. Known for iced caramel coffee, eggs benedict.", phone:"+91 77180 42147", img:"https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Iced Caramel Coffee",price:"₹—"},{item:"Eggs Benedict",price:"₹—"},{item:"Keema Pulao",price:"₹—"},{item:"Irish Cream Coffee",price:"₹—"}] },
-      { id:18, name:"Brevé Bakery", cuisine:"Café & Bakery", price:"₹1050 for two", rating:4.0, tag:"Cozy spot", hood:"Bandra", address:"Shop No.12, Pearl Haven, Chapel Rd, St Sebastian Colony, Mount Mary, Bandra West, Mumbai, Maharashtra 400050", desc:"Café & Bakery spot in Bandra. Known for bandra basque cheesecake, pistachio cheesecake.", phone:"+91 90825 87137", img:"https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Bandra Basque Cheesecake",price:"₹—"},{item:"Pistachio Cheesecake",price:"₹—"},{item:"Vietnamese Cold Coffee",price:"₹—"},{item:"Avocado Chicken Sandwich",price:"₹—"}] },
-      { id:19, name:"Kepchaki Momos", cuisine:"Momos & Tibetan", price:"₹400 for two", rating:4.0, tag:"Top rated", hood:"Bandra", address:"73, Waroda Rd, Ranwar, Bandra West, Mumbai, Maharashtra 400050", desc:"Momos & Tibetan spot in Bandra. Known for pork momos, chicken & basil momos.", phone:"+91 88280 80796", img:"https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Pork Momos",price:"₹—"},{item:"Chicken & Basil Momos",price:"₹—"},{item:"Jhol Momos",price:"₹—"},{item:"Mushroom & Cheese Momos",price:"₹—"}] },
-      { id:20, name:"Hit & Run Lebanese and Mughal", cuisine:"Lebanese & Mughlai", price:"₹1000 for two", rating:4.2, tag:"Hidden gem", hood:"Bandra", address:"Shop No-1, Sunbeam Apartment, 64, Chapel Rd, near Lilavati Hospital, Bandra West, Mumbai, Maharashtra 400050", desc:"Lebanese & Mughlai spot in Bandra. Known for chicken shawarma, hummus falafel roll.", phone:"+91 91520 39821", img:"https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Chicken Shawarma",price:"₹—"},{item:"Hummus Falafel Roll",price:"₹—"},{item:"Mutton Biryani",price:"₹—"},{item:"Lebanese Platters",price:"₹—"}] },
-      { id:21, name:"Kuuraku", cuisine:"Japanese", price:"₹2000-2100 for two", rating:4.7, tag:"Trending", hood:"Bandra", address:"Suburbia Building, between Linking Road, Swami Vivekanand Rd, Bandra West, Mumbai, Maharashtra 400050", desc:"Japanese spot in Bandra. Known for kuuraku ramen, tan tan men ramen.", phone:"+91 73044 96623", img:"https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Kuuraku Ramen",price:"₹—"},{item:"Tan Tan Men Ramen",price:"₹—"},{item:"Teppan Gyoza",price:"₹—"},{item:"Crunchy Ebi Roll",price:"₹—"}] },
-      { id:22, name:"Jay Sandwich", cuisine:"Street Food", price:"₹200-250 for two", rating:4.3, tag:"Must visit", hood:"Bandra", address:"36th Rd, Khar West, Mumbai, Maharashtra 400050", desc:"Street Food spot in Bandra. Known for cheese chilli toast sandwich, chocolate sandwich.", phone:"+91 93249 57757", img:"https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Cheese Chilli Toast Sandwich",price:"₹—"},{item:"Chocolate Sandwich",price:"₹—"},{item:"Pizza Sandwich",price:"₹—"},{item:"Schezwan Grilled Sandwich",price:"₹—"}] },
-      { id:23, name:"DRNK", cuisine:"Beverage Café", price:"₹1300 for two", rating:4.3, tag:"Popular", hood:"Bandra", address:"Shop number 6, Shakti Raj premise, Pali Rd, opp. Two Rose, Bandra West, Mumbai, Maharashtra 400050", desc:"Beverage Café spot in Bandra. Known for matcha latte, spanish latte.", phone:"+91 8591409819", img:"https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Matcha Latte",price:"₹—"},{item:"Spanish Latte",price:"₹—"},{item:"Tiramisu Latte",price:"₹—"},{item:"Basque Cheesecake",price:"₹—"}] },
-      { id:24, name:"Jai Jawan", cuisine:"Street Food", price:"₹500-550 for two", rating:4.4, tag:"Local fav", hood:"Bandra", address:"Linking Rd, opp. National College, Khar, Bandra West, Mumbai, Maharashtra 400050", desc:"Street Food spot in Bandra. Known for chicken tikka roll, paneer tikka roll.", phone:"+91 98205 03355", img:"https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Chicken Tikka Roll",price:"₹—"},{item:"Paneer Tikka Roll",price:"₹—"},{item:"Chicken Shawarma",price:"₹—"},{item:"Veg Schezwan Roll",price:"₹—"}] },
-      { id:25, name:"Vanilla Miel", cuisine:"Café & Pâtisserie", price:"₹1200-1400 for two", rating:4.4, tag:"Worth the trip", hood:"Bandra", address:"18A, 16th Rd, Pali Village, Bandra West, Mumbai, Maharashtra 400050", desc:"A cozy hidden gem tucked into Pali Village with minimal decor, known for its prawn rolls, avocado chicken sandwich and rich desserts.", phone:"+91 73049 16702", img:"https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Prawn Roll",price:"₹—"},{item:"Avocado Chicken Sandwich",price:"₹—"},{item:"Almond Croissant",price:"₹—"},{item:"Pineapple Tres Leches",price:"₹—"}] },
-      { id:26, name:"SodaBottleOpenerWala", cuisine:"Parsi & Iranian", price:"₹1300-1600 for two", rating:4.2, tag:"Iconic", hood:"BKC", address:"Ground, The Capital, 02, G Block Rd, BKC, Bandra East, Mumbai, Maharashtra 400051", desc:"Parsi & Iranian spot in BKC. Known for berry pulao, chicken farcha.", phone:"+91 72088 71560", img:"https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Berry Pulao",price:"₹—"},{item:"Chicken Farcha",price:"₹—"},{item:"Mutton Dhansak",price:"₹—"},{item:"Eggs Kejriwal",price:"₹—"}] },
-      { id:27, name:"Kale & Kaffe", cuisine:"Healthy Café", price:"₹1000-1300 for two", rating:4.4, tag:"Late night", hood:"Khar", address:"3R8J+FW9, Bandra West, Mumbai, Maharashtra 400052", desc:"Healthy Café spot in Khar. Known for truffle mushroom toast, acai bowl.", phone:"+91 22-0000-0000", img:"https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Truffle Mushroom Toast",price:"₹—"},{item:"Acai Bowl",price:"₹—"},{item:"Eggs Benedict",price:"₹—"},{item:"Grilled Chicken Salad",price:"₹—"}] },
-      { id:28, name:"Kill No Kalorie", cuisine:"Healthy Café", price:"₹950 for two", rating:4.0, tag:"Cozy spot", hood:"Khar", address:"Kulkarni CHS, Ghantali Devi Rd, near Sai Baba Mandir, Naupada, Thane West, Thane, Maharashtra 400602", desc:"Healthy Café spot in Khar. Known for protein pancakes, grilled chicken sandwich.", phone:"+91 80821 60869", img:"https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Protein Pancakes",price:"₹—"},{item:"Grilled Chicken Sandwich",price:"₹—"},{item:"Smoothie Bowls",price:"₹—"},{item:"Avocado Toast",price:"₹—"}] },
-      { id:29, name:"Prithvi Cafe", cuisine:"Café", price:"₹500-700 for two", rating:4.4, tag:"Top rated", hood:"Juhu", address:"Prithvi Theatre, 20, Juhu Rd, Janki Kutir, Juhu, Mumbai, Maharashtra 400049", desc:"Café spot in Juhu. Known for irish coffee, suleimani chai.", phone:"+91 70459 40218", img:"https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Irish Coffee",price:"₹—"},{item:"Suleimani Chai",price:"₹—"},{item:"Keema Pav",price:"₹—"},{item:"Cheese Chilli Paratha",price:"₹—"}] },
-      { id:30, name:"Bayleaf Cafe", cuisine:"Café", price:"₹1050 for two", rating:4.2, tag:"Hidden gem", hood:"Juhu", address:"32, Juhu Church Rd, Janki Kutir, Juhu, Mumbai, Maharashtra 400049", desc:"Café spot in Juhu. Known for avocado toast, tiramisu.", phone:"+91 22-0000-0000", img:"https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Avocado Toast",price:"₹—"},{item:"Tiramisu",price:"₹—"},{item:"Bayleaf Tiramisu Pancake",price:"₹—"},{item:"Fried Nutella Toast & Banana Brûlée",price:"₹—"}] },
-      { id:31, name:"Silver Beach Cafe", cuisine:"Café", price:"₹1300-2100 for two", rating:4.3, tag:"Trending", hood:"Juhu", address:"Jal Darshan Building, 94/6, Shri GB Jukar Marg, beside Juhu Tara, Juhu, Mumbai, Maharashtra 400049", desc:"Café spot in Juhu. Known for cilantro pizza, breakfast platter.", phone:"+91 98199 66495", img:"https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Cilantro Pizza",price:"₹—"},{item:"Breakfast Platter",price:"₹—"},{item:"Chocolate Fondue",price:"₹—"},{item:"Gnocchi",price:"₹—"}] },
-      { id:32, name:"Shree Siddhivinayak Fast Food", cuisine:"Street Food", price:"₹250-500 for two", rating:4.5, tag:"Must visit", hood:"Juhu", address:"1, Juhu Tara Rd, Nazir Wadi, Theosophical Housing Colony, Juhu, Mumbai, Maharashtra 400049", desc:"Street Food spot in Juhu. Known for pav bhaji, cheese pav bhaji.", phone:"+91 98673 81333", img:"https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Pav Bhaji",price:"₹—"},{item:"Cheese Pav Bhaji",price:"₹—"},{item:"Tawa Pulao",price:"₹—"},{item:"Hakka Noodles",price:"₹—"}] },
-      { id:33, name:"Café Arpan", cuisine:"Café", price:"₹500 for two", rating:4.8, tag:"Popular", hood:"Vile Parle", address:"Shop No. 3, Zee Jayshree, Prarthana Samaj Rd, Navpada, Vile Parle East, Mumbai, Maharashtra 400057", desc:"Café spot in Vile Parle. Known for creamy mushroom sandwich, falafel.", phone:"+91 74004 90008", img:"https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Creamy Mushroom Sandwich",price:"₹—"},{item:"Falafel",price:"₹—"},{item:"Filter Coffee",price:"₹—"},{item:"Masala Fries",price:"₹—"}] },
-      { id:34, name:"Bombay to Barcelona Library Café", cuisine:"Library Café", price:"₹500-900 for two", rating:4.6, tag:"Local fav", hood:"Andheri", address:"Timmy Arcade, 778, Makwana Rd, Gamdevi, Marol, Andheri East, Mumbai, Maharashtra 400059", desc:"Library Café spot in Andheri. Known for spanish hot chocolate, pancakes.", phone:"+91 77384 46788", img:"https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Spanish Hot Chocolate",price:"₹—"},{item:"Pancakes",price:"₹—"},{item:"Nutella Crepes",price:"₹—"},{item:"Cheesecake",price:"₹—"}] },
-      { id:35, name:"The Backyard Brew", cuisine:"Café", price:"₹1200-1700 for two", rating:4.4, tag:"Worth the trip", hood:"Andheri", address:"Shop No. 1 & 2, Poseidon Apartment, Inlaks Nagar, Versova, Andheri West, Mumbai, Maharashtra 400061", desc:"Café spot in Andheri. Known for spicy buttermilk fried chicken burger, burnt basque cheesecake.", phone:"+91 89767 66771", img:"https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Spicy Buttermilk Fried Chicken Burger",price:"₹—"},{item:"Burnt Basque Cheesecake",price:"₹—"},{item:"Peruvian Chicken Skewers",price:"₹—"},{item:"Eggs Benedict",price:"₹—"}] },
-      { id:36, name:"Kefi Eatery & Cafe", cuisine:"Café", price:"₹1000-1150 for two", rating:4.2, tag:"Iconic", hood:"Andheri", address:"Inlaks Nagar, Versova, Andheri West, Mumbai, Maharashtra 400061", desc:"Café spot in Andheri. Known for truffle kefi fries, kefi house fried chicken.", phone:"+91 22-0000-0000", img:"https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Truffle Kefi Fries",price:"₹—"},{item:"Kefi House Fried Chicken",price:"₹—"},{item:"Butter Garlic Prawns",price:"₹—"},{item:"Classic Cheesecake",price:"₹—"}] },
-      { id:37, name:"Jessiea's – Good Vibes", cuisine:"Café", price:"₹1400-1600 for two", rating:4.2, tag:"Late night", hood:"Andheri", address:"Shop No. G-216 G217 G218, Shree Ashtavinayak CHS, DN Nagar, Andheri West, Mumbai, Maharashtra 400053", desc:"Café spot in Andheri. Known for padron pesto pizza, impossible burger.", phone:"+91 91361 09369", img:"https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Padron Pesto Pizza",price:"₹—"},{item:"Impossible Burger",price:"₹—"},{item:"Pumpkin & Ricotta Tortellini Pasta",price:"₹—"},{item:"Japanese Cheesecake",price:"₹—"}] },
-      { id:38, name:"Grandmama's Cafe", cuisine:"Café", price:"₹1600-1700 for two", rating:4.2, tag:"Cozy spot", hood:"Chembur", address:"Ground Floor, Sunny Estate, Sion-Trombay Rd, Borla, Union Park, Chembur, Mumbai, Maharashtra 400071", desc:"Café spot in Chembur. Known for signature hot chocolate, pesto basilico pasta.", phone:"+91 85910 73470", img:"https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Signature Hot Chocolate",price:"₹—"},{item:"Pesto Basilico Pasta",price:"₹—"},{item:"Crusty Mac & Cheese",price:"₹—"},{item:"Khao Suey",price:"₹—"}] },
-      { id:39, name:"Le Café", cuisine:"Café", price:"₹1800-2000 for two", rating:4.4, tag:"Top rated", hood:"Chembur", address:"Jewel of Chembur, Rd No. 1, opp. BMC Office, near Natraj Cinema, Chembur, Mumbai, Maharashtra 400071", desc:"Café spot in Chembur. Known for three mushroom risotto, nachos.", phone:"+91 22 6709 9977", img:"https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Three Mushroom Risotto",price:"₹—"},{item:"Nachos",price:"₹—"},{item:"Butter Garlic Prawns",price:"₹—"},{item:"Lamb Chops",price:"₹—"}] },
-      { id:40, name:"Mumbai Express", cuisine:"Café / Deli", price:"₹1600 for two", rating:4.2, tag:"Hidden gem", hood:"Powai", address:"The Westin, Plot No 2 & 3B, near Chinmayanand Ashram, Powai, Mumbai, Maharashtra 400087", desc:"Café / Deli spot in Powai. Known for cappuccino, tuna sandwich.", phone:"+91 22 6692 7567", img:"https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Cappuccino",price:"₹—"},{item:"Tuna Sandwich",price:"₹—"},{item:"Salmon Croissant",price:"₹—"},{item:"Cold Brew Coffee",price:"₹—"}] },
-      { id:41, name:"Earth Soul Cafe", cuisine:"Healthy Café", price:"₹850-1000 for two", rating:4.7, tag:"Trending", hood:"CBD Belapur", address:"Shop No. 13, Progressive's Sea Lounge, Plot No.44, Sector 15, CBD Belapur, Navi Mumbai, Maharashtra 400614", desc:"Healthy Café spot in CBD Belapur. Known for kale & avocado salad, basil pesto risotto.", phone:"+91 96194 09696", img:"https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Kale & Avocado Salad",price:"₹—"},{item:"Basil Pesto Risotto",price:"₹—"},{item:"Avocado Toast",price:"₹—"},{item:"Cold-Pressed Juices",price:"₹—"}] },
-      { id:42, name:"Mamledar Misal", cuisine:"Maharashtrian", price:"₹200-250 for two", rating:4.2, tag:"Must visit", hood:"Thane", address:"opp. Zilla Parishad, Talav Pali, Jambli Naka, Thane West, Thane, Maharashtra 400602", desc:"Maharashtrian spot in Thane. Known for mamledar misal, dahi misal.", phone:"+91 95948 47929", img:"https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Mamledar Misal",price:"₹—"},{item:"Dahi Misal",price:"₹—"},{item:"Extra Tari Misal",price:"₹—"},{item:"Batata Vada",price:"₹—"}] },
-      { id:43, name:"Prashant Corner", cuisine:"Mithai & Street Food", price:"₹200-400 for two", rating:4.4, tag:"Popular", hood:"Thane", address:"Shop No. 17 & 18, Gagangiri Society, Bhakti Mandir, Panch Pakhadi, Thane West, Thane, Maharashtra 400602", desc:"Mithai & Street Food spot in Thane. Known for khaman dhokla, kothimbir vadi.", phone:"+91 88792 79757", img:"https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Khaman Dhokla",price:"₹—"},{item:"Kothimbir Vadi",price:"₹—"},{item:"Ragda Pattice",price:"₹—"},{item:"Pani Puri",price:"₹—"}] },
-      { id:44, name:"The Pantry", cuisine:"Café", price:"₹1100 for two", rating:4.7, tag:"Local fav", hood:"Kala Ghoda", address:"Ground floor, Bansi Lal Building, 15-A, Homi Modi St, opp. Bombay House, Kala Ghoda, Fort, Mumbai, Maharashtra 400001", desc:"Café spot in Kala Ghoda. Known for avocado toast, eggs benedict.", phone:"+91 82917 70401", img:"https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Avocado Toast",price:"₹—"},{item:"Eggs Benedict",price:"₹—"},{item:"Ricotta Hotcakes",price:"₹—"},{item:"Truffle Fries",price:"₹—"}] },
-      { id:45, name:"Kala Ghoda Cafe", cuisine:"Café", price:"₹400-1300 for two", rating:4.4, tag:"Worth the trip", hood:"Kala Ghoda", address:"10, Rope Walk Ln, Kala Ghoda, Fort, Mumbai, Maharashtra 400001", desc:"Café spot in Kala Ghoda. Known for chicken salad sandwich, almond cake.", phone:"+91 98338 03418", img:"https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Chicken Salad Sandwich",price:"₹—"},{item:"Almond Cake",price:"₹—"},{item:"Chicken Schnitzel",price:"₹—"},{item:"Mint Tea",price:"₹—"}] },
-      { id:46, name:"Bake House Cafe", cuisine:"Café & Bakery", price:"₹800-2000 for two", rating:4.4, tag:"Iconic", hood:"Kala Ghoda", address:"Chamber of Commerce Ln, Kala Ghoda, Fort, Mumbai, Maharashtra 400001", desc:"Café & Bakery spot in Kala Ghoda. Known for eggs benedict, white sauce pasta.", phone:"+91 22 2202 0146", img:"https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Eggs Benedict",price:"₹—"},{item:"White Sauce Pasta",price:"₹—"},{item:"Wood-Fired Pizza",price:"₹—"},{item:"Pain au Chocolat",price:"₹—"}] },
-      { id:47, name:"Britannia & Co. Restaurant", cuisine:"Parsi", price:"₹1000 for two", rating:4.1, tag:"Late night", hood:"Fort", address:"Wakefield House, 11-16, SS Ram Gulam Marg, opp. New Indian Customs House, Ballard Estate, Fort, Mumbai, Maharashtra 400001", desc:"Parsi spot in Fort. Known for berry pulao, sali boti.", phone:"+91 22 2261 5264", img:"https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Berry Pulao",price:"₹—"},{item:"Sali Boti",price:"₹—"},{item:"Caramel Custard",price:"₹—"},{item:"Chicken Berry Pulao",price:"₹—"}] },
-      { id:48, name:"Banyan Tree Café", cuisine:"Café", price:"₹650-1400 for two", rating:4.3, tag:"Cozy spot", hood:"Fort", address:"7, 9, Calicut Rd, Ballard Estate, Fort, Mumbai, Maharashtra 400001", desc:"Café spot in Fort. Known for banoffee pie, quiche.", phone:"+91 96190 33000", img:"https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Banoffee Pie",price:"₹—"},{item:"Quiche",price:"₹—"},{item:"Chicken Sandwich",price:"₹—"},{item:"Blueberry Cheesecake",price:"₹—"}] },
-      { id:49, name:"Yazdani Bakery & Restaurant", cuisine:"Irani Café & Bakery", price:"₹200-250 for two", rating:4.2, tag:"Top rated", hood:"Fort", address:"11A, Cawasji Patel St, Kala Ghoda, Fort, Mumbai, Maharashtra 400001", desc:"Irani Café & Bakery spot in Fort. Known for brun maska, mawa cake.", phone:"+91 22-0000-0000", img:"https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Brun Maska",price:"₹—"},{item:"Mawa Cake",price:"₹—"},{item:"Apple Cinnamon Pie",price:"₹—"},{item:"Irani Chai",price:"₹—"}] },
-      { id:50, name:"Nandan Coffee", cuisine:"Specialty Coffee Café", price:"₹700-750 for two", rating:4.4, tag:"Hidden gem", hood:"Kala Ghoda", address:"Mulla House, 34, Homi Modi St, opp. Central Bank Head Office, Kala Ghoda, Fort, Mumbai, Maharashtra 400001", desc:"Specialty Coffee Café spot in Fort. Known for mari-wala scramble, nandan tiramisu french toast.", phone:"+91 77380 69879", img:"https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Mari-wala Scramble",price:"₹—"},{item:"Nandan Tiramisu French Toast",price:"₹—"},{item:"Bombay Bagel",price:"₹—"},{item:"Vietnamese Iced Coffee",price:"₹—"}] },
-      { id:51, name:"Zen Cafe", cuisine:"Café", price:"₹1000-1200 for two", rating:4.2, tag:"Trending", hood:"Kala Ghoda", address:"Fort Foundation Building, Bake House Ln, Kala Ghoda, Fort, Mumbai, Maharashtra 400001", desc:"Café spot in Fort. Known for belgian hot chocolate, sushi platter.", phone:"+91 91677 68950", img:"https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Belgian Hot Chocolate",price:"₹—"},{item:"Sushi Platter",price:"₹—"},{item:"Avocado Toast",price:"₹—"},{item:"Vegetarian Sushi Rolls",price:"₹—"}] },
-      { id:52, name:"Abokado", cuisine:"Japanese Café", price:"₹600-1000 for two", rating:4.4, tag:"Hidden gem", hood:"Bandra", address:"Shop No.1, Sefa House, Pali Mala Rd, Bandra West, Mumbai, Maharashtra 400049", desc:"A cozy Japanese inspired café in Bandra known for its welcoming atmosphere and consistently well received food. Guests often appreciate the attentive service and intimate setting making it a favorite for those looking for something different from the usual café experience.", phone:"+91 83699 36468", img:"https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&q=80", photos:["https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80","https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80"], menu:[{item:"Avocado Toast Set",price:"₹—"},{item:"Salmon Sushi Roll",price:"₹—"},{item:"Katsu Curry",price:"₹—"},{item:"Matcha Latte",price:"₹—"}] },
-      { id:53, name:"Akhoi Manipuri Kitchen", cuisine:"Manipuri / Northeast Indian", price:"₹600-1000 for two", rating:4.2, tag:"Unique find", hood:"Andheri", address:"D4, Shree Brahma Chaitanya CHS, BD 77, near Om Shelter, SV Patel Nagar, Andheri West, Mumbai, Maharashtra 400053", desc:"A well-loved eatery in Versova known for its authentic Manipuri cuisine and homely flavors. Guests often appreciate the traditional preparation, warm hospitality and genuine dining experience that offers a taste of Northeast India in Mumbai.", phone:"+91 60096 86422", img:"https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&q=80", photos:["https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80","https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80"], menu:[{item:"Chicken Momos",price:"₹—"},{item:"Hawaijar Pork",price:"₹—"},{item:"Smoked Bamboo Shoot Curry",price:"₹—"},{item:"Chak-hao Kheer",price:"₹—"}] },
-      { id:54, name:"Anand Stall", cuisine:"Street Food", price:"₹800-1300 for two", rating:4.2, tag:"College favourite", hood:"Vile Parle", address:"VM Road, opp. Options Mall, JVPD Scheme, Vile Parle West, Mumbai, Maharashtra 400049", desc:"A popular Vile Parle eatery known for its wide variety of street food and long-standing local following. Guests often appreciate the quick service, affordable offerings and familiar flavours that have made it a favorite among students and locals for years.", phone:"+91 91674 72737", img:"https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80", photos:["https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80","https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80"], menu:[{item:"Butter Vada Pav",price:"₹—"},{item:"Mysore Masala Dosa",price:"₹—"},{item:"Schezwan Vada Pav",price:"₹—"},{item:"Cheese Grill Sandwich",price:"₹—"}] },
-      { id:55, name:"ARBAB", cuisine:"Lebanese Restaurant", price:"₹1800-3000 for two", rating:4.0, tag:"Open-air", hood:"Bandra", address:"Plot no 117, Shop no 4, 28th Rd, Bandra West, Mumbai, Maharashtra 400050", desc:"A popular Bandra eatery known for its authentic Middle Eastern flavors and generous portions. Guests often appreciate the quality of the food, consistent experience and flavorful offerings that have earned it a loyal following.", phone:"+91 99208 30008", img:"https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Hummus Beiruty",price:"₹—"},{item:"Shish Tawouk",price:"₹—"},{item:"Mezze Platter",price:"₹—"},{item:"Baklava",price:"₹—"}] },
-      { id:56, name:"Bayview Cafe", cuisine:"Café", price:"₹1800-3000 for two", rating:4.2, tag:"Sea view", hood:"Colaba", address:"Hotel Harbour View, 25, PJ Ramchandani Marg, Apollo Bandar, Colaba, Mumbai, Maharashtra 400001", desc:"A Colaba café known for its stunning views of the Arabian Sea and the Gateway of India. Guests often appreciate the relaxed atmosphere, friendly service and scenic setting that make it a memorable spot in South Mumbai.", phone:"+91 22 6119 2222", img:"https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=600&q=80", photos:["https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80","https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&q=80"], menu:[{item:"Breakfast Buffet",price:"₹—"},{item:"Mushroom Dishes",price:"₹—"},{item:"Milkshakes",price:"₹—"},{item:"Tandoori Platter",price:"₹—"}] },
-      { id:57, name:"Benne", cuisine:"South Indian / Dosa", price:"₹800-1300 for two", rating:4.4, tag:"Authentic", hood:"Bandra", address:"Shop no. 1, plot 85, TPS 3, Louis Bell Building, 16th Rd, opp. Shree Sagar, Bandra West, Mumbai, Maharashtra 400050", desc:"A popular Bandra café known for its South Indian-inspired offerings and comforting flavours. Guests often appreciate the quality of the food, welcoming atmosphere and thoughtfully crafted experience that sets it apart from the neighborhood’s usual café scene.", phone:"+91 90049 88941", img:"https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=600&q=80", photos:["https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80","https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&q=80","https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400&q=80"], menu:[{item:"Ghee Podi Dosa",price:"₹—"},{item:"Thatte Idli",price:"₹—"},{item:"Garlic Roast Dosa",price:"₹—"},{item:"Filter Kaapi",price:"₹—"}] },
-      { id:58, name:"Bokka Coffee", cuisine:"Specialty Coffee Café", price:"₹600-1000 for two", rating:4.2, tag:"Local fav", hood:"Bandra", address:"Shop no. 6 and 7, Silver Croft, 16th Rd, near Khane Khas, Bandra West, Mumbai, Maharashtra 400050", desc:"A cozy Bandra café known for its excellent coffee and thoughtfully prepared breakfast offerings. Guests often praise the quality of the food, friendly service and welcoming atmosphere that keeps them coming back.", phone:"+91 83558 05500", img:"https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=600&q=80", photos:["https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80","https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&q=80","https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400&q=80","https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80"], menu:[{item:"Cold Brew",price:"₹—"},{item:"Truffle Shroom Dosa",price:"₹—"},{item:"Lamb Toast",price:"₹—"},{item:"Hibiscus Iced Tea",price:"₹—"}] },
-      { id:59, name:"Bombay Island Coffee Company", cuisine:"Specialty Coffee Roastery", price:"₹800-1300 for two", rating:4.5, tag:"Office favourite", hood:"Vikhroli", address:"Shop #4, Tower C, Retail Street, The Trees, Godrej One, Pirojshanagar, Vikhroli East, Mumbai, Maharashtra 400079", desc:"A specialty coffee café in Vikhroli known for its freshly roasted coffee and relaxed atmosphere. Guests often appreciate the quality of the beverages, welcoming service, and the unique experience of seeing the coffee-making process up close.", phone:"+91 22 4003 4931", img:"https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=600&q=80", photos:["https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&q=80","https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400&q=80","https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80"], menu:[{item:"French Press Coffee",price:"₹—"},{item:"Hazelnut Cold Coffee",price:"₹—"},{item:"Mediterranean Sandwich",price:"₹—"},{item:"Croissant Sandwich",price:"₹—"}] },
-      { id:60, name:"C D' Souza", cuisine:"East Indian / Goan", price:"₹600-1000 for two", rating:4.4, tag:"Family-run", hood:"Marine Lines", address:"314, Dr Cawasji Hormusji St, opp. Our Lady of Dolours Church, Sonapur, Marine Lines, Mumbai, Maharashtra 400002", desc:"A long-standing Marine Lines restaurant known for its authentic East Indian cuisine and homely atmosphere. Guests often appreciate the traditional flavors, generous portions and comforting dining experience that has earned it a loyal following over the years.", phone:"+91 22 3194 8380", img:"https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=600&q=80", photos:["https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400&q=80","https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80"], menu:[{item:"Pork Sorpotel",price:"₹—"},{item:"Kingfish Rava Fry",price:"₹—"},{item:"Goan Chorizo Fry",price:"₹—"},{item:"Fruit Pie",price:"₹—"}] },
-      { id:61, name:"Cafe Trofima", cuisine:"Café", price:"₹800-1300 for two", rating:4.2, tag:"Shivaji Park staple", hood:"Dadar", address:"Raja Badhe Chowk, Lady Jamshedji Rd, Shivaji Park Road No. 2, Mumbai, Maharashtra 400028", desc:"A well-loved café in Shivaji Park known for its warm ambience and wide-ranging menu. Guests often appreciate the quality of the food, friendly service, and inviting atmosphere that has made it a neighbourhood favourite over the years.", phone:"+91 82910 19988", img:"https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Jalapeño Hummus with Pita",price:"₹—"},{item:"Watermelon Feta Salad",price:"₹—"},{item:"White Sauce Pasta",price:"₹—"},{item:"Lotus Stem Starter",price:"₹—"}] },
-      { id:62, name:"Chetana", cuisine:"Vegetarian Thali Restaurant", price:"₹800-1300 for two", rating:4.0, tag:"Since 1946", hood:"Kala Ghoda", address:"34, K Dubash Marg, Kala Ghoda, Fort, Mumbai, Maharashtra 400023", desc:"A long-standing Kala Ghoda restaurant known for its regional Indian vegetarian cuisine. Guests often appreciate the authentic flavors, traditional preparations and distinctive dining experience that showcases India's diverse culinary heritage.", phone:"+91 22 2284 4968", img:"https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&q=80", photos:["https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80","https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80"], menu:[{item:"Gujarati Thali",price:"₹—"},{item:"Rajasthani Thali",price:"₹—"},{item:"Maharashtrian Thali",price:"₹—"},{item:"Wine (limited bar)",price:"₹—"}] },
-      { id:63, name:"Cloud 9 Bar & Cafe", cuisine:"Rooftop Bar & Café", price:"₹800-1300 for two", rating:3.8, tag:"City views", hood:"Colaba", address:"Hotel Godwin 41, Garden Rd, Apollo Bandar, Colaba, Mumbai, Maharashtra 400001", desc:"A rooftop spot in Colaba known for its relaxed atmosphere and city views. Guests often appreciate the friendly service, enjoyable ambience and easy-going setting that makes it a popular place to unwind.", phone:"+91 22 2287 2050", img:"https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&q=80", photos:["https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80","https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80"], menu:[{item:"Bar Snacks",price:"₹—"},{item:"Green Salad",price:"₹—"},{item:"Chicken Tikka",price:"₹—"},{item:"Evening Cocktails",price:"₹—"}] },
-      { id:64, name:"Earth Cafe", cuisine:"Café (Vegan-friendly)", price:"₹600-1000 for two", rating:4.8, tag:"Top rated", hood:"Churchgate", address:"Ground Floor, Ram Mahal, Dinshaw Vacha Rd, near KC College, Churchgate, Mumbai, Maharashtra 400020", desc:"A well-loved café near Churchgate known for its fresh vegetarian offerings and relaxed atmosphere. Guests often appreciate the wholesome food, friendly service and comfortable setting that make it a popular choice in South Mumbai.", phone:"+91 90818 81844", img:"https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80", photos:["https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80","https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80"], menu:[{item:"Orange Chocolate Cake",price:"₹—"},{item:"Rose Matcha",price:"₹—"},{item:"Hot Mocha",price:"₹—"},{item:"Strawberry Cream",price:"₹—"}] },
-      { id:65, name:"Ettarra Coffee House", cuisine:"Café", price:"₹600-1000 for two", rating:4.6, tag:"Filter coffee special", hood:"Juhu", address:"Ground Floor, Juhu Residency Boutique Hotel, Juhu, Mumbai, Maharashtra 400049", desc:"A cosy Juhu café known for its distinctive coffee offerings and warm hospitality. Guests often appreciate the welcoming service, relaxed atmosphere, and thoughtful details that make every visit feel a little more personal.", phone:"+91 86558 05815", img:"https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"South Indian Filter Coffee Frappe",price:"₹—"},{item:"Matka Cheesecake",price:"₹—"},{item:"Kacha Nimbu Tartlet",price:"₹—"},{item:"Iced Filter Coffee",price:"₹—"}] },
-      { id:66, name:"Gajalee", cuisine:"Seafood Restaurant", price:"₹1800-3000 for two", rating:4.3, tag:"Coastal classic", hood:"Vile Parle", address:"Kadamgiri Complex, Hanuman Rd, next to ICICI Bank, Vile Parle East, Mumbai, Maharashtra 400057", desc:"A well-known seafood restaurant in Vile Parle celebrated for its fresh seafood and authentic coastal flavours. Guests often appreciate the consistent quality, attentive service, and reliable dining experience that has earned it a loyal following over the years.", phone:"+91 22 2616 6470", img:"https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=600&q=80", photos:["https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80","https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&q=80"], menu:[{item:"Prawns Koliwada",price:"₹—"},{item:"Bombil Fry",price:"₹—"},{item:"Pomfret Khoshimbir",price:"₹—"},{item:"Fish Thali",price:"₹—"}] },
-      { id:67, name:"Gaylord", cuisine:"Multi-cuisine Restaurant", price:"₹1800-3000 for two", rating:4.2, tag:"Old world charm", hood:"Churchgate", address:"V N Rd, Churchgate, Mumbai, Maharashtra 400020", desc:"A long-standing Churchgate restaurant known for its elegant atmosphere and enduring charm. Guests often appreciate the attentive service, quality food and consistent experience that has made it a Mumbai favorite for generations.", phone:"+91 70455 56060", img:"https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=600&q=80", photos:["https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80","https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&q=80","https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400&q=80"], menu:[{item:"Vegetable Tandoor Platter",price:"₹—"},{item:"Mushroom Cheese Lasagna",price:"₹—"},{item:"Crème Brûlée",price:"₹—"},{item:"Pizza",price:"₹—"}] },
-      { id:68, name:"Gypsy Chinese", cuisine:"Chinese Restaurant", price:"₹600-1000 for two", rating:3.7, tag:"Old favourite", hood:"Dadar", address:"Dadar West, Dadar, Mumbai, Maharashtra 400014", desc:"A long-standing restaurant in Dadar known for its flavorful Chinese cuisine and consistent quality. Guests often appreciate the generous portions, efficient service and familiar flavors that have made it a favorite among locals for years.", phone:"+91 86550 06855", img:"https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=600&q=80", photos:["https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80","https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&q=80","https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400&q=80","https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80"], menu:[{item:"Chilli Chicken",price:"₹—"},{item:"Chicken Lollipop",price:"₹—"},{item:"Udon Noodles",price:"₹—"},{item:"Manchow Soup",price:"₹—"}] },
-      { id:69, name:"Hardeep Punjab", cuisine:"Punjabi / Tandoor", price:"₹800-1300 for two", rating:4.2, tag:"Tandoor specialist", hood:"Sion", address:"Om Shiv Shakti, GTB Nagar, J.K. Bhasin Marg, Sion Koliwada, Sion East, Mumbai, Maharashtra 400037", desc:"A popular Punjabi restaurant in Sion Koliwada known for its authentic flavors and generous portions. Guests often appreciate the consistent quality, quick service and satisfying meals that have made it a favorite among locals for years.", phone:"+91 80808 08002", img:"https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=600&q=80", photos:["https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&q=80","https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400&q=80","https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80"], menu:[{item:"HP Special Tandoor",price:"₹—"},{item:"Matka Biryani",price:"₹—"},{item:"Fish Amritsari Fry",price:"₹—"},{item:"Non-Veg Platter",price:"₹—"}] },
-      { id:70, name:"Hot Momos", cuisine:"Momos / Street Food", price:"₹800-1300 for two", rating:4.3, tag:"Local favourite", hood:"Kharghar", address:"Shop no 14, Swarna CHS, Plot no 13/14, Sector 7, Kharghar, Panvel, Maharashtra 410210", desc:"A popular Kharghar eatery known for its flavorful food and generous portions. Guests often appreciate the quick service, consistent quality and satisfying experience that has earned it a loyal local following.", phone:"+91 87676 81828", img:"https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=600&q=80", photos:["https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400&q=80","https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80"], menu:[{item:"Chicken Kurkure Momos",price:"₹—"},{item:"Chicken Steam Momos",price:"₹—"},{item:"Veg Cheese Kurkure Momos",price:"₹—"},{item:"Chicken Cocktail Momos",price:"₹—"}] },
-      { id:71, name:"Journal Bombay", cuisine:"Café", price:"₹600-1000 for two", rating:4.5, tag:"Aesthetic spot", hood:"Santacruz", address:"396/3, Ground Floor, Parvati Building, N Ave Rd, Santacruz West, Mumbai, Maharashtra 400054", desc:"A Santacruz café known for its calm atmosphere and welcoming service. Guests often appreciate the quality of the food and coffee along with the comfortable setting that makes it easy to settle in and enjoy the experience at your own pace.", phone:"+91 90046 99654", img:"https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Banana Oats Pancakes",price:"₹—"},{item:"Double Meat Margarita Pizza",price:"₹—"},{item:"Thai Curry Bowl",price:"₹—"},{item:"Iced Latte",price:"₹—"}] },
-      { id:72, name:"K. Rustom & Co.", cuisine:"Ice Cream Parlour", price:"₹300-500 for two", rating:4.4, tag:"Iconic since decades", hood:"Churchgate", address:"Brabourne Stadium, 86, Veer Nariman Rd, Churchgate, Mumbai, Maharashtra 400020", desc:"A legendary Churchgate ice cream parlour known for its signature ice cream sandwiches. Guests return for the nostalgic experience, wide variety of flavors and a taste that has remained a Mumbai favorite for generations.", phone:"+91 22 2282 1768", img:"https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&q=80", photos:["https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80","https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80"], menu:[{item:"Ice Cream Sandwich",price:"₹—"},{item:"King Mango",price:"₹—"},{item:"Pista",price:"₹—"},{item:"Walnut",price:"₹—"}] },
-      { id:73, name:"Leaping Windows", cuisine:"Café & Bar with Library", price:"₹800-1300 for two", rating:4.5, tag:"Books + booze", hood:"Andheri", address:"Corner View 3, Dr. Ashok Chopra Marg, opp. Bianca Towers, Amit Nagar, Versova, Andheri West, Mumbai, Maharashtra 400061", desc:"A unique café in Versova known for its extensive comic book collection and cozy reading spaces. Guests often appreciate the relaxed atmosphere, friendly service and the experience of spending time surrounded by books and creativity.", phone:"+91 97699 98972", img:"https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&q=80", photos:["https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80","https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80"], menu:[{item:"Grilled Chicken Skewers",price:"₹—"},{item:"Pesto Pasta",price:"₹—"},{item:"Tenderloin Steak",price:"₹—"},{item:"Vietnamese Coffee",price:"₹—"}] },
-      { id:74, name:"Maasoli Lunch Home", cuisine:"Seafood Restaurant", price:"₹800-1300 for two", rating:4.1, tag:"Konkan flavours", hood:"Byculla", address:"2nd, 1st Cross Ln, Byculla West, Mumbai, Maharashtra 400027", desc:"A popular seafood restaurant in Byculla known for its fresh coastal flavors and homely cooking. Guests often appreciate the consistent quality, generous portions and straightforward dining experience that has made it a favorite among seafood lovers.", phone:"+91 87795 61588", img:"https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80", photos:["https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80","https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80"], menu:[{item:"Bombil Fry",price:"₹—"},{item:"Prawn Curry",price:"₹—"},{item:"Solkadhi",price:"₹—"},{item:"Pomfret Fry",price:"₹—"}] },
-      { id:75, name:"Mahesh Lunch Home", cuisine:"Seafood Restaurant", price:"₹1800-3000 for two", rating:4.2, tag:"Mangalorean classics", hood:"Juhu", address:"Next to JW Marriott Mumbai Juhu, Juhu Tara, Juhu, Mumbai, Maharashtra 400049", desc:"A well-known seafood restaurant in Juhu celebrated for its fresh seafood and authentic coastal flavors. Guests often appreciate the consistent quality, attentive service and reliable dining experience that has made it a Mumbai favorite for years.", phone:"+91 90046 55554", img:"https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Butter Garlic Prawns",price:"₹—"},{item:"Wok Fried Crab",price:"₹—"},{item:"Pomfret Tawa Fry",price:"₹—"},{item:"Neer Dosa",price:"₹—"}] },
-      { id:76, name:"Mainland China", cuisine:"Chinese Restaurant", price:"₹1800-3000 for two", rating:4.3, tag:"Buffet favourite", hood:"Andheri", address:"Shalimar Morya Park, Ground Floor, off New Link Rd, Andheri West, Mumbai, Maharashtra 400053", desc:"A well-known Chinese restaurant in Andheri known for its consistent quality and refined dining experience. Guests often appreciate the flavorful food, attentive service and reliable experience that has made it a favorite for years.", phone:"+91 93204 78302", img:"https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=600&q=80", photos:["https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80","https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&q=80"], menu:[{item:"Peking Poached Dumplings",price:"₹—"},{item:"Sticky Korean Fried Shrimp",price:"₹—"},{item:"Prawns Hunan Style",price:"₹—"},{item:"Dragon Fried Rice",price:"₹—"}] },
-      { id:77, name:"MAZI - Coffee Bar | Kitchen", cuisine:"Café", price:"₹600-1000 for two", rating:4.4, tag:"Cozy hangout", hood:"Santacruz", address:"27C, Sujata Rajpipla CHS, Juhu Tara Rd, Hasmukh Nagar, Santacruz West, Mumbai, Maharashtra 400054", desc:"A stylish café in Santacruz known for its welcoming atmosphere. Guests often appreciate the quality of the food, comfortable setting and friendly service making it one of the area's well-loved cafés.", phone:"+91 86938 43243", img:"https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=600&q=80", photos:["https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80","https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&q=80","https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400&q=80"], menu:[{item:"Tiramisu Cappuccino",price:"₹—"},{item:"Chicken Sando",price:"₹—"},{item:"Parmesan Fondue Lasagne",price:"₹—"},{item:"Basque Cheesecake",price:"₹—"}] },
-      { id:78, name:"Miya Kebabs", cuisine:"Kebab Restaurant", price:"₹600-1000 for two", rating:4.6, tag:"Insta-famous", hood:"Kala Ghoda", address:"Ali Chambers, Flora Fountain, 81-82, M Shetty Marg, Kala Ghoda, Fort, Mumbai, Maharashtra 400023", desc:"A popular eatery in Kala Ghoda known for its flavourful food and generous portions. Guests often appreciate the consistent quality, quick service, and satisfying meals that have made it a favourite among regulars in the area.", phone:"+91 88477 47644", img:"https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=600&q=80", photos:["https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80","https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&q=80","https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400&q=80","https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80"], menu:[{item:"Butter Chicken Shawarma",price:"₹—"},{item:"Changezi Chicken Tikka",price:"₹—"},{item:"Cheesy Chicken Legs",price:"₹—"},{item:"Za'atar Naan with Hummus",price:"₹—"}] },
-      { id:79, name:"Mizu", cuisine:"Japanese Restaurant", price:"₹600-1000 for two", rating:4.4, tag:"Sushi spot", hood:"Khar", address:"Ground Floor, Ganga Jamuna Building, 14th Rd, Khar West, Mumbai, Maharashtra 400052", desc:"A Japanese restaurant in Khar known for its elegant atmosphere and attention to detail. Guests often appreciate the quality of the food, attentive service and refined dining experience that has made it a favourite among Japanese cuisine enthusiasts.", phone:"+91 93720 23641", img:"https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=600&q=80", photos:["https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&q=80","https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400&q=80","https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80"], menu:[{item:"Dragon Roll Sushi",price:"₹—"},{item:"Pork Belly Bao",price:"₹—"},{item:"Spicy Prawn Donburi",price:"₹—"},{item:"Mini Pork Ramen",price:"₹—"}] },
-      { id:80, name:"Modern Lunch Home", cuisine:"Mangalorean Seafood", price:"₹800-1300 for two", rating:4.1, tag:"Tulunadu classic", hood:"Sion", address:"Harak Niwas, 5, Station Rd, opp. Bank of Baroda, Sion Railway Colony, Sion West, Mumbai, Maharashtra 400022", desc:"A well-known restaurant in Sion celebrated for its fresh seafood and consistent quality. Guests often appreciate the generous portions, attentive service and reliable dining experience that has made it a favorite among locals for years.", phone:"+91 22 2409 7942", img:"https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=600&q=80", photos:["https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400&q=80","https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80"], menu:[{item:"Surmai Pulimunchi",price:"₹—"},{item:"Prawns Ghee Roast",price:"₹—"},{item:"Kori Roti with Chicken",price:"₹—"},{item:"Neer Dosa",price:"₹—"}] },
-      { id:81, name:"Mokai", cuisine:"Café", price:"₹600-1000 for two", rating:4.4, tag:"Aesthetic & matcha", hood:"Bandra", address:"600,601,602, Hill Crest Building, Dr Ambedkar Rd, Pali Naka, Bandra West, Mumbai, Maharashtra 400050", desc:"A lively café in Pali Hill known for its modern atmosphere and well-rounded menu. Guests often appreciate the quality of the food and coffee, friendly service and vibrant setting that has made it a popular spot in Bandra.", phone:"+91 98200 62166", img:"https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Raspberry Mochi Matcha",price:"₹—"},{item:"Lavender Matcha",price:"₹—"},{item:"Kimchi Fried Rice",price:"₹—"},{item:"Chicken Banh Mi",price:"₹—"}] },
-      { id:82, name:"PAASHH", cuisine:"Organic / Vegetarian Café", price:"₹600-1000 for two", rating:4.3, tag:"All-organic", hood:"Bandra", address:"Ceillia Shelter, Rajan Cater Rd, opp. Aura Building, Shirley, Pali Hill, Bandra West, Mumbai, Maharashtra 400050", desc:"A thoughtfully designed café in Pali Hill known for its peaceful bungalow setting and vegetarian offerings. Guests often appreciate the warm hospitality, relaxed atmosphere, and the sense of slowing down that makes the experience feel special.", phone:"+91 95458 10001", img:"https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&q=80", photos:["https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80","https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80"], menu:[{item:"Paash Burrata",price:"₹—"},{item:"Purple Potato Tostada",price:"₹—"},{item:"Corn Gnocchi",price:"₹—"},{item:"Hazelnut Croissant",price:"₹—"}] },
-      { id:83, name:"Ramen Bar Wagamama", cuisine:"Japanese / Asian Restaurant", price:"₹600-1000 for two", rating:4.8, tag:"Global chain favourite", hood:"Churchgate", address:"Cambata, Maharshi Karve Rd, Churchgate, Mumbai, Maharashtra 400020", desc:"A popular Japanese restaurant in Churchgate known for its authentic flavours and comforting dining experience. Guests often appreciate the quality of the food, attentive service and consistent experience that keeps regulars coming back.", phone:"+91 97027 03111", img:"https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&q=80", photos:["https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80","https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80"], menu:[{item:"Khao Soi Chicken Ramen",price:"₹—"},{item:"Gyoza",price:"₹—"},{item:"Gochujang Chicken Rice",price:"₹—"},{item:"Kokopanko Chicken",price:"₹—"}] },
-      { id:84, name:"Roofberries Rooftop", cuisine:"Rooftop Bar", price:"₹600-1000 for two", rating:4.1, tag:"Celebration spot", hood:"Bandra", address:"Rooftop, Crystal Shoppers Paradise, Junction of 24th and 33rd Rd, off Linking Rd, Bandra West, Mumbai, Maharashtra 400050", desc:"A rooftop spot in Bandra known for its lively atmosphere and city views. Guests often appreciate the vibrant setting, attentive service and enjoyable dining experience making it a popular choice for evenings out with friends and family.", phone:"+91 73043 55403", img:"https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80", photos:["https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80","https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80"], menu:[{item:"Mini Burgers",price:"₹—"},{item:"Dim Sum",price:"₹—"},{item:"Salmon Crostini",price:"₹—"},{item:"Signature Cocktails",price:"₹—"}] },
-      { id:85, name:"Taftoon Bar & Kitchen", cuisine:"North Indian / Afghani", price:"₹1800-3000 for two", rating:4.3, tag:"BKC fine dine", hood:"BKC", address:"Naman Centre, G Block Rd, opp. SIDBI, BKC, Bandra East, Mumbai, Maharashtra 400051", desc:"An acclaimed restaurant in BKC known for showcasing regional Indian flavours from across the country. Guests often appreciate the quality of the food, attentive service and thoughtfully crafted dining experience that celebrates India's diverse culinary traditions.", phone:"+91 22 4973 5748", img:"https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Dahi Ke Kebab",price:"₹—"},{item:"Mirchi Ke Pakode",price:"₹—"},{item:"Dal Bati Churma",price:"₹—"},{item:"Paan Chocolate",price:"₹—"}] },
-      { id:86, name:"Yoko Sizzlers", cuisine:"Sizzler Restaurant", price:"₹800-1300 for two", rating:4.3, tag:"Old-school sizzlers", hood:"Santacruz", address:"10, 11, Swami Vivekanand Rd, Saraswat Nagar, Santacruz West, Mumbai, Maharashtra 400054", desc:"A long-standing restaurant in Santacruz known for its signature sizzlers and generous portions. Guests often appreciate the consistent quality, lively dining experience, and familiar flavors that have made it a favorite across generations.", phone:"+91 91678 68641", img:"https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=600&q=80", photos:["https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80","https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&q=80"], menu:[{item:"Yoko Special Chicken Sizzler",price:"₹—"},{item:"Prawns Fried Rice",price:"₹—"},{item:"Paneer Sizzler",price:"₹—"},{item:"Exotic Veg Sizzler",price:"₹—"}] },
-      { id:87, name:"Mia Cuccinna", cuisine:"Italian Restaurant", price:"₹1200-1800 for two", rating:4.1, tag:"Wood-fired Italian", hood:"Bandra West", address:"C'est la Vie Club, 164, Hill Rd, next to Holy Family Hospital, Bandra West, Mumbai, Maharashtra 400050", desc:"A cozy Bandra spot with a European-inspired ambience, known for wood-fired pizzas, fresh pastas and a well-loved tiramisu. A popular pick for casual lunches and celebrations alike.", phone:"+91 96199 54545", img:"https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=600&q=80", photos:["https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80","https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&q=80","https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400&q=80","https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80"], menu:[{item:"Pesto Tagliatelle",price:"₹—"},{item:"Penne Arrabiata",price:"₹—"},{item:"Wood-fired Pizzetta",price:"₹—"},{item:"Tiramisu",price:"₹—"}] },
-      { id:88, name:"Salt Water Cafe", cuisine:"Continental", price:"₹1800-3000 for two", rating:4.3, tag:"Bandra institution", hood:"Bandra West", address:"Annexe, 87, Rose Minar, Chapel Rd, Reclamation, Bandra West, Mumbai, Maharashtra 400050", desc:"A long-running Bandra café known for generous portions and a consistently strong menu spanning pastas, burgers and hearty breakfasts. A reliable favorite for both casual brunches and bigger appetites.", phone:"+91 86575 31985", img:"https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=600&q=80", photos:["https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&q=80","https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400&q=80","https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80"], menu:[{item:"Fish Burger",price:"₹—"},{item:"Fish & Chips",price:"₹—"},{item:"Flourless Chocolate Fudge",price:"₹—"},{item:"Tiramisu",price:"₹—"}] },
-      { id:89, name:"Maiz Mexican Kitchen", cuisine:"Mexican Restaurant", price:"₹1200-1800 for two", rating:4.5, tag:"Fresh Mexican bowls", hood:"Lower Parel", address:"Gala 21A, Lakshmi Industrial Estate, Shankar Rao Naram Path, Lower Parel, Mumbai, Maharashtra 400013", desc:"A Lower Parel kitchen serving customizable burrito bowls, tacos and nachos made with fresh, quality ingredients. Known for generous portions and well-balanced house sauces.", phone:"+91 98922 89611", img:"https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=600&q=80", photos:["https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400&q=80","https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80"], menu:[{item:"Burrito Bowl",price:"₹—"},{item:"Tofu Quesadilla",price:"₹—"},{item:"Loaded Nachos",price:"₹—"},{item:"Chipotle Tacos",price:"₹—"}] },
-      { id:90, name:"Mezcalita Bandra", cuisine:"Mexican Restaurant", price:"₹1200-1800 for two", rating:4.7, tag:"Mexican cantina", hood:"Bandra West", address:"320, Madhu Milan Building, Dr Ambedkar Road, Pali Hill Rd, Bandra West, Mumbai, Maharashtra 400051", desc:"A bright, lively Mexican cantina in Bandra blending creative and traditional flavors, with a vibrant menu of tacos, guacamole and margaritas. A go-to spot for a fun night out.", phone:"+91 91520 17980", img:"https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80", photos:["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"], menu:[{item:"Guacamole",price:"₹—"},{item:"Chicken Taco",price:"₹—"},{item:"Margarita",price:"₹—"},{item:"Elote (Mexican Street Corn)",price:"₹—"}] }
+      { id:1, name:"Aram Vada Pav", cuisine:"Street Food", price:"Rs.50-150 for two", rating:4.6, tag:"Legendary since 1939", hood:"CST", address:"Capital Cinema Building, Opposite CSMT, Azad Maidan, Fort, Mumbai 400001", phone:"8655712155", desc:"Experience a taste of tradition at Aram Vada Pav - Mumbai's legendary spot for authentic Maharashtrian street food since 1939. Known for the original vada pav, Misal Pav, Thalipeeth and the traditional sweet drink Piyush.", sharedExp:"Tried the vada pav and had a great experience. The vada was crispy, the pav was soft and the chutney added a flavorful spicy kick.", tryThis:"Vada Pav", img:"/places/aram-vada-pav/photo1.webp", photos:["/places/aram-vada-pav/photo2.jpg"] },
+      { id:2, name:"ARAKU Coffee", cuisine:"Cafe", price:"Rs.800-1200 for two", rating:4.5, tag:"Farm-to-cup", hood:"Colaba", address:"Sunny House, Mandlik Rd, Apollo Bandar, Colaba, Mumbai 400001", phone:"7337205222", desc:"ARAKU Coffee sources 100% organic single-origin Arabica coffee from Araku Valley. The menu includes artisanal bakes, all-day breakfast, seasonal dishes, and a curated selection of cocktails and wines.", sharedExp:"The coffee was great and the food was both delicious and beautifully presented with plenty of options to choose from.", tryThis:"Pistachio and Rhubarb Cake", img:"/places/araku-coffee/photo1.jpg", photos:[] },
+      { id:3, name:"Mag St. Cafe", cuisine:"Cafe", price:"Rs.800-1500 for two", rating:4.4, tag:"Local favorite", hood:"Colaba", address:"4, Mandlik Rd, Apollo Bandar, Colaba, Mumbai 400001", phone:"7208544366", desc:"A beloved destination for Mumbaikars seeking casual and comforting dining. From Lobster Rolls and Truffle Fries to artisanal pizzas - fresh locally sourced ingredients meet international culinary offerings.", sharedExp:"Absolutely delicious food with generous portions for the price. Great service and the whole experience was enjoyable.", tryThis:"Udon Noodles and Korean Cheese Bun", img:"/places/mag-st-cafe/photo1.webp", photos:["/places/mag-st-cafe/photo2.jpg","/places/mag-st-cafe/photo3.webp"] },
+      { id:4, name:"Leopold Cafe", cuisine:"Multi-cuisine", price:"Rs.1000-1500 for two", rating:4.4, tag:"Iconic landmark", hood:"Colaba", address:"Shahid Bhagat Singh Road, Colaba Causeway, Apollo Bandar, Colaba, Mumbai 400001", phone:"8585828201", desc:"An iconic cafe in Colaba known for its historic charm and lively atmosphere. One of Mumbai's most celebrated landmarks with a diverse menu and vibrant setting.", sharedExp:"Great lively atmosphere and an extensive menu featuring Indian, continental and Chinese dishes. Tasty food in generous portions.", tryThis:"Chicken Chilli and Grilled Chicken Sandwich", img:"/places/leopold-cafe/photo3.webp", photos:["/places/leopold-cafe/photo1.webp","/places/leopold-cafe/photo2.webp"] },
+      { id:5, name:"Woodside Inn", cuisine:"Gastropub", price:"Rs.1500-2500 for two", rating:4.5, tag:"Best gastropub", hood:"Colaba", address:"Indian Mercantile Mansion, Wodehouse Road, Opposite Regal Cinema, Colaba, Mumbai 400001", phone:"9321728192", desc:"Cosy, warmly decorated gastropub serving a range of global dishes. Never forced - great food, great drinks, great atmosphere.", sharedExp:"My favorite thing about Woodside is that it never feels forced. You can come here after a long day, order a beer and some truffle fries and lose track of time.", tryThis:"Draft Beer and Chicken Poppers", img:"/places/woodside-inn/photo2.webp", photos:["/places/woodside-inn/photo1.jpeg"] },
+      { id:6, name:"Cafe Mondegar", cuisine:"Cafe", price:"Rs.800-1500 for two", rating:4.3, tag:"Vintage classic", hood:"Colaba", address:"Metro House, Colaba Causeway, near Regal Cinema, Apollo Bandar, Colaba, Mumbai 400001", phone:"9833322277", desc:"A legendary South Mumbai landmark famous for its vibrant Mario Miranda murals and retro jukebox. The ultimate vintage spot for a chilled beer and classic comfort food.", sharedExp:"Incredible food, great music and good service. Highly recommended.", tryThis:"Paneer Croquettes and Spring Rolls", img:"/places/cafe-mondegar/photo1.jpg", photos:["/places/cafe-mondegar/photo2.webp"] },
+      { id:7, name:"Kuai Kitchen", cuisine:"Chinese Restaurant", price:"Rs.600-1200 for two", rating:4.4, tag:"Best Oriental", hood:"Colaba", address:"Shop No. 16/A Cusrow Baug, Main Road Colaba Causeway, Shahid Bhagat Singh Rd, Colaba, Mumbai 400001", phone:"9819045664", desc:"Kuai Kitchen is a vibrant casual restaurant dedicated to being the ultimate destination for delicious and affordable Oriental cuisine.", sharedExp:"Top-tier food paired with flawless hospitality. Highly recommend for Asian cuisine.", tryThis:"Kuai Special Roll and Pinacolada", img:"/places/kuai-kitchen/photo1.jpg", photos:["/places/kuai-kitchen/photo2.webp","/places/kuai-kitchen/photo3.webp"] },
+      { id:8, name:"Nandan Coffee", cuisine:"Specialty Coffee Cafe", price:"Rs.600-1000 for two", rating:4.7, tag:"Specialty coffee", hood:"Kala Ghoda", address:"Mulla House, 34, Homi Modi St, opposite Central Bank Head Office, Kala Ghoda, Fort, Mumbai 400001", phone:"7738069879", desc:"Nandan Coffee has earned a reputation for offering more than just exceptional coffee. Its specialty coffee is sourced straight from an organic estate in Kodaikanal. Warm hospitality and a calm atmosphere.", sharedExp:"The interior is incredible and the specialty coffee is sourced straight from their organic estate in Kodaikanal. The service is friendly too.", tryThis:"Tiramisu French Toast and Mediterranean Spiced Eggs", img:"/places/nandan-coffee/photo1.jpg", photos:["/places/nandan-coffee/photo2.jpg","/places/nandan-coffee/photo3.webp"] },
+      { id:9, name:"Zen Cafe", cuisine:"Cafe", price:"Rs.500-900 for two", rating:4.5, tag:"Work-friendly", hood:"Kala Ghoda", address:"Fort Foundation Building, Bake House Ln, Kala Ghoda, Fort, Mumbai 400001", phone:"9167768950", desc:"Single origin coffees brewed with precision and served with freshly baked sourdough and a global menu at this trendy work-friendly venue.", sharedExp:"Highly recommend checking this place out! The staff is super friendly and welcoming.", tryThis:"Coffee and Hummus", img:"/places/zen-cafe/photo1.jpg", photos:["/places/zen-cafe/photo2.jpg","/places/zen-cafe/photo3.png"] },
+      { id:10, name:"Miya Kebabs", cuisine:"Kebab Restaurant", price:"Rs.400-800 for two", rating:4.3, tag:"Consistent quality", hood:"Kala Ghoda", address:"Ali Chambers, Flora Fountain, 81-82, M Shetty Marg, Kala Ghoda, Fort, Mumbai 400023", phone:"8847747644", desc:"A popular eatery in Kala Ghoda known for its flavorful food and generous portions. Consistent quality, quick service and satisfying meals.", sharedExp:"Had a great experience and the food was tasty.", tryThis:"Chicken Changezi", img:"/places/miya-kebabs/photo1.jpg", photos:["/places/miya-kebabs/photo1.jpg"] },
+      { id:11, name:"Kala Ghoda Cafe", cuisine:"Cafe", price:"Rs.600-1000 for two", rating:4.5, tag:"Neighbourhood gem", hood:"Kala Ghoda", address:"10, Rope Walk Ln, Kala Ghoda, Fort, Mumbai 400001", phone:"9833803418", desc:"A charming cafe in Kala Ghoda known for its warm atmosphere and comforting food. Friendly service and relaxed setting.", sharedExp:"The food was fantastic and the restaurant has a very welcoming vibe. The perfect place to enjoy quality time with friends.", tryThis:"Chocolate Profiteroles and Cottage Cheese Burger", img:"/places/kala-ghoda-cafe/photo1.webp", photos:["/places/kala-ghoda-cafe/photo2.webp","/places/kala-ghoda-cafe/photo3.webp"] },
+      { id:12, name:"The Nutcracker", cuisine:"Cafe", price:"Rs.700-1200 for two", rating:4.6, tag:"All-day breakfast", hood:"Kala Ghoda", address:"One Forbes Building, Modern House, Dr. V.B. Gandhi Marg, Kala Ghoda, Fort, Mumbai", phone:"9321759393", desc:"The Nutcracker serves wholesome comfort food and all-day breakfast. Renowned for its extensive egg menu, gourmet burgers and decadent desserts.", sharedExp:"Delicious food, great coffee and excellent service. Highly recommend a visit.", tryThis:"Paprika Penne Pasta with Garlic Bread and Cream Cheese Bagel", img:"/places/the-nutcracker/photo1.jpg", photos:["/places/the-nutcracker/photo2.webp","/places/the-nutcracker/photo3.webp"] },
+      { id:13, name:"HnH Salad Co.", cuisine:"Healthy Cafe", price:"Rs.500-900 for two", rating:4.4, tag:"Healthy and delicious", hood:"Kala Ghoda", address:"Ground floor, Khattau Buildings, General Vaidya Road, 7, Shahid Bhagat Singh Rd, Kala Ghoda, Fort, Mumbai 400001", phone:"7045989242", desc:"HnH Salad Co. is redefining healthy eating by serving chef-crafted, flavor-packed nutritious dishes that prove wellness is never bland.", sharedExp:"Healthy food that actually tastes amazing. A fantastic spot for a delicious and wholesome meal.", tryThis:"Salad Bowl", img:"/places/hnh-salad/photo1.webp", photos:["/places/hnh-salad/photo2.jpg"] },
+      { id:14, name:"Cafe Trofima", cuisine:"Cafe", price:"Rs.600-1000 for two", rating:4.4, tag:"Neighbourhood favorite", hood:"Dadar", address:"Raja Badhe Chowk, Opp. Raja Rani Travels, Shivaji Park Road No. 2, Lady Jamshedji Rd, Mumbai 400028", phone:"8291019988", desc:"A well-loved cafe in Shivaji Park known for its warm ambience and wide-ranging menu. Quality food, friendly service and an inviting atmosphere.", sharedExp:"This is a great place to hang out with friends. The staff is friendly and the food is absolutely delicious.", tryThis:"White Sauce Pasta", img:"/places/cafe-trofima/photo1.jpg", photos:["/places/cafe-trofima/photo2.jpg"] },
+      { id:15, name:"Ashok Vada Pav", cuisine:"Street Food", price:"Rs.50-150 for two", rating:4.5, tag:"Mumbai must-try", hood:"Dadar", address:"Kashinath Dhuru Marg, Near Kirti College, Dadar West, Mumbai 400028", phone:"8591894170", desc:"A popular Dadar eatery known for its flavorful vada pav and long-standing local following. Consistent quality and fresh preparation.", sharedExp:"A must-visit spot for vada pav lovers. Enjoyed it and would recommend to everyone.", tryThis:"Vada Pav", img:"/places/ashok-vada-pav/photo1.jpg", photos:["/places/ashok-vada-pav/photo2.jpg"] },
+      { id:16, name:"Earth Cafe", cuisine:"Healthy Cafe", price:"Rs.600-1000 for two", rating:4.8, tag:"Top rated", hood:"Churchgate", address:"Ground Floor, Ram Mahal, Dinshaw Vacha Rd, near KC College, Churchgate, Mumbai 400020", phone:"9081881844", desc:"Earth Cafe's menu features a wide variety of dishes made with fresh and high-quality ingredients. From hearty meals to refreshing smoothies and guilt-free desserts.", sharedExp:"The vegan food here is delicious and the hospitality was excellent.", tryThis:"Rainbow Sandwich and Orange Chocolate Cake", img:"/places/earth-cafe/photo2.webp", photos:["/places/earth-cafe/photo1.webp","/places/earth-cafe/photo3.webp"] },
+      { id:17, name:"K. Rustom and Co.", cuisine:"Ice Cream Parlour", price:"Rs.200-400 for two", rating:4.7, tag:"Mumbai institution", hood:"Churchgate", address:"Brabourne Stadium 86, Veer Nariman Rd, Churchgate, Mumbai 400020", phone:"02222821768", desc:"Mumbai's most beloved ice cream shop, specializing in wafer-biscuit ice cream sandwiches. A Churchgate landmark for generations.", sharedExp:"Hands down one of the best ice creams I've ever tasted. The quality and flavor are outstanding.", tryThis:"Mango Ice Cream Sandwich", img:"/places/k-rustom/photo1.png", photos:["/places/k-rustom/photo2.webp"] },
+      { id:18, name:"Ramen Bar Wagamama", cuisine:"Japanese Restaurant", price:"Rs.1200-2000 for two", rating:4.5, tag:"Best ramen", hood:"Churchgate", address:"42, Cambata Building, Maharshi Karve Road, Near Eros Theatre, Churchgate, Mumbai 400020", phone:"9702703111", desc:"A popular Japanese restaurant in Churchgate known for its authentic flavors and comforting dining experience. Attentive service and consistent quality.", sharedExp:"Had a truly wonderful experience here! The food was outstanding, and the service was friendly.", tryThis:"Bang Bang Cauliflower and Gyozas", img:"/places/ramen-wagamama/photo1.jpg", photos:["/places/ramen-wagamama/photo2.jpg","/places/ramen-wagamama/photo3.webp"] },
+      { id:19, name:"Mezcalita Churchgate", cuisine:"Mexican Restaurant", price:"Rs.1500-2500 for two", rating:4.7, tag:"Mexican cantina", hood:"Churchgate", address:"Nagin Mahal, 82, Veer Nariman Rd, Churchgate, Mumbai 400020", phone:"8657512648", desc:"Discover an authentic taste of Mexico at Mezcalita. From sizzling fajitas to zesty tacos and refreshing cocktails - each dish transports you straight to the heart of Mexico.", sharedExp:"A vibrant spot that absolutely nails the energy of a modern Mexican cantina. The tacos are consistently excellent and the cocktails make it one of Mumbai's most fun dining experiences.", tryThis:"Tacos", img:"/places/mezcalita-cg/photo1.jpeg", photos:["/places/mezcalita-cg/photo2.jpg"] },
+      { id:20, name:"Pizza By The Bay", cuisine:"Restaurant", price:"Rs.1200-2000 for two", rating:4.5, tag:"Sea view dining", hood:"Churchgate", address:"Soona Mahal, 143, Marine Dr, Churchgate, Mumbai 400020", phone:"7718838749", desc:"One of Mumbai's most iconic dining institutions since 1968, famous for its prime location overlooking the Arabian Sea.", sharedExp:"Delicious food and friendly service. The spectacular sea view makes this place an absolute must-visit.", tryThis:"Pollo Arabiata Pizza", img:"/places/pizza-by-the-bay/photo2.webp", photos:["/places/pizza-by-the-bay/photo1.webp"] },
+      { id:21, name:"Mockingbird Cafe Bar", cuisine:"Cafe", price:"Rs.800-1500 for two", rating:4.3, tag:"Chill vibes", hood:"Churchgate", address:"80, Veer Nariman Rd, Churchgate, Mumbai 400020", phone:"8097606010", desc:"Mockingbird Cafe Bar is a great place to chill with great ambiance, a wide range of wonderful cuisine and reasonably priced drinks.", sharedExp:"Delicious food, good service and a wonderful atmosphere. The perfect place to spend quality time with friends or loved ones.", tryThis:"Garden Fresh Pizza and Peri Peri French Fries", img:"/places/mockingbird/photo1.jpg", photos:["/places/mockingbird/photo2.webp","/places/mockingbird/photo3.webp"] },
+      { id:22, name:"Coffee Island", cuisine:"Cafe", price:"Rs.400-800 for two", rating:4.4, tag:"European-style cafe", hood:"Churchgate", address:"Shop No 10/11 Ground Floor, Eros Cinema, 42, Maharshi Karve Rd, Churchgate, Mumbai 400020", phone:"9211729505", desc:"A vibrant European-style cafe popular for artisanal brews like the signature Islander Cold Coffee, fresh pastries, and late-night workspaces.", sharedExp:"It was an amazing experience with beautiful ambience and great service.", tryThis:"Flatbread and Islander Cold Coffee", img:"/places/coffee-island/photo1.webp", photos:["/places/coffee-island/photo2.webp"] },
+      { id:23, name:"Gaylord Restaurant", cuisine:"Multi-cuisine Restaurant", price:"Rs.1500-2500 for two", rating:4.4, tag:"Fine dining", hood:"Churchgate", address:"V N Rd, Churchgate, Mumbai 400020", phone:"7045556060", desc:"Buzzing spot with indoor and outdoor seating with an extensive menu of multi-cuisine fare and snacks. Elegant interiors, perfect for a fine dining experience.", sharedExp:"Elegant interiors and an excellent atmosphere make this the perfect spot for a fine dining experience.", tryThis:"Mushroom Cheese Lasagna and Creme Brulee", img:"/places/gaylord/photo1.jpeg", photos:["/places/gaylord/photo2.webp","/places/gaylord/photo3.webp"] },
+      { id:24, name:"Boojee Cafe", cuisine:"Cafe", price:"Rs.800-1500 for two", rating:4.6, tag:"Brunch spot", hood:"Bandra West", address:"Shop No. 6, 29, New Kantwadi Road, Off Perry Cross Road, Bandra West, Mumbai 400050", phone:"9930203882", desc:"A Bandra cafe known for its specialty coffee, delicious brunch offerings and inviting atmosphere. Quality food, friendly service and stylish interiors.", sharedExp:"It was an amazing experience from start to finish. The food was incredible and full of flavor.", tryThis:"Bombay Burger and Nachos", img:"/places/boojee-cafe/photo3.webp", photos:["/places/boojee-cafe/photo1.jpeg","/places/boojee-cafe/photo2.jpg"] },
+      { id:25, name:"Bokka Coffee", cuisine:"Cafe", price:"Rs.500-900 for two", rating:4.5, tag:"Coffee perfection", hood:"Bandra West", address:"Shop No. 6 and 7, Silver Croft, 16th Road, Near Khane Khas, Bandra West, Mumbai 400050", phone:"8355805500", desc:"A cozy Bandra cafe known for its excellent coffee and thoughtfully prepared breakfast offerings. Quality food, friendly service and a welcoming atmosphere.", sharedExp:"Absolutely loved this place. The coffee was brewed to perfection and all the desserts were fantastic.", tryThis:"Specialty Cake", img:"/places/bokka-coffee/photo1.webp", photos:["/places/bokka-coffee/photo2.webp"] },
+      { id:26, name:"Abokado", cuisine:"Japanese Cafe", price:"Rs.800-1400 for two", rating:4.5, tag:"Must-try sushi", hood:"Bandra West", address:"Shop No. 1, Sefa House, Pali Mala Rd, Bandra West, Mumbai 400049", phone:"8369936468", desc:"A cozy Japanese inspired cafe in Bandra known for its welcoming atmosphere and consistently well-received food. Authentic flavors in an intimate setting.", sharedExp:"Truly authentic flavors and the Japanese sushi here is absolutely amazing. A must-visit spot for all sushi lovers.", tryThis:"Sushi", img:"/places/abokado/photo2.jpg", photos:["/places/abokado/photo1.webp"] },
+      { id:27, name:"Veronica", cuisine:"Cafe", price:"Rs.600-1200 for two", rating:4.6, tag:"Best sandwiches", hood:"Bandra West", address:"9, Waroda Rd, Beside Agna Square, Ranwar, Bandra West, Mumbai 400050", phone:"9372981697", desc:"Veronica's is a vibrant trend-setting Bandra deli famous for its massive, premium artisanal sandwiches and high-energy neighbourhood vibe.", sharedExp:"One of Mumbai's finest sandwich and bakery spots. The bread is exceptional and even the simplest dishes feel memorable.", tryThis:"Dirty Fries with Cheese", img:"/places/veronica/photo2.webp", photos:["/places/veronica/photo1.webp"] },
+      { id:28, name:"Miyo Dessert Bar", cuisine:"Bakery and Desserts", price:"Rs.600-1000 for two", rating:4.6, tag:"Make It Your Own", hood:"Bandra West", address:"Shop 3, Silvercroft, Junction of 16th and 33rd Rd, Bandra West, Mumbai 400050", phone:"9004502803", desc:"Miyo Dessert Bar is a freestyle dessert bar operating on a unique MIYO concept - an anti-menu philosophy where you fully customize your sweet treats.", sharedExp:"Creative, elegant and consistently impressive. Beautifully plated and perfectly balanced sophisticated flavors.", tryThis:"Belgian Chocolate Gelato", img:"/places/miyo-dessert/photo2.jpeg", photos:["/places/miyo-dessert/photo1.webp"] },
+      { id:29, name:"GIGI Bombay", cuisine:"Japanese Restaurant", price:"Rs.2000-3500 for two", rating:4.7, tag:"Premium fusion", hood:"Bandra West", address:"14th Rd, Bandra West, Mumbai 400050", phone:"8976943116", desc:"Gigi Bombay is a trendy Japanese-European fusion restaurant and cocktail bar in Bandra West. Every dish feels carefully executed.", sharedExp:"A near-perfect combination of ambience, service and food. Every dish feels carefully executed making it one of the city's most premium dining experiences.", tryThis:"Chilli Garlic Edamame, Pumpkin Ravioli and Salmon Sushi", img:"/places/gigi-bombay/photo1.jpg", photos:["/places/gigi-bombay/photo2.webp","/places/gigi-bombay/photo3.webp"] },
+      { id:30, name:"Pomodoro", cuisine:"Italian Restaurant", price:"Rs.1000-1800 for two", rating:4.6, tag:"Hand-rolled pasta", hood:"Bandra West", address:"Shop No. 2, 16th Rd, Bandra West, Mumbai 400050", phone:"7887886327", desc:"Your cozy neighbourhood pasta bar specializing in hand-rolled pastas and specialty coffee. Authentic Italian comfort food at its best.", sharedExp:"Authentic Italian comfort food at its best. The pasta is consistently excellent, the flavors are clean and honest.", tryThis:"Tiramisu and Parmesan Truffle Fries", img:"/places/pomodoro/photo1.webp", photos:["/places/pomodoro/photo2.webp","/places/pomodoro/photo3.webp"] },
+      { id:31, name:"Hot Momos", cuisine:"Momos and Tibetan", price:"Rs.150-400 for two", rating:4.6, tag:"Best momos", hood:"Kharghar", address:"Shop No. 14, Swarna CHS, Plot No. 13/14, Sector 7, Kharghar, Panvel, Maharashtra 410210", phone:"8767681828", desc:"A popular Kharghar eatery known for its flavorful food and generous portions. Quick service, consistent quality and a loyal local following.", sharedExp:"Hands down the best momos in Kharghar! The momos here are absolutely delicious.", tryThis:"Chicken Kurkure Momos", img:"/places/hot-momos/photo1.jpg", photos:["/places/hot-momos/photo2.webp"] },
+      { id:32, name:"Luuma House", cuisine:"Continental", price:"Rs.2000-3500 for two", rating:4.5, tag:"Fine dining", hood:"Vile Parle", address:"Plot No.47, Gulmohar Rd, JVPD Scheme, Vile Parle West, Mumbai 400049", phone:"7891991936", desc:"Experience elevated global dining at Luuma House - a premier fine dining restaurant and cocktail bar. A unique blend of Mediterranean, Pan-Asian, and Modern Indian cuisines with live music.", sharedExp:"My experience here was fantastic. The food was delicious and the staff was welcoming.", tryThis:"Dim Sum and Black Rice Sushi", img:"/places/luuma-house/photo1.jpg", photos:["/places/luuma-house/photo2.webp","/places/luuma-house/photo3.webp"] },
+      { id:33, name:"Gattu Chinese", cuisine:"Chinese Restaurant", price:"Rs.400-800 for two", rating:4.4, tag:"Street-style Chinese", hood:"Vile Parle", address:"Shop No. 3, Iria, Irla, Vile Parle West, Mumbai 400056", phone:"8655110777", desc:"Casual locale serving street-style Chinese snacks and rice dishes. Great food quality, generous portions and very reasonably priced.", sharedExp:"Great food quality, generous portion sizes and very reasonably priced.", tryThis:"Special Fried Rice Chicken and Chicken Lollipop", img:"/places/gattu-chinese/photo2.webp", photos:["/places/gattu-chinese/photo2.webp","/places/gattu-chinese/photo3.webp"] },
+      { id:34, name:"Prithvi Cafe", cuisine:"Cafe", price:"Rs.500-900 for two", rating:4.8, tag:"Hidden gem", hood:"Juhu", address:"Alongside Prithvi Theatre, 20, Juhu Rd, Janki Kutir, Juhu, Mumbai 400049", phone:"7045940218", desc:"A charming culinary haven nestled alongside the iconic Prithvi Theatre. Cafe classics, hearty meals and expertly brewed coffee in a vibrant literary atmosphere.", sharedExp:"A wonderful spot to relax and enjoy a fantastic meal. The food quality is excellent.", tryThis:"Chole Kulche, Beer Chhas and Kitkat Shake", img:"/places/prithvi-cafe/photo1.png", photos:["/places/prithvi-cafe/photo2.png","/places/prithvi-cafe/photo3.webp"] },
+      { id:35, name:"Benne - Bangalore Dosa", cuisine:"South Indian", price:"Rs.200-500 for two", rating:4.7, tag:"Best South Indian", hood:"Juhu", address:"Ground floor, Nirav apartment, 1, Gulmohar Rd, Gulmohar Colony, Juhu, Mumbai 400049", phone:"", desc:"A popular minimalist South Indian eatery in Juhu famous for authentic Bengaluru-style butter dosas. The best South Indian breakfast in Juhu.", sharedExp:"Hands down the best South Indian breakfast in Juhu. The food is incredibly tasty and the quality is excellent.", tryThis:"Benne Masala Dosa", img:"/places/benne-dosa/photo2.webp", photos:["/places/benne-dosa/photo1.jpg"] },
+      { id:36, name:"One8 Commune", cuisine:"Multi-cuisine Restaurant", price:"Rs.2000-3500 for two", rating:4.6, tag:"Trendy", hood:"Juhu", address:"Kishore Kumar Bunglow, 18/B, Juhu Tara Rd, Shivaji Nagr, Juhu, Mumbai 400049", phone:"8108411818", desc:"One8 Commune is known for its vibrant ambiance with eclectic decor, experimental cocktails and signature dishes like the Mushroom Googly Dimsums.", sharedExp:"Beautiful aesthetics paired with good food. Everything was plated elegantly and the ingredients tasted wonderfully fresh.", tryThis:"Mushroom Dimsums", img:"/places/one8-commune/photo2.jpg", photos:["/places/one8-commune/photo1.png"] },
+      { id:37, name:"Ettarra Coffee House", cuisine:"Cafe", price:"Rs.500-900 for two", rating:4.5, tag:"South Indian coffee", hood:"Juhu", address:"Ground Floor, boutique hotel, Juhu residency, Juhu Tara, Juhu, Mumbai 400049", phone:"8655805815", desc:"South Indian filter coffee crafted to capture flavorful notes and refreshing aromatic servings with every cup. A beautifully designed space with food that matches the aesthetic.", sharedExp:"A beautifully designed space with food that matches the aesthetic. Thoughtful flavors, great presentation and a calm atmosphere.", tryThis:"Baked Soya Keema Pav", img:"/places/ettarra-coffee/photo1.jpg", photos:["/places/ettarra-coffee/photo2.jpeg"] },
+      { id:38, name:"The Bombay Canteen", cuisine:"Indian", price:"Rs.2000-3000 for two", rating:4.8, tag:"Must visit", hood:"Lower Parel", address:"Unit-1, Process House, S.B. Road, Kamala Mills, Lower Parel, Mumbai 400013", phone:"8880802424", desc:"Bombay Canteen brings to you the bright and vibrant flavors of authentic Indian food. Beautifully plated and exceptionally fresh - a celebration of India's regional cuisines.", sharedExp:"Incredible food and top-tier service. The dishes are beautifully plated and taste exceptionally fresh.", tryThis:"Chilled Sea Bass Sev Puri and Coffee Rasgulla Sundae", img:"/places/bombay-canteen/photo1.jpg", photos:["/places/bombay-canteen/photo2.webp","/places/bombay-canteen/photo3.webp"] },
+      { id:39, name:"Si Nonna's", cuisine:"Italian Restaurant", price:"Rs.1500-2500 for two", rating:4.5, tag:"Naples in Mumbai", hood:"Lower Parel", address:"B, Kamala Mills Compound, Shop 12 and 13, Trade World, Senapati Bapat Marg, Lower Parel, Mumbai 400013", phone:"9136693001", desc:"Si Nonna's is where the authentic taste of Naples meets your cravings. Mouthwatering Italian delights with multiple outlets across Mumbai.", sharedExp:"Delicious food, great options and multiple outlets.", tryThis:"Pizza Number 4 and Tiramisu", img:"/places/si-nonnas/photo3.webp", photos:["/places/si-nonnas/photo1.jpeg","/places/si-nonnas/photo2.jpeg"] },
+      { id:40, name:"Queen Margherita", cuisine:"Italian Restaurant", price:"Rs.1200-2000 for two", rating:4.5, tag:"Wood-fired pizza", hood:"Lower Parel", address:"Neeru Silk Mills, Mathuradas Mill Compound, 11/B, Gr Floor, Lower Parel, Mumbai 400013", phone:"9137537902", desc:"Pizza, pasta and Italian food served at an informal eatery with a wood-fired oven.", sharedExp:"Fantastic spot for amazing pizza.", tryThis:"Classic Chicken Queen Margherita and Tiramisu", img:"/places/queen-margherita/photo1.webp", photos:["/places/queen-margherita/photo2.webp","/places/queen-margherita/photo3.webp"] },
+      { id:41, name:"Britannia and Co.", cuisine:"Parsi", price:"Rs.800-1500 for two", rating:4.6, tag:"Parsi heritage", hood:"Fort", address:"Wakefield House, 11 16, SS Ram Gulam Marg, opp. New Indian Customs House, Ballard Estate, Fort, Mumbai 400001", phone:"02222615264", desc:"If you want a taste of Mumbai's rich culinary history, Britannia and Co. is a mandatory stop. Serving phenomenal authentic Parsi cuisine since 1923.", sharedExp:"Fantastic experience - the food is good and if you want authentic Parsi flavors then this is the place to go.", tryThis:"Mutton Berry Pulao", img:"/places/britannia/photo2.jpg", photos:["/places/britannia/photo1.webp"] },
+      { id:42, name:"Mokai", cuisine:"Cafe", price:"Rs.1000-1800 for two", rating:4.5, tag:"Pinterest-worthy", hood:"Pali Hill", address:"Pali Mala Rd, Pali Hill, Mumbai 400050", phone:"9820983607", desc:"Mokai in Bandra is known for its Pinterest-y aesthetics and delectable drinks and food. Shifting the conventions of the traditional brunch system.", sharedExp:"A great blend of chic ambience and comforting food. The flavors are approachable yet elevated making it a place you'll want to revisit.", tryThis:"Laksa Curry Wontons", img:"/places/mokai/photo1.webp", photos:["/places/mokai/photo2.webp"] },
+      { id:43, name:"Earth Soul Cafe", cuisine:"Cafe", price:"Rs.500-900 for two", rating:4.7, tag:"Trending", hood:"CBD Belapur", address:"Shop No. 13, Progressive's Sea Lounge, Plot No.44, Sector 15, CBD Belapur, Navi Mumbai 400614", phone:"9619409696", desc:"Earth Soul Cafe is an all-day cafe in Navi Mumbai. Fresh cold-press juices, smoothies, salads, sandwiches and always-brewing coffee. Perfect for slowing down surrounded by plants.", sharedExp:"This is the place you go when you want to slow down for a few hours. Surrounded by plants and tucked away from the city's chaos - a mini escape.", tryThis:"Pink Sauce Pasta", img:"/places/earth-soul-cafe/photo2.webp", photos:["/places/earth-soul-cafe/photo1.webp"] },
+      { id:44, name:"The Kerala Table", cuisine:"Seafood Restaurant", price:"Rs.1000-1800 for two", rating:4.6, tag:"South Indian fine dining", hood:"Vashi", address:"First Floor, Palm Beach Galleria Mall, 109 and 110, Plot No. 17, Sector 19D, Vashi, Navi Mumbai 400703", phone:"9090939348", desc:"Experience true South Indian fine dining with rich flavors of Kerala food and Malabar delicacies. Kerala-style fish fry and aromatic biryani.", sharedExp:"If you're craving authentic Keralite food that feels like it was made at someone's home rather than a commercial kitchen, this is the place.", tryThis:"Pepper Garlic Chicken and Paal Porotta Prawns", img:"/places/kerala-table/photo3.webp", photos:["/places/kerala-table/photo1.jpeg","/places/kerala-table/photo2.jpg"] },
+      { id:45, name:"HAV Coffee", cuisine:"Specialty Coffee Cafe", price:"Rs.400-800 for two", rating:4.5, tag:"Specialty brews", hood:"Chowpatty", address:"1, Dr N A Purandare Marg, next to Mahendra Car Showroom, Charni Road East, Chowpatty, Girgaon, Mumbai 400007", phone:"", desc:"HAV Coffee is known for premium specialty brews like the popular Spanish Latte. Artisan croissants and dedicated Jain-friendly options - perfect post-walk hangout.", sharedExp:"I absolutely enjoyed my experience here. The food was delicious and the ambience was lovely.", tryThis:"Chilli Cheese Toast and Paneer Tikka Sandwiches", img:"/places/hav-coffee/photo1.jpg", photos:["/places/hav-coffee/photo2.webp","/places/hav-coffee/photo3.webp"] },
+      { id:46, name:"Shree Thaker Bhojanalay", cuisine:"Vegetarian Thali Restaurant", price:"Rs.500-900 for two", rating:4.7, tag:"Legendary thali", hood:"Marine Lines", address:"Building No 31, Purshottam Niwas, Dadiseth Agiyari Ln, Marine Lines East, Kalbadevi, Mumbai 400002", phone:"02222069916", desc:"Long-running Indian restaurant offering a selection of traditional Gujarati thalis. Renowned for exceptional thali.", sharedExp:"Renowned for its exceptional thali and the food lived up to the hype - absolutely delicious.", tryThis:"Vegetarian Gujarati Thali", img:"/places/shree-thaker/photo1.webp", photos:["/places/shree-thaker/photo2.webp"] }
     ],
     mapPlaces: [
-      {id:1,name:"Leopold Cafe",rating:4.2,top:"15%",left:"55%"},{id:2,name:"Brooke Bond Taj Mahal Tea House",rating:4.5,top:"28%",left:"18%"},{id:3,name:"Britannia & Co. Restaurant",rating:4.1,top:"28%",left:"65%"},{id:4,name:"Gajalee",rating:4.3,top:"42%",left:"32%"},{id:5,name:"Prithvi Cafe",rating:4.4,top:"48%",left:"62%"},{id:6,name:"Mahesh Lunch Home",rating:4.2,top:"56%",left:"22%"},{id:7,name:"Bombay Coffee House",rating:4.2,top:"60%",left:"66%"},{id:8,name:"Mamledar Misal",rating:4.2,top:"68%",left:"40%"},
+      {id:4,name:"Leopold Cafe",rating:4.4,top:"15%",left:"55%"},{id:8,name:"Nandan Coffee",rating:4.7,top:"22%",left:"28%"},{id:11,name:"Kala Ghoda Cafe",rating:4.5,top:"28%",left:"65%"},{id:34,name:"Prithvi Cafe",rating:4.8,top:"40%",left:"32%"},{id:38,name:"The Bombay Canteen",rating:4.8,top:"50%",left:"62%"},{id:24,name:"Boojee Cafe",rating:4.6,top:"58%",left:"22%"},{id:29,name:"GIGI Bombay",rating:4.7,top:"62%",left:"66%"},{id:41,name:"Britannia and Co.",rating:4.6,top:"70%",left:"42%"},
     ],
     events: [
       { id:1, name:"Indie Night Live Concert", cats:["Music","Nightlife"], date:"24", mon:"May", fullDate:"24 May 2025", time:"7:00 PM – 10:30 PM", loc:"Bandra Fort Amphitheatre, Mumbai", entry:"Free Entry", interested:1800, img:"https://images.unsplash.com/photo-1501386761578-eaa54b02c811?w=700&q=80", desc:"An evening of indie music featuring local artists.", organizer:"The Habitat", mapTop:"30%", mapLeft:"18%" },
@@ -540,39 +537,87 @@ function FoodDetail({ restaurant, onBack, userId, userName, isSaved, onToggleSav
         <div className="detail-header-title"><div>Spot details</div><div className="detail-header-sub">Click on a spot to view details</div></div>
         <div className="detail-header-actions"><button className="detail-action-btn" onClick={()=>onToggleSave(restaurant.name)}>{isSaved ? "🔖" : "📑"}</button><button className="detail-action-btn" onClick={handleShare}>↗</button></div>
       </div>
-      <div className="detail-hero-img-wrap"><img src={restaurant.img} alt={restaurant.name} className="detail-hero-img"/></div>
+      <div className="detail-hero-img-wrap">{restaurant.img ? <img src={restaurant.img} alt={restaurant.name} className="detail-hero-img"/> : <div className="detail-hero-img detail-hero-img-placeholder">📍</div>}</div>
       <div className="detail-body">
-        <div className="detail-name-row"><div className="detail-name">{restaurant.name}</div><div className="detail-rating-pill">★ {restaurant.rating}</div></div>
-        <div className="detail-meta">{restaurant.cuisine} • {restaurant.hood}</div>
+        <div className="detail-name-row">
+          <div>
+            <div className="detail-name">{restaurant.name}</div>
+            {restaurant.hood && <div className="detail-place-area">📍 {restaurant.hood}, Mumbai</div>}
+          </div>
+          
+        </div>
+        <div className="detail-meta">{restaurant.cuisine}</div>
+        <p className="detail-about">{restaurant.desc}</p>
         {shareFeedback && <div className="share-feedback">✓ {shareFeedback}</div>}
+
+        {/* Action buttons */}
         <div className="detail-actions-row">
-          <a className="detail-act-item" href={`tel:${restaurant.phone}`}><span className="detail-act-icon">📞</span><span className="detail-act-label">Call</span></a>
-          <a className="detail-act-item" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurant.address || restaurant.name + " " + restaurant.hood)}`} target="_blank" rel="noopener noreferrer"><span className="detail-act-icon">📍</span><span className="detail-act-label">Directions</span></a>
+          {restaurant.phone && <a className="detail-act-item" href={`tel:${restaurant.phone}`}><span className="detail-act-icon">📞</span><span className="detail-act-label">Call</span></a>}
+          <a className="detail-act-item" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurant.address || restaurant.name + " " + restaurant.hood)}`} target="_blank" rel="noopener noreferrer"><span className="detail-act-icon">🗺️</span><span className="detail-act-label">Directions</span></a>
           <button className="detail-act-item" onClick={handleShare}><span className="detail-act-icon">↗</span><span className="detail-act-label">Share</span></button>
           <button className="detail-act-item" onClick={()=>onToggleSave(restaurant.name)}><span className="detail-act-icon">{isSaved ? "🔖" : "📑"}</span><span className="detail-act-label">{isSaved ? "Saved" : "Save"}</span></button>
         </div>
-        <div className="detail-divider"/>
-        <div className="detail-section-title">About</div>
-        <p className="detail-about">{restaurant.desc}</p>
-        {restaurant.address && <p className="detail-about-meta">📍 {restaurant.address}</p>}
-        {restaurant.phone && <p className="detail-about-meta">📞 {restaurant.phone}</p>}
-        <div className="detail-divider"/>
 
+        {/* Address + Phone card */}
+        {(restaurant.address || restaurant.phone) && (
+          <div className="detail-info-card">
+            {restaurant.address && <div className="detail-info-row"><span className="detail-info-icon">📍</span><span>{restaurant.address}</span></div>}
+            {restaurant.address && restaurant.phone && <div className="detail-info-divider"/>}
+            {restaurant.phone && <div className="detail-info-row"><span className="detail-info-icon">📞</span><span>{restaurant.phone}</span></div>}
+          </div>
+        )}
+
+        {/* Curated Shared Experience from dataset */}
+        {restaurant.sharedExp && (
+          <>
+            <div className="detail-section-title" style={{marginTop:22}}>Shared Experience</div>
+            <div className="detail-shared-exp-card">
+              <div className="detail-shared-exp-user">
+                <div className="detail-shared-exp-avatar">{SHARED_EXP_NAMES[restaurant.id % SHARED_EXP_NAMES.length].slice(0,2).toUpperCase()}</div>
+                <span className="detail-shared-exp-name">{SHARED_EXP_NAMES[restaurant.id % SHARED_EXP_NAMES.length]}</span>
+              </div>
+              <p className="detail-shared-exp-text">{restaurant.sharedExp}</p>
+            </div>
+          </>
+        )}
+
+        {/* Try These */}
+        {restaurant.tryThis && (
+          <>
+            <div className="detail-section-title" style={{marginTop:22}}>Try These</div>
+            <div className="detail-try-items">
+              {restaurant.tryThis.split(' and ').map((item, i) => (
+                <div key={i} className="detail-try-item">
+                  {restaurant.photos[i] ? (
+                    <img src={restaurant.photos[i]} alt={item.trim()} className="detail-try-img"/>
+                  ) : (
+                    <div className="detail-try-img detail-try-img-placeholder">🍽️</div>
+                  )}
+                  <div className="detail-try-label">{item.trim()}</div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        <div className="detail-divider" style={{marginTop:24}}/>
+
+        {/* User-submitted community experiences from Supabase */}
         <div className="detail-photos-header">
           <span className="detail-section-title">Community experiences</span>
-          <button className="detail-viewall" onClick={()=>setFormOpen(o=>!o)}>{formOpen ? "Cancel" : "Share your experience"}</button>
+          <button className="detail-viewall" onClick={()=>setFormOpen(o=>!o)}>{formOpen ? "Cancel" : "Add yours"}</button>
         </div>
-        <p className="detail-experiences-sub">Real photos and moments from people who've been here — not stock photos.</p>
+        <p className="detail-experiences-sub">Real moments from people who've been here.</p>
 
         {formOpen && (
           <div className="experience-form">
             {submitError && <div className="profile-save-error" style={{marginTop:0}}>⚠️ {submitError}</div>}
             <label className="experience-photo-picker">
-              {photoPreview ? <img src={photoPreview} alt="" className="experience-photo-preview"/> : <span>📷 Add a photo (optional)</span>}
+              {photoPreview ? <img src={photoPreview} alt="" className="experience-photo-preview"/> : <span>📷 Add a photo</span>}
               <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>handlePhotoPick(e.target.files?.[0] || null)}/>
             </label>
-            <input className="ob-input" style={{marginTop:10}} placeholder="Your favorite item here (optional)" value={favoriteItem} onChange={e=>setFavoriteItem(e.target.value)}/>
-            <textarea className="ob-input experience-textarea" style={{marginTop:10}} placeholder="What was it like? (optional)" value={note} onChange={e=>setNote(e.target.value)} rows={3}/>
+            <input className="ob-input" style={{marginTop:10}} placeholder="Your favorite item" value={favoriteItem} onChange={e=>setFavoriteItem(e.target.value)}/>
+            <textarea className="ob-input experience-textarea" style={{marginTop:10}} placeholder="What was it like?" value={note} onChange={e=>setNote(e.target.value)} rows={3}/>
             <button className="filter-apply" style={{marginTop:12}} disabled={submitting} onClick={handleSubmit}>{submitting ? "Sharing…" : "Share with the community"}</button>
           </div>
         )}
@@ -595,6 +640,15 @@ function FoodDetail({ restaurant, onBack, userId, userName, isSaved, onToggleSav
             </div>
           </div>
         ))}
+
+        <div style={{height:90}}/>
+      </div>
+
+      {/* Sticky Share CTA at bottom */}
+      <div className="detail-share-cta" onClick={()=>setFormOpen(o=>!o)}>
+        <span className="detail-share-cta-icon">✏️</span>
+        <div><div className="detail-share-cta-title">Share your experience</div><div className="detail-share-cta-sub">Help others discover great places in the city.</div></div>
+        <span className="detail-share-cta-arrow">›</span>
       </div>
     </div>
   );
@@ -634,7 +688,7 @@ function MapView({ city, onBack, onSelectPlace }) {
         <div className="map-hint">ⓘ Tap on any place to view details</div>
       </div>
       {filterOpen&&(<div className="modal-bg" onClick={()=>setFilterOpen(false)}><div className="modal-sheet filter-sheet" onClick={e=>e.stopPropagation()}><div className="filter-header"><button className="filter-close" onClick={()=>setFilterOpen(false)}>✕</button><div className="filter-title">Filter</div><button className="filter-reset" onClick={()=>{setSelectedCuisines(["All"]);setSelectedAreas(["All"]);}}>Reset</button></div><div className="filter-section-title">Area</div><div className="filter-chips">{cityAreas.map(a=><button key={a} className={`filter-chip-item ${selectedAreas.includes(a)?"active":""}`} onClick={()=>toggleArea(a)}>{a}</button>)}</div><div className="filter-divider"/><div className="filter-section-title">Cuisines</div><div className="filter-chips">{CUISINES_LIST.map(c=><button key={c} className={`filter-chip-item ${selectedCuisines.includes(c)?"active":""}`} onClick={()=>toggleCuisine(c)}>{c}</button>)}</div><div className="filter-divider"/><div className="filter-section-title">Sort by</div>{["Recommended","Highest Rated","Nearest"].map(s=><div key={s} className="filter-radio-row" onClick={()=>setSortBy(s)}><div className={`filter-radio ${sortBy===s?"active":""}`}/><span className="filter-radio-label">{s}</span></div>)}<button className="filter-apply" onClick={()=>setFilterOpen(false)}>Apply Filters</button></div></div>)}
-      {addOpen&&(<div className="modal-bg" onClick={()=>setAddOpen(false)}><div className="modal-sheet add-sheet" onClick={e=>e.stopPropagation()}><div className="filter-header"><button className="filter-close" onClick={()=>setAddOpen(false)}>✕</button><div className="filter-title">Add a new place</div><div/></div><div className="add-photo-area"><span className="add-photo-icon">📷</span><div className="add-photo-label">Add photos<br/><span style={{fontSize:12,color:"#999"}}>(Up to 5 photos)</span></div></div>{[["Place name*","text","e.g. Your Place Name","name"],["Address*","text","e.g. Street, Area, City","address"],["Contact number","tel","e.g. 98765 43210","phone"]].map(([lbl,type,ph,key])=><div key={key} className="add-field"><label className="add-label">{lbl}</label><input className="ob-input" type={type} placeholder={ph} value={addForm[key]} onChange={e=>setAddForm({...addForm,[key]:e.target.value})}/></div>)}<div className="add-field"><label className="add-label">Cuisine*</label><select className="ob-input ob-select" value={addForm.cuisine} onChange={e=>setAddForm({...addForm,cuisine:e.target.value})}><option value="">Select cuisine</option>{CUISINES_LIST.filter(c=>c!=="All").map(c=><option key={c}>{c}</option>)}</select></div><button className="add-location-btn">📍 Use current location</button><div className="add-field"><label className="add-label">Add a note (optional)</label><input className="ob-input" placeholder="Share more about this place" value={addForm.note} onChange={e=>setAddForm({...addForm,note:e.target.value})}/></div><button className="filter-apply" onClick={()=>setAddOpen(false)}>Submit</button></div></div>)}
+      {addOpen&&(<div className="modal-bg" onClick={()=>setAddOpen(false)}><div className="modal-sheet add-sheet" onClick={e=>e.stopPropagation()}><div className="filter-header"><button className="filter-close" onClick={()=>setAddOpen(false)}>✕</button><div className="filter-title">Add a new place</div><div/></div><div className="add-photo-area"><span className="add-photo-icon">📷</span><div className="add-photo-label">Add photos<br/><span style={{fontSize:12,color:"#999"}}>(Up to 5 photos)</span></div></div>{[["Place name*","text","e.g. Your Place Name","name"],["Address*","text","e.g. Street, Area, City","address"],["Contact number","tel","e.g. 98765 43210","phone"]].map(([lbl,type,ph,key])=><div key={key} className="add-field"><label className="add-label">{lbl}</label><input className="ob-input" type={type} placeholder={ph} value={addForm[key]} onChange={e=>setAddForm({...addForm,[key]:e.target.value})}/></div>)}<div className="add-field"><label className="add-label">Cuisine*</label><select className="ob-input ob-select" value={addForm.cuisine} onChange={e=>setAddForm({...addForm,cuisine:e.target.value})}><option value="">Select cuisine</option>{CUISINES_LIST.filter(c=>c!=="All").map(c=><option key={c}>{c}</option>)}</select></div><button className="add-location-btn">📍 Use current location</button><div className="add-field"><label className="add-label">Share more about this place</label><input className="ob-input" placeholder="Share more about this place" value={addForm.note} onChange={e=>setAddForm({...addForm,note:e.target.value})}/></div><button className="filter-apply" onClick={()=>setAddOpen(false)}>Submit</button></div></div>)}
     </div>
   );
 }
@@ -681,14 +735,23 @@ function scoreConnection(me, other) {
   return { score, sharedFood, sharedThings, sharedInterests };
 }
 
-// Maps "Browse by category" pills to substrings matched against a place's cuisine field
-const CATEGORY_TAG_MAP = {
-  Cafes: ["café","cafe","coffee","tea house"],
-  Nightlife: ["rooftop","bar"],
-  Desserts: ["bakery","ice cream","dessert","pâtisserie","mithai"],
-  Buffet: ["thali","buffet"],
+// Maps "Explore food around you" category cards to substrings matched against a place's cuisine field
+const FOOD_CATEGORY_TAG_MAP = {
+  Cafés: ["café","cafe","coffee","tea house"],
+  "Street Food": ["street food","vada pav","fast food","chaat","pav bhaji"],
+  Bakeries: ["bakery","pâtisserie","patisserie"],
+  Desserts: ["ice cream","dessert","mithai"],
   // "Restaurants" has no map — it's the catch-all for anything not matched above
 };
+const FOOD_CATEGORY_ICONS = {
+  Cafés: "☕", Restaurants: "🍽️", "Street Food": "🛒", Bakeries: "🧁", Desserts: "🍰", More: "⊞",
+};
+function matchesFoodCategory(place, category) {
+  const subs = FOOD_CATEGORY_TAG_MAP[category];
+  if (!subs) return !Object.values(FOOD_CATEGORY_TAG_MAP).flat().some(s => place.cuisine.toLowerCase().includes(s)); // Restaurants = catch-all
+  return subs.some(s => place.cuisine.toLowerCase().includes(s));
+}
+
 // Maps "Explore cuisines" circles to substrings matched against a place's cuisine field
 const CIRCLE_TAG_MAP = {
   Indian: ["indian","punjabi","maharashtrian","parsi","gujarati","rajasthani","north indian","south indian","tandoor","thali","seafood","mangalorean","goan","manipuri","street food","mithai"],
@@ -697,67 +760,290 @@ const CIRCLE_TAG_MAP = {
   Mexican: ["mexican"],
   Japanese: ["japanese","sushi","sizzler"],
 };
-function matchesCategory(place, category) {
-  const subs = CATEGORY_TAG_MAP[category];
-  if (!subs) return !Object.values(CATEGORY_TAG_MAP).flat().some(s => place.cuisine.toLowerCase().includes(s)); // Restaurants = catch-all
-  return subs.some(s => place.cuisine.toLowerCase().includes(s));
-}
 function matchesCircle(place, circle) {
   const subs = CIRCLE_TAG_MAP[circle] || [];
   return subs.some(s => place.cuisine.toLowerCase().includes(s));
 }
 
-function FoodScreen({ city, onOpenMap, onOpenDetail, userCuisines, userBudget }) {
+function FoodScreen({ city, onOpenDetail, userCuisines, userBudget, userId, userName }) {
   const [likes, setLikes] = useState({});
-  const [activeCat, setActiveCat] = useState(null);
-  const [activeCircle, setActiveCircle] = useState(null);
   const [activeArea, setActiveArea] = useState("All");
-  const [justRefreshed, setJustRefreshed] = useState(false);
+  const [activeCategory, setActiveCategory] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [communityPlaces, setCommunityPlaces] = useState([]);
+  const [communityLoading, setCommunityLoading] = useState(true);
+  const [submitOpen, setSubmitOpen] = useState(false);
   const cd = CITIES[city];
-  const CATS = [{name:"Restaurants",icon:"🍴"},{name:"Cafes",icon:"☕"},{name:"Nightlife",icon:"🍸"},{name:"Buffet",icon:"🥘"},{name:"Desserts",icon:"🍰"}];
-  const CUISINE_CIRCLES = [{name:"Indian",img:"https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=200&q=80"},{name:"Italian",img:"https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=200&q=80"},{name:"Chinese",img:"https://images.unsplash.com/photo-1569050467447-ce54b3bbc37d?w=200&q=80"},{name:"Mexican",img:"https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=200&q=80"},{name:"Japanese",img:"https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=200&q=80"}];
-  const cityAreas = ["All", ...Array.from(new Set(cd.food.map(r=>r.hood)))];
-  let filteredFood = activeArea==="All" ? cd.food : cd.food.filter(r=>r.hood===activeArea);
-  if (activeCat) filteredFood = filteredFood.filter(r=>matchesCategory(r, activeCat));
-  if (activeCircle) filteredFood = filteredFood.filter(r=>matchesCircle(r, activeCircle));
+
+  useEffect(() => {
+    let active = true;
+    getCommunityPlaces(city)
+      .then(data => { if (active) setCommunityPlaces(data || []); })
+      .catch(e => console.error("Failed to load community places:", e))
+      .finally(() => { if (active) setCommunityLoading(false); });
+    return () => { active = false; };
+  }, [city]);
+
+  const normalizedCommunity = communityPlaces.map(p => ({
+    id: `community-${p.id}`, name: p.name, cuisine: p.cuisine || "Community pick",
+    hood: p.area, desc: p.description || `Added by ${p.submitter_name}.`,
+    img: p.photo_url || null, rating: null, phone: null, address: null, price: null,
+    isCommunity: true, submitterName: p.submitter_name, sharedExp: p.description, tryThis: null,
+  }));
+
+  const cityAreas = ["All", ...Array.from(new Set(cd.food.map(r => r.hood)))];
+
+  const matchesSearch = (p) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.trim().toLowerCase();
+    return (p.name||"").toLowerCase().includes(q) || (p.cuisine||"").toLowerCase().includes(q) || (p.hood||"").toLowerCase().includes(q);
+  };
+  const matchesArea = (p) => activeArea === "All" || p.hood === activeArea;
+
+  const filtered = cd.food.filter(r => matchesArea(r) && matchesSearch(r) && (!activeCategory || matchesFoodCategory(r, activeCategory)));
   const hasPrefs = userCuisines && userCuisines.length > 0;
-  // Recomputed fresh on every render — always reflects the latest cuisine ranking/budget from the profile.
-  const recommendedFood = hasPrefs
-    ? [...filteredFood].sort((a,b)=>scoreFoodPlace(b,userCuisines,userBudget) - scoreFoodPlace(a,userCuisines,userBudget))
-    : filteredFood;
-  const activeFilterLabel = [activeCat, activeCircle].filter(Boolean).join(" + ");
-  const handleRefresh = () => { setJustRefreshed(true); setTimeout(()=>setJustRefreshed(false), 1500); };
+  const sorted = hasPrefs
+    ? [...filtered].sort((a,b) => scoreFoodPlace(b,userCuisines,userBudget) - scoreFoodPlace(a,userCuisines,userBudget))
+    : filtered;
+
+  const recommended = sorted.slice(0, 10);
+  const exploreList = sorted.slice(10);
+  const allExplore = [...exploreList, ...normalizedCommunity.filter(r => matchesArea(r) && matchesSearch(r))];
+
   return (
-    <div className="screen-body">
-      <div className="section-hdr">
-        <div>
-          <div className="sec-title">Recommendations for you</div>
-          <div className="sec-sub">{justRefreshed ? "✓ Updated to match your latest preferences" : hasPrefs ? "Matched to your cuisine picks & budget" : "Based on your taste and favorites"}</div>
+    <div className="screen-body" style={{paddingBottom:80}}>
+
+      {/* Row 1: area dropdown + search bar */}
+      <div className="food-top-row" data-tour="food-search">
+        <div className="food-area-dropdown-wrap">
+          <select className="food-area-dropdown" value={activeArea} onChange={e=>setActiveArea(e.target.value)}>
+            {cityAreas.map(a => <option key={a} value={a}>{a === "All" ? "All areas" : a}</option>)}
+          </select>
         </div>
-        <div style={{display:"flex",gap:8}}>
-          <button className="refresh-circ-btn" onClick={handleRefresh} title="Refresh recommendations">↻</button>
-          <button className="arrow-circ-btn" onClick={onOpenMap}>→</button>
+        <div className="food-search-inner">
+          <span className="food-search-icon">🔍</span>
+          <input className="food-search-input" placeholder="Search food places" value={searchQuery} onChange={e=>setSearchQuery(e.target.value)}/>
+          {searchQuery && <button className="food-search-clear" onClick={()=>setSearchQuery("")}>×</button>}
         </div>
       </div>
-      <div className="area-filter-row">
-        {cityAreas.map(a=><button key={a} className={`area-filter-chip ${activeArea===a?"active":""}`} onClick={()=>setActiveArea(a)}>{a}</button>)}
+
+      {/* Hero banner */}
+      <div className="food-hero-banner">
+        <div className="food-hero-title">Discover the city's best places</div>
+        <div className="food-hero-sub">Community driven shared experiences</div>
+      </div>
+
+      {/* Category cards */}
+      <div className="food-cat-section" data-tour="food-categories">
+        <div className="food-cat-row">
+          {["Cafés","Restaurants","Street Food","Bakeries","Desserts","More"].map(cat => (
+            <button key={cat} className={`food-cat-card ${activeCategory===cat?"active":""}`}
+              onClick={()=> cat==="More" ? null : setActiveCategory(activeCategory===cat ? null : cat)}>
+              <span className="food-cat-icon">{FOOD_CATEGORY_ICONS[cat]}</span>
+              <span className="food-cat-label">{cat}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Recommendations — top 10, horizontally scrollable */}
+      <div className="section-hdr" data-tour="food-recommended" style={{marginTop:4}}>
+        <div className="sec-title">Recommendations for you</div>
       </div>
       <div className="food-hscroll">
-        {recommendedFood.map(r=>(
-          <div key={r.id} className="food-card" onClick={()=>onOpenDetail(r)}>
-            <div className="food-card-img-wrap"><img src={r.img} alt={r.name} className="food-card-img"/><button className="heart-btn" onClick={e=>{e.stopPropagation();setLikes(p=>({...p,[r.id]:!p[r.id]}))}}>{likes[r.id]?"❤️":"🤍"}</button><span className="food-tag-pill">{r.tag}</span></div>
-            <div className="food-card-body"><div className="food-name">{r.name}</div><div className="food-card-hood">📍 {r.hood}</div><div className="food-price">{r.price}</div><div className="food-rating">⭐ {r.rating}</div></div>
+        {recommended.length === 0 && <div className="food-empty-state">No matches{searchQuery ? ` for "${searchQuery}"` : ""}{activeArea!=="All" ? ` in ${activeArea}` : ""}.</div>}
+        {recommended.map((r, idx) => (
+          <div key={r.id} className="food-card" data-tour={idx===0?"food-first-card":undefined} onClick={()=>onOpenDetail(r)}>
+            <div className="food-card-img-wrap">
+              {r.img ? <img src={r.img} alt={r.name} className="food-card-img"/> : <div className="food-card-img food-card-img-placeholder">🍽️</div>}
+              <button className="heart-btn" onClick={e=>{e.stopPropagation();setLikes(p=>({...p,[r.id]:!p[r.id]}))}}>{likes[r.id]?"❤️":"🤍"}</button>
+            </div>
+            <div className="food-card-body">
+              <div className="food-name">{r.name}</div>
+              <div className="food-card-hood">📍 {r.hood}</div>
+            </div>
           </div>
         ))}
-        {recommendedFood.length===0 && <div className="food-empty-state">No {activeFilterLabel ? `${activeFilterLabel} ` : ""}places found{activeArea!=="All" ? ` in ${activeArea}` : ""} yet.</div>}
       </div>
-      <div className="section-hdr" style={{marginTop:8}}><div className="sec-title">Browse by category</div></div>
-      <div className="sec-sub" style={{marginBottom:14}}>Find the perfect spot for any craving</div>
-      <div className="cat-row">{CATS.map(c=><button key={c.name} className={`cat-circle-btn ${activeCat===c.name?"active":""}`} onClick={()=>setActiveCat(activeCat===c.name?null:c.name)}><div className="cat-circle-icon">{c.icon}</div><div className="cat-circle-label">{c.name}</div></button>)}</div>
-      <div className="section-hdr" style={{marginTop:24}}><div><div className="sec-title">Explore cuisines</div><div className="sec-sub">Discover flavors from around the world</div></div></div>
-      <div className="cuisine-circles-row">{CUISINE_CIRCLES.map(c=><button key={c.name} className={`cuisine-circle ${activeCircle===c.name?"active":""}`} onClick={()=>setActiveCircle(activeCircle===c.name?null:c.name)}><img src={c.img} alt={c.name} className="cuisine-circle-img"/><div className="cuisine-circle-name">{c.name}</div></button>)}</div>
-      <div className="section-hdr" style={{marginTop:24}}><div><div className="sec-title">Top offers near you</div><div className="sec-sub">Great food at great prices</div></div><button className="arrow-circ-btn">→</button></div>
-      <div className="offers-row">{cd.food.slice(0,3).map((r,i)=><div key={r.id} className="offer-card" onClick={()=>onOpenDetail(r)}><img src={r.img} alt={r.name} className="offer-img"/><button className="heart-btn offer-heart" onClick={e=>{e.stopPropagation();setLikes(p=>({...p,[`o${r.id}`]:!p[`o${r.id}`]}))}}>{likes[`o${r.id}`]?"❤️":"🤍"}</button><span className="discount-pill">{["20% OFF","15% OFF","25% OFF"][i]}</span></div>)}</div>
+
+      {/* Explore Experiences — vertical list matching reference */}
+      {allExplore.length > 0 && (
+        <>
+          <div className="sec-title" style={{marginTop:28,marginBottom:14}} data-tour="food-community">Explore Experiences</div>
+          {allExplore.map(r => (
+            <div key={r.id} className="exp-list-row" onClick={()=>onOpenDetail(r)}>
+              <div className="exp-list-img-wrap">
+                {r.img ? <img src={r.img} alt={r.name} className="exp-list-img"/> : <div className="exp-list-img exp-list-img-placeholder">🍽️</div>}
+              </div>
+              <div className="exp-list-body">
+                <div className="exp-list-top">
+                  <span className="exp-list-name">{r.name}</span>
+                  <span className="exp-list-cuisine">{r.cuisine}</span>
+                </div>
+                <div className="exp-list-area">📍 {r.hood}</div>
+                {r.sharedExp && <p className="exp-list-exp">{r.sharedExp.length > 90 ? r.sharedExp.slice(0,90)+"…" : r.sharedExp}</p>}
+                {r.tryThis && <div className="exp-list-try"><span className="exp-list-try-label">Try:</span> {r.tryThis.split(" and ").slice(0,2).join(" and ")}</div>}
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+
+      {/* Sticky Share CTA */}
+      <div className="food-share-sticky" onClick={()=>setSubmitOpen(o=>!o)}>
+        <span className="food-share-sticky-icon">✏️</span>
+        <div>
+          <div className="food-share-sticky-title">Share Your Experience</div>
+          <div className="food-share-sticky-sub">Help others discover great places in the city.</div>
+        </div>
+        <span className="food-share-sticky-plus">{submitOpen ? "×" : "+"}</span>
+      </div>
+
+      {/* Bottom sheet */}
+      {submitOpen && (
+        <ShareBottomSheet
+          city={city}
+          userId={userId}
+          userName={userName}
+          onClose={()=>setSubmitOpen(false)}
+          onSubmitted={place => { setCommunityPlaces(prev => [place, ...prev]); setSubmitOpen(false); }}
+          onExperienceShared={()=>setSubmitOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ShareBottomSheet({ city, userId, userName, onClose, onSubmitted, onExperienceShared }) {
+  const [activeTab, setActiveTab] = useState("experience"); // "experience" | "place"
+  const cd = CITIES[city];
+
+  return (
+    <div className="share-sheet-overlay" onClick={onClose}>
+      <div className="share-sheet" onClick={e=>e.stopPropagation()}>
+        <div className="share-sheet-handle"/>
+        <div className="share-sheet-tabs">
+          <button className={`share-sheet-tab ${activeTab==="experience"?"active":""}`} onClick={()=>setActiveTab("experience")}>Share an Experience</button>
+          <button className={`share-sheet-tab ${activeTab==="place"?"active":""}`} onClick={()=>setActiveTab("place")}>Add a New Place</button>
+        </div>
+        {activeTab === "experience"
+          ? <ShareExperienceForm city={city} userId={userId} userName={userName} onDone={onExperienceShared}/>
+          : <SubmitPlaceForm city={city} userId={userId} userName={userName} onSubmitted={onSubmitted}/>
+        }
+      </div>
+    </div>
+  );
+}
+
+function ShareExperienceForm({ city, userId, userName, onDone }) {
+  const cd = CITIES[city];
+  const [selectedPlace, setSelectedPlace] = useState("");
+  const [note, setNote] = useState("");
+  const [favoriteItem, setFavoriteItem] = useState("");
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!userId) { setError("Sign in to share your experience."); return; }
+    if (!selectedPlace) { setError("Please select a food place first."); return; }
+    if (!photoFile && !note.trim() && !favoriteItem.trim()) { setError("Add a photo, a note, or a favorite item."); return; }
+    setSubmitting(true); setError("");
+    try {
+      let photoUrl = null;
+      if (photoFile) photoUrl = await uploadFoodExperiencePhoto(userId, photoFile);
+      await shareFoodExperience(userId, userName || "Someone", selectedPlace, { photoUrl, note: note.trim(), favoriteItem: favoriteItem.trim() });
+      setDone(true);
+      setTimeout(onDone, 1200);
+    } catch (e) {
+      console.error("Failed to share experience:", e);
+      setError("Couldn't share that — please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (done) return <div style={{textAlign:"center",padding:"24px 0"}}><div style={{fontSize:32}}>✓</div><div style={{fontWeight:700,marginTop:6}}>Thanks for sharing!</div></div>;
+
+  return (
+    <div style={{paddingBottom:8}}>
+      {error && <div className="profile-save-error">⚠️ {error}</div>}
+      <select className="ob-input ob-select" style={{marginBottom:10}} value={selectedPlace} onChange={e=>setSelectedPlace(e.target.value)}>
+        <option value="">Select a place...</option>
+        {cd.food.map(p => <option key={p.id} value={p.name}>{p.name} — {p.hood}</option>)}
+      </select>
+      <label className="experience-photo-picker">
+        {photoPreview ? <img src={photoPreview} alt="" className="experience-photo-preview"/> : <span>📷 Add a photo</span>}
+        <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];setPhotoFile(f||null);setPhotoPreview(f?URL.createObjectURL(f):null);}}/>
+      </label>
+      <input className="ob-input" style={{marginTop:10}} placeholder="Your favorite item" value={favoriteItem} onChange={e=>setFavoriteItem(e.target.value)}/>
+      <textarea className="ob-input experience-textarea" style={{marginTop:10}} placeholder="What was it like?" value={note} onChange={e=>setNote(e.target.value)} rows={3}/>
+      <button className="filter-apply" style={{marginTop:12}} disabled={submitting} onClick={handleSubmit}>{submitting ? "Sharing…" : "Share with the community"}</button>
+    </div>
+  );
+}
+
+function SubmitPlaceForm({ city, userId, userName, onSubmitted }) {
+  const [name, setName] = useState("");
+  const [area, setArea] = useState("");
+  const [cuisine, setCuisine] = useState("");
+  const [description, setDescription] = useState("");
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+
+  const handlePhotoPick = (file) => {
+    setPhotoFile(file);
+    setPhotoPreview(file ? URL.createObjectURL(file) : null);
+  };
+
+  const handleSubmit = async () => {
+    if (!userId) { setError("Sign in to add a place."); return; }
+    if (!name.trim() || !area.trim()) { setError("Name and area are required."); return; }
+    setSubmitting(true);
+    setError("");
+    try {
+      let photoUrl = null;
+      if (photoFile) photoUrl = await uploadCommunityPlacePhoto(userId, photoFile);
+      const place = await submitCommunityPlace(userId, userName || "Someone", {
+        city, name: name.trim(), area: area.trim(), cuisine: cuisine.trim(), description: description.trim(), photoUrl,
+      });
+      setDone(true);
+      onSubmitted(place);
+    } catch (e) {
+      console.error("Failed to submit place:", e);
+      setError("Couldn't submit that — please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (done) {
+    return (
+      <div className="experience-form" style={{textAlign:"center",padding:24}}>
+        <div style={{fontSize:32}}>✓</div>
+        <div style={{fontWeight:700,marginTop:6}}>Added! Thanks for sharing.</div>
+        <p style={{fontSize:13,color:"var(--text3)",marginTop:4}}>Your place is now visible to the community.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="experience-form">
+      {error && <div className="profile-save-error" style={{marginTop:0}}>⚠️ {error}</div>}
+      <label className="experience-photo-picker">
+        {photoPreview ? <img src={photoPreview} alt="" className="experience-photo-preview"/> : <span>📷 Add a photo</span>}
+        <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>handlePhotoPick(e.target.files?.[0] || null)}/>
+      </label>
+      <input className="ob-input" style={{marginTop:10}} placeholder="Place name" value={name} onChange={e=>setName(e.target.value)}/>
+      <input className="ob-input" style={{marginTop:10}} placeholder="Area / neighborhood" value={area} onChange={e=>setArea(e.target.value)}/>
+      <input className="ob-input" style={{marginTop:10}} placeholder="Cuisine" value={cuisine} onChange={e=>setCuisine(e.target.value)}/>
+      <textarea className="ob-input experience-textarea" style={{marginTop:10}} placeholder="What's your experience there?" value={description} onChange={e=>setDescription(e.target.value)} rows={3}/>
+      <button className="filter-apply" style={{marginTop:12}} disabled={submitting} onClick={handleSubmit}>{submitting ? "Adding…" : "Add this place"}</button>
     </div>
   );
 }
@@ -986,7 +1272,7 @@ function ThirdPlacesScreen({ city }) {
           <div className="add-tp-step"><span className="add-tp-step-icon">✏️</span><span>Tell us about the place</span></div>
         </div>
       </div>
-      {addOpen&&(<div className="modal-bg" onClick={()=>setAddOpen(false)}><div className="modal-sheet add-sheet" onClick={e=>e.stopPropagation()}><div className="filter-header"><button className="filter-close" onClick={()=>setAddOpen(false)}>✕</button><div className="filter-title">Add a new place</div><div/></div><div className="add-photo-area"><span className="add-photo-icon">📷</span><div className="add-photo-label">Add photos<br/><span style={{fontSize:12,color:"#999"}}>(Up to 5 photos)</span></div></div>{[["Place name*","text","e.g. Your Place Name","name"],["Address*","text","e.g. Street, Area, City","address"],["Contact number","tel","e.g. 98765 43210","phone"]].map(([lbl,type,ph,key])=><div key={key} className="add-field"><label className="add-label">{lbl}</label><input className="ob-input" type={type} placeholder={ph} value={addForm[key]} onChange={e=>setAddForm({...addForm,[key]:e.target.value})}/></div>)}<button className="add-location-btn">📍 Use current location</button><div className="add-field"><label className="add-label">Add a note (optional)</label><input className="ob-input" placeholder="Share more about this place" value={addForm.note} onChange={e=>setAddForm({...addForm,note:e.target.value})}/></div><button className="filter-apply" onClick={()=>setAddOpen(false)}>Submit</button></div></div>)}
+      {addOpen&&(<div className="modal-bg" onClick={()=>setAddOpen(false)}><div className="modal-sheet add-sheet" onClick={e=>e.stopPropagation()}><div className="filter-header"><button className="filter-close" onClick={()=>setAddOpen(false)}>✕</button><div className="filter-title">Add a new place</div><div/></div><div className="add-photo-area"><span className="add-photo-icon">📷</span><div className="add-photo-label">Add photos<br/><span style={{fontSize:12,color:"#999"}}>(Up to 5 photos)</span></div></div>{[["Place name*","text","e.g. Your Place Name","name"],["Address*","text","e.g. Street, Area, City","address"],["Contact number","tel","e.g. 98765 43210","phone"]].map(([lbl,type,ph,key])=><div key={key} className="add-field"><label className="add-label">{lbl}</label><input className="ob-input" type={type} placeholder={ph} value={addForm[key]} onChange={e=>setAddForm({...addForm,[key]:e.target.value})}/></div>)}<button className="add-location-btn">📍 Use current location</button><div className="add-field"><label className="add-label">Share more about this place</label><input className="ob-input" placeholder="Share more about this place" value={addForm.note} onChange={e=>setAddForm({...addForm,note:e.target.value})}/></div><button className="filter-apply" onClick={()=>setAddOpen(false)}>Submit</button></div></div>)}
     </div>
   );
 }
@@ -994,26 +1280,19 @@ function ThirdPlacesScreen({ city }) {
 // ─── DISCOVERY SCREEN (unchanged structure) ───────────────────────────────────
 function DiscoveryScreen({ city, userCuisines, userBudget, userId, userName, savedPlaces, onToggleSave }) {
   const [subTab, setSubTab] = useState("food");
-  const [mapOpen, setMapOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(null);
-  if (mapOpen) return <MapView city={city} onBack={()=>setMapOpen(false)} onSelectPlace={r=>{setMapOpen(false);setDetailOpen(r);}}/>;
   if (detailOpen) return <FoodDetail restaurant={detailOpen} onBack={()=>setDetailOpen(null)} userId={userId} userName={userName} isSaved={(savedPlaces||[]).includes(detailOpen.name)} onToggleSave={onToggleSave}/>;
   return (
     <div className="discovery-root">
-      <div className="search-wrap">
-        <div className="search-box"><span className="search-icon">🔍</span><span className="search-placeholder">Start your search</span></div>
-        <button className="search-filter-btn">⚙</button>
+      <div className="disc-tab-row">
+        {[["food","🍽️","Food Places"],["events","🎟️","Events"],["places","🌳","Third Places"]].map(([id,icon,lbl])=>(
+          <button key={id} className={`disc-tab ${subTab===id?"active":""}`} onClick={()=>setSubTab(id)}>
+            <span className="disc-tab-icon">{icon}</span>
+            <span className="disc-tab-label">{lbl}</span>
+          </button>
+        ))}
       </div>
-      <div className="sub-tabs-wrap">
-        <div className="sub-tabs">
-          {[["food","🍔","Food"],["events","🎟️","Events"],["places","🌳","Third Places"]].map(([id,icon,lbl])=>(
-            <button key={id} className={`sub-tab ${subTab===id?"active":""}`} onClick={()=>setSubTab(id)}>
-              <span className="sub-tab-icon">{icon}</span><span className="sub-tab-label">{lbl}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-      {subTab==="food"   && <FoodScreen city={city} onOpenMap={()=>setMapOpen(true)} onOpenDetail={setDetailOpen} userCuisines={userCuisines} userBudget={userBudget}/>}
+      {subTab==="food"   && <FoodScreen onOpenDetail={setDetailOpen} city={city} userCuisines={userCuisines} userBudget={userBudget} userId={userId} userName={userName}/>}
       {subTab==="events" && <DiscoveryEventsTab city={city}/>}
       {subTab==="places" && <ThirdPlacesScreen city={city}/>}
     </div>
@@ -1141,6 +1420,8 @@ function ConnectionScreen({ city, userId, me }) {
   const [chatOpen, setChatOpen] = useState(null);
   const [connectError, setConnectError] = useState("");
   const [connecting, setConnecting] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const cd = CITIES[city];
 
   useEffect(() => {
@@ -1155,18 +1436,39 @@ function ConnectionScreen({ city, userId, me }) {
           .map(p => ({ ...p, _match: scoreConnection(me, p) }))
           .sort((a,b) => b._match.score - a._match.score);
         setPeople(ranked);
+        setIdx(0);
       })
       .catch(e => { console.error("Failed to load people:", e); if (active) setLoadError("Couldn't load people right now."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [city, userId]);
+  }, [city, userId, reloadKey]);
+
 
   const current = people[idx];
+  const canGoBack = idx > 0;
 
   const passProfileAndNext = async () => {
     if (!current) return;
     setIdx(i => i+1); setPhotoIdx(0);
     try { await passProfile(userId, current.id); } catch (e) { console.error("Pass failed:", e); }
+  };
+
+  const goToPrevious = () => {
+    if (!canGoBack) return;
+    setIdx(i => i-1); setPhotoIdx(0);
+  };
+
+  const browseAgain = async () => {
+    setResetting(true);
+    try {
+      await resetPasses(userId);
+      setReloadKey(k => k+1);
+    } catch (e) {
+      console.error("Failed to reset passes:", e);
+      setLoadError("Couldn't reset your browsing history — please try again.");
+    } finally {
+      setResetting(false);
+    }
   };
 
   const openChat = async (person) => {
@@ -1246,7 +1548,7 @@ function ConnectionScreen({ city, userId, me }) {
       {!loading && loadError && <div className="conn-empty"><p>{loadError}</p></div>}
       {!loading && !loadError && current ? (
         <div className="conn-layout">
-          <div className="conn-card">
+          <div className="conn-card" data-tour="conn-card">
             <div className="conn-img-wrap">
               {(current.photo_urls&&current.photo_urls.filter(Boolean).length>0) ? (
                 <img src={current.photo_urls.filter(Boolean)[photoIdx]||current.photo_urls.filter(Boolean)[0]} alt={current.name} className="conn-img"/>
@@ -1273,10 +1575,20 @@ function ConnectionScreen({ city, userId, me }) {
             {current._match.score===0 && <p style={{fontSize:13,color:"var(--text3)"}}>No overlap yet — but everyone starts somewhere.</p>}
             {connectError && <div className="profile-save-error">⚠️ {connectError}</div>}
             <button className="conn-chat-btn" disabled={connecting} onClick={()=>openChat(current)}>{connecting ? "Connecting…" : `Message ${current.name} →`}</button>
-            <button className="conn-pass-btn" onClick={passProfileAndNext}>Pass ›</button>
+            <div className="conn-nav-row">
+              <button className="conn-back-btn" disabled={!canGoBack} onClick={goToPrevious}>‹ Back</button>
+              <button className="conn-pass-btn" onClick={passProfileAndNext}>Pass ›</button>
+            </div>
           </div>
         </div>
-      ) : (!loading && !loadError && <div className="conn-empty"><div style={{fontSize:42}}>🎉</div><div className="conn-empty-title">You're all caught up!</div><p style={{color:"var(--text3)",fontSize:13,marginTop:6}}>No more registered people to show in {cd.label} right now.</p></div>)}
+      ) : (!loading && !loadError && (
+        <div className="conn-empty">
+          <div style={{fontSize:42}}>🎉</div>
+          <div className="conn-empty-title">You're all caught up!</div>
+          <p style={{color:"var(--text3)",fontSize:13,marginTop:6}}>No more registered people to show in {cd.label} right now.</p>
+          <button className="conn-browse-again-btn" disabled={resetting} onClick={browseAgain}>{resetting ? "Resetting…" : "↻ Browse profiles again"}</button>
+        </div>
+      ))}
     </div>
   );
 }
@@ -1311,7 +1623,7 @@ function EditableField({ label, value, onSave, type="text", icon }) {
   );
 }
 
-function ProfileScreen({ user, userId, onSignOut, onUpdateProfile }) {
+function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour }) {
   const cd = CITIES[user.city];
   const p = cd.people[0]; // sample person — still used for Food/In-City recs sections below (not yet wired to real user data)
   const [cuisines, setCuisines] = useState(user.cuisines || []);
@@ -1450,7 +1762,7 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile }) {
       </div>
 
       {/* 4 Cuisine preferences + budget — drives food recommendations */}
-      <div className="profile-section">
+      <div className="profile-section" data-tour="profile-food-prefs">
         <div className="profile-sec-num">4</div>
         <div className="profile-sec-body">
           <div className="profile-sec-title">Food preferences <span className="profile-sec-count">{cuisines.length} cuisine{cuisines.length===1?"":"s"}</span></div>
@@ -1518,6 +1830,7 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile }) {
         </div>
       </div>
 
+      {onReplayTour && <button className="profile-replay-tour" onClick={onReplayTour}>↻ Replay the tour</button>}
       <button className="profile-signout" onClick={onSignOut}>Sign Out</button>
     </div>
   );
@@ -1529,7 +1842,25 @@ export default function App() {
   const [localUser, setLocalUser] = useState(null);
   const [tab, setTab] = useState("discovery");
   const [messagesOpen, setMessagesOpen] = useState(false);
+  const [tourStep, setTourStep] = useState(null); // null = not running
   const [screen, setScreen] = useState("landing"); // landing | signin | onboarding | app
+
+  useEffect(() => {
+    // Auto-start for any completed profile that hasn't explicitly finished the tour.
+    // Catches both tour_completed=false (new users, migration ran) and tour_completed=null
+    // (migration not yet run, or users who signed up before this feature).
+    if (profile?.profile_complete && !profile?.tour_completed && tourStep === null) {
+      setTourStep(0);
+    }
+  }, [profile?.profile_complete, profile?.tour_completed]);
+
+  const finishTour = async () => {
+    setTourStep(null);
+    if (session?.user?.id) {
+      try { await updateProfile(session.user.id, { tour_completed: true }); await refreshProfile(); }
+      catch (e) { console.error("Failed to save tour completion:", e); }
+    }
+  };
 
   async function handleSignOut() {
     try { await signOut(); } catch(e) { console.error(e); }
@@ -1563,30 +1894,42 @@ export default function App() {
         budget: profile.budget || "flexible",
         photo_urls: profile.photo_urls || [],
         saved_food_places: profile.saved_food_places || [],
+        tour_completed: profile.tour_completed,
       };
       return (
         <div className="app-root">
           <header className="topnav">
             <div className="topnav-inner">
               <NearMetLogo size={26}/>
-              <nav className="topnav-links">
-                {[["discovery","Discovery"],["events","Events"],["connection","Connection"],["profile","Profile"]].map(([id,lbl])=>(
-                  <button key={id} className={`tnav-link ${tab===id?"active":""}`} onClick={()=>setTab(id)}>{lbl}</button>
-                ))}
-              </nav>
               <div className="topnav-right">
                 <span className="city-pill">📍 {user.city==="nyc"?"NYC":"Mumbai"}</span>
-                <button className="topnav-msg-btn" onClick={()=>setMessagesOpen(true)} title="Messages">💬</button>
+                <button data-tour="nav-messages" className="topnav-msg-btn" onClick={()=>setMessagesOpen(true)} title="Messages">💬</button>
                 <div className="user-chip">{(user.name||"U").slice(0,2).toUpperCase()}</div>
               </div>
             </div>
           </header>
+          <nav className="section-tab-bar">
+            {[["connection","👥","Connections"],["discovery","🍽️","Food Places"],["events","🗓","Events"],["profile","👤","Profile"]].map(([id,icon,lbl])=>(
+              <button key={id} data-tour={`nav-${id}`} className={`section-tab ${tab===id?"active":""}`} onClick={()=>setTab(id)}>
+                <span className="section-tab-icon">{icon}</span>
+                <span className="section-tab-label">{lbl}</span>
+              </button>
+            ))}
+          </nav>
           {messagesOpen && <MessagesPanel userId={session.user.id} onClose={()=>setMessagesOpen(false)}/>}
+          {tourStep !== null && (
+            <TourOverlay
+              stepIndex={tourStep}
+              onNext={()=>{ if (tourStep >= TOUR_STEPS.length-1) finishTour(); else setTourStep(s=>s+1); }}
+              onBack={()=>setTourStep(s=>Math.max(0,s-1))}
+              onSkip={finishTour}
+            />
+          )}
           <main className="site-main">
             {tab==="discovery"  && <DiscoveryScreen city={user.city} userCuisines={user.cuisines} userBudget={user.budget} userId={session.user.id} userName={user.name} savedPlaces={user.saved_food_places} onToggleSave={async(name)=>{ const cur=user.saved_food_places||[]; const next=cur.includes(name)?cur.filter(n=>n!==name):[...cur,name]; try{ await updateProfile(session.user.id,{saved_food_places:next}); await refreshProfile(); }catch(e){ console.error("Save toggle failed:",e); } }}/>}
             {tab==="events"     && <EventsMapScreen city={user.city}/>}
             {tab==="connection" && <ConnectionScreen city={user.city} userId={session.user.id} me={user}/>}
-            {tab==="profile"    && <ProfileScreen user={user} userId={session.user.id} onSignOut={handleSignOut} onUpdateProfile={async(updates)=>{ await updateProfile(session.user.id, updates); await refreshProfile(); }}/>}
+            {tab==="profile"    && <ProfileScreen user={user} userId={session.user.id} onSignOut={handleSignOut} onUpdateProfile={async(updates)=>{ await updateProfile(session.user.id, updates); await refreshProfile(); }} onReplayTour={()=>setTourStep(0)}/>}
           </main>
         </div>
       );
@@ -1628,23 +1971,34 @@ export default function App() {
         <header className="topnav">
           <div className="topnav-inner">
             <NearMetLogo size={26}/>
-            <nav className="topnav-links">
-              {[["discovery","Discovery"],["events","Events"],["connection","Connection"],["profile","Profile"]].map(([id,lbl])=>(
-                <button key={id} className={`tnav-link ${tab===id?"active":""}`} onClick={()=>setTab(id)}>{lbl}</button>
-              ))}
-            </nav>
             <div className="topnav-right">
               <span className="city-pill">📍 {localUser.city==="nyc"?"NYC":"Mumbai"}</span>
-              <button className="topnav-msg-btn" disabled title="Sign in to use messaging" onClick={()=>alert("Messaging needs a real account — sign up to chat with people.")}>💬</button>
+              <button data-tour="nav-messages" className="topnav-msg-btn" disabled title="Sign in to use messaging" onClick={()=>alert("Messaging needs a real account — sign up to chat with people.")}>💬</button>
               <div className="user-chip">{(localUser.name||"U").slice(0,2).toUpperCase()}</div>
             </div>
           </div>
         </header>
+        <nav className="section-tab-bar">
+          {[["connection","👥","Connections"],["discovery","🍽️","Food Places"],["events","🗓","Events"],["profile","👤","Profile"]].map(([id,icon,lbl])=>(
+            <button key={id} data-tour={`nav-${id}`} className={`section-tab ${tab===id?"active":""}`} onClick={()=>setTab(id)}>
+              <span className="section-tab-icon">{icon}</span>
+              <span className="section-tab-label">{lbl}</span>
+            </button>
+          ))}
+        </nav>
+        {tourStep !== null && (
+          <TourOverlay
+            stepIndex={tourStep}
+            onNext={()=>{ if (tourStep >= TOUR_STEPS.length-1) setTourStep(null); else setTourStep(s=>s+1); }}
+            onBack={()=>setTourStep(s=>Math.max(0,s-1))}
+            onSkip={()=>setTourStep(null)}
+          />
+        )}
         <main className="site-main">
           {tab==="discovery"  && <DiscoveryScreen city={localUser.city} userCuisines={localUser.cuisines||[]} userBudget={localUser.budget||"flexible"} userId={null} userName={localUser.name} savedPlaces={localUser.saved_food_places||[]} onToggleSave={(name)=>{ setLocalUser(u=>{ const cur=u.saved_food_places||[]; const next=cur.includes(name)?cur.filter(n=>n!==name):[...cur,name]; return {...u, saved_food_places:next}; }); }}/>}
           {tab==="events"     && <EventsMapScreen city={localUser.city}/>}
           {tab==="connection" && <ConnectionScreen city={localUser.city} userId={null} me={localUser}/>}
-          {tab==="profile"    && <ProfileScreen user={localUser} userId={null} onSignOut={()=>{setLocalUser(null);setScreen("landing");}} onUpdateProfile={async(updates)=>{ setLocalUser(u=>({...u,...updates})); }}/>}
+          {tab==="profile"    && <ProfileScreen user={localUser} userId={null} onSignOut={()=>{setLocalUser(null);setScreen("landing");}} onUpdateProfile={async(updates)=>{ setLocalUser(u=>({...u,...updates})); }} onReplayTour={()=>setTourStep(0)}/>}
         </main>
       </div>
     );
