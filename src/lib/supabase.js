@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js'
  
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
@@ -185,6 +184,7 @@ export async function submitCommunityPlace(userId, userName, { city, name, area,
       photo_url: photoUrl || null,
       submitted_by: userId,
       submitter_name: userName,
+      status: 'pending', // requires admin approval before showing publicly — getCommunityPlaces only returns status='approved'
     })
     .select()
     .single()
@@ -232,7 +232,7 @@ export async function toggleRestaurantLike(userId, restaurantId) {
   }
 }
  
-// ─── EVENTS ───────────────────────────────────────────────────────────────────
+// ─── EVENTS (legacy curated events table — unused by current "What's Happening" UI) ──
  
 export async function getEvents(city) {
   const { data, error } = await supabase
@@ -415,4 +415,72 @@ export function subscribeToMessages(connectionId, callback) {
       filter: `connection_id=eq.${connectionId}`,
     }, payload => callback(payload.new))
     .subscribe()
+}
+
+// ─── COMMUNITY EVENTS ("What's Happening") ───────────────────────────────────
+// Mirrors the community_places pattern: user-submitted, requires approval
+// (status: 'pending' | 'approved') before showing publicly, for safety/spam control.
+
+export async function uploadEventPhoto(userId, file) {
+  const compressed = await compressImage(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.82 })
+  const path = `events/${userId}/${Date.now()}.jpg`
+  const { error } = await supabase.storage
+    .from('place-photos') // reuse existing public bucket
+    .upload(path, compressed, { upsert: false, contentType: 'image/jpeg' })
+  if (error) throw error
+  const { data } = supabase.storage.from('place-photos').getPublicUrl(path)
+  return data.publicUrl
+}
+
+export async function getCommunityEvents(city) {
+  const { data, error } = await supabase
+    .from('community_events')
+    .select('*')
+    .eq('city', city)
+    .eq('status', 'approved')
+    .order('event_date', { ascending: true })
+  if (error) throw error
+  return data
+}
+
+export async function submitCommunityEvent(userId, userName, eventData) {
+  const { data, error } = await supabase
+    .from('community_events')
+    .insert({
+      ...eventData,
+      submitted_by: userId,
+      submitter_name: userName,
+      status: 'approved', // events go live immediately — no review needed
+      created_at: new Date().toISOString(),
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function toggleCommunityEventInterest(userId, eventId) {
+  const { data: existing } = await supabase
+    .from('community_event_interests')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('event_id', eventId)
+    .single()
+
+  if (existing) {
+    await supabase.from('community_event_interests').delete().eq('id', existing.id)
+    return false
+  } else {
+    await supabase.from('community_event_interests').insert({ user_id: userId, event_id: eventId })
+    return true
+  }
+}
+
+export async function getCommunityEventInterestCount(eventId) {
+  const { count, error } = await supabase
+    .from('community_event_interests')
+    .select('id', { count: 'exact', head: true })
+    .eq('event_id', eventId)
+  if (error) throw error
+  return count || 0
 }

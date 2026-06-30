@@ -1,14 +1,13 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// App.jsx  — NearMet redesign
-// Changes:
-//   • Nav: Connections / Places to Explore / Food Places (+ bell + profile)
-//   • Connections → "For You" tab: one profile at a time, full scroll view,
-//     Next button, no pass/back complexity
-//   • Connections → "By Activity" tab: grouped by shared Things-to-Do,
-//     tap activity → see everyone who wants it → tap person → full profile
-//   • Places to Explore: new section with curated city spots (Mumbai + NYC)
-//   • Food Places: unchanged from current implementation
-//   • Removed: Events tab (moved to future roadmap)
+// App.jsx  — NearMet
+// Sections:
+//   • Connections → "For You" (one profile at a time, Back/Next, full profile view)
+//                   "By Activity" (grouped by shared Things-to-Do)
+//   • Places to Explore — curated city spots, user submissions require approval
+//   • Food Places — recommendations, share experience, add a new place (requires approval)
+//   • What's Happening — community-posted events (house parties, meetups, etc.)
+//                         with photo, contact & payment info, interest sign-up;
+//                         submissions require approval before going live
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState, useEffect, useRef } from "react";
@@ -21,6 +20,8 @@ import {
   deleteFoodExperience, getPeople, passProfile, resetPasses,
   getOrCreateConnection, getConnections, getMessages, sendMessage,
   getCommunityPlaces, uploadCommunityPlacePhoto, submitCommunityPlace,
+  getCommunityEvents, submitCommunityEvent, uploadEventPhoto,
+  toggleCommunityEventInterest, getCommunityEventInterestCount,
 } from "./lib/supabase.js";
 
 // ─── LOGO ────────────────────────────────────────────────────────────────────
@@ -1065,14 +1066,20 @@ function ConnectionsScreen({ city, userId, me }) {
                 )}
               </div>
 
-              {/* View full profile + Next */}
+              {/* View full profile + Back/Next */}
               <div style={{ padding: "12px 20px 20px", borderTop: "1px solid var(--border)" }}>
                 <button style={{ width: "100%", background: "var(--green2)", color: "white", borderRadius: 12, padding: "13px", fontSize: 14, fontWeight: 700, marginBottom: 10, border: "none", cursor: "pointer" }} onClick={() => openChat(current)}>
                   Message {current.name} →
                 </button>
+                <button style={{ width: "100%", border: "1.5px solid var(--border)", borderRadius: 12, padding: "11px", fontSize: 13, fontWeight: 600, color: "var(--text2)", background: "var(--white)", cursor: "pointer", marginBottom: 10 }} onClick={() => setViewProfile(current)}>
+                  View full profile
+                </button>
                 <div style={{ display: "flex", gap: 10 }}>
-                  <button style={{ flex: 1, border: "1.5px solid var(--border)", borderRadius: 12, padding: "11px", fontSize: 13, fontWeight: 600, color: "var(--text2)", background: "var(--white)", cursor: "pointer" }} onClick={() => setViewProfile(current)}>
-                    View full profile
+                  <button
+                    style={{ flex: 1, border: "1.5px solid var(--border)", borderRadius: 12, padding: "11px", fontSize: 13, fontWeight: 600, color: idx === 0 ? "var(--text3)" : "var(--text2)", background: "var(--white)", cursor: idx === 0 ? "default" : "pointer", opacity: idx === 0 ? 0.5 : 1 }}
+                    disabled={idx === 0}
+                    onClick={() => setIdx(i => Math.max(0, i - 1))}>
+                    ← Back
                   </button>
                   <button style={{ flex: 1, border: "1.5px solid var(--border)", borderRadius: 12, padding: "11px", fontSize: 13, fontWeight: 600, color: "var(--text2)", background: "var(--white)", cursor: "pointer" }} onClick={() => { setIdx(i => Math.min(displayPeople.length - 1, i + 1)); }}>
                     Next →
@@ -1180,19 +1187,124 @@ function ConnectionsScreen({ city, userId, me }) {
 }
 
 // ─── PLACES TO EXPLORE SCREEN ─────────────────────────────────────────────────
+function PlaceDetailView({ place, onBack, isSaved, onToggleSave }) {
+  const [photoIdx, setPhotoIdx] = useState(0);
+  const allPhotos = [place.img, ...(place.photos || [])].filter(Boolean);
+
+  const handleShare = async () => {
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.address || place.name + " Mumbai")}`;
+    try {
+      if (navigator.share) await navigator.share({ title: place.name, url });
+      else { await navigator.clipboard.writeText(url); }
+    } catch (e) { if (e.name !== "AbortError") console.error(e); }
+  };
+
+  return (
+    <div style={{ paddingBottom: 60 }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 0 14px", borderBottom: "1px solid var(--border)" }}>
+        <button style={{ fontSize: 20, color: "var(--text2)", background: "none", border: "none", cursor: "pointer", padding: 0 }} onClick={onBack}>←</button>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }} onClick={() => onToggleSave(place.id)}>{isSaved ? "🔖" : "📑"}</button>
+          <button style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }} onClick={handleShare}>↗</button>
+        </div>
+      </div>
+
+      {/* Photo slideshow */}
+      {allPhotos.length > 0 && (
+        <div style={{ position: "relative", marginTop: 16, borderRadius: 16, overflow: "hidden", height: 260 }}>
+          <img src={allPhotos[photoIdx]} alt={place.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          {allPhotos.length > 1 && (
+            <>
+              {photoIdx > 0 && (
+                <button onClick={() => setPhotoIdx(i => i - 1)} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 34, height: 34, borderRadius: "50%", background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center" }}>‹</button>
+              )}
+              {photoIdx < allPhotos.length - 1 && (
+                <button onClick={() => setPhotoIdx(i => i + 1)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", width: 34, height: 34, borderRadius: "50%", background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center" }}>›</button>
+              )}
+              {/* Dots */}
+              <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 6 }}>
+                {allPhotos.map((_, i) => (
+                  <div key={i} onClick={() => setPhotoIdx(i)} style={{ width: i === photoIdx ? 18 : 7, height: 7, borderRadius: 4, background: i === photoIdx ? "white" : "rgba(255,255,255,0.5)", cursor: "pointer", transition: ".2s" }} />
+                ))}
+              </div>
+              {/* Counter */}
+              <div style={{ position: "absolute", top: 12, right: 12, background: "rgba(0,0,0,0.5)", color: "white", borderRadius: 999, padding: "4px 10px", fontSize: 12, fontWeight: 600 }}>{photoIdx + 1} / {allPhotos.length}</div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Name + area + category */}
+      <div style={{ marginTop: 18 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+          <div>
+            <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: "-0.02em" }}>{place.name}</h1>
+            <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 3 }}>📍 {place.area}</div>
+          </div>
+          {place.category && (
+            <span style={{ background: "var(--green-bg)", color: "var(--green2)", borderRadius: 8, padding: "5px 12px", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{place.category}</span>
+          )}
+        </div>
+
+        {/* Tags */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+          {place.tags.map(t => (
+            <span key={t} style={{ background: "var(--bg2)", color: "var(--text2)", borderRadius: 6, padding: "4px 10px", fontSize: 12, fontWeight: 600 }}>{t}</span>
+          ))}
+        </div>
+
+        {/* Description */}
+        <p style={{ fontSize: 14, color: "var(--text2)", lineHeight: 1.7, margin: "0 0 20px" }}>{place.desc}</p>
+
+        {/* Address + phone if present */}
+        {(place.address || place.phone) && (
+          <div style={{ border: "1px solid var(--border)", borderRadius: 14, overflow: "hidden", marginBottom: 20 }}>
+            {place.address && (
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "13px 16px", borderBottom: place.phone ? "1px solid var(--border)" : "none" }}>
+                <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>📍</span>
+                <span style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.5 }}>{place.address}</span>
+              </div>
+            )}
+            {place.phone && (
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px" }}>
+                <span style={{ fontSize: 16, flexShrink: 0 }}>📞</span>
+                <span style={{ fontSize: 13, color: "var(--text2)" }}>{place.phone}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Action buttons */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          {place.address && (
+            <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.address || place.name)}`} target="_blank" rel="noopener noreferrer"
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px", background: "var(--green2)", color: "white", borderRadius: 12, fontSize: 14, fontWeight: 700, textDecoration: "none" }}>
+              🗺️ Directions
+            </a>
+          )}
+          <button onClick={handleShare}
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px", background: "var(--white)", color: "var(--text)", border: "1.5px solid var(--border)", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+            ↗ Share
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PlacesToExploreScreen({ city, userId, userName }) {
   const places = PLACES_TO_EXPLORE[city] || [];
   const [saved, setSaved] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTag, setActiveTag] = useState("All");
+  const [openPlace, setOpenPlace] = useState(null);
   const [submitOpen, setSubmitOpen] = useState(false);
   const [submitForm, setSubmitForm] = useState({ name: "", area: "", desc: "" });
   const [communityPlaces, setCommunityPlaces] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitDone, setSubmitDone] = useState(false);
 
-  // All tags across places
-  // Use categories as primary filters when available, fall back to tags
   const hasCategories = places.some(p => p.category);
   const allTags = hasCategories
     ? ["All", ...Array.from(new Set(places.map(p => p.category).filter(Boolean)))]
@@ -1224,6 +1336,16 @@ function PlacesToExploreScreen({ city, userId, userName }) {
     finally { setSubmitting(false); }
   };
 
+  // Show detail view
+  if (openPlace) return (
+    <PlaceDetailView
+      place={openPlace}
+      onBack={() => setOpenPlace(null)}
+      isSaved={!!saved[openPlace.id]}
+      onToggleSave={id => setSaved(s => ({ ...s, [id]: !s[id] }))}
+    />
+  );
+
   return (
     <div style={{ paddingTop: 20, paddingBottom: 80 }}>
       {/* Header */}
@@ -1239,7 +1361,7 @@ function PlacesToExploreScreen({ city, userId, userName }) {
         {searchQuery && <button style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--bg2)", border: "none", fontSize: 14, cursor: "pointer" }} onClick={() => setSearchQuery("")}>×</button>}
       </div>
 
-      {/* Tag filter pills */}
+      {/* Category filter pills */}
       <div style={{ display: "flex", gap: 8, overflowX: "auto", scrollbarWidth: "none", paddingBottom: 14, marginBottom: 4 }}>
         {allTags.map(tag => (
           <button key={tag}
@@ -1248,9 +1370,11 @@ function PlacesToExploreScreen({ city, userId, userName }) {
         ))}
       </div>
 
-      {/* Places list */}
+      {/* Places list — each row is clickable */}
       {filtered.map(place => (
-        <div key={place.id} style={{ display: "flex", gap: 14, padding: "16px 0", borderBottom: "1px solid var(--border)" }}>
+        <div key={place.id}
+          style={{ display: "flex", gap: 14, padding: "16px 0", borderBottom: "1px solid var(--border)", cursor: "pointer" }}
+          onClick={() => setOpenPlace(place)}>
           <div style={{ flexShrink: 0, width: 120, height: 90, borderRadius: 12, overflow: "hidden" }}>
             <img src={place.img} alt={place.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           </div>
@@ -1260,17 +1384,19 @@ function PlacesToExploreScreen({ city, userId, userName }) {
                 <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>{place.name}</div>
                 <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 1 }}>📍 {place.area}</div>
               </div>
-              <button style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", flexShrink: 0, padding: 0 }} onClick={() => setSaved(s => ({ ...s, [place.id]: !s[place.id] }))}>
+              <button style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", flexShrink: 0, padding: 0 }}
+                onClick={e => { e.stopPropagation(); setSaved(s => ({ ...s, [place.id]: !s[place.id] })); }}>
                 {saved[place.id] ? "🔖" : "📑"}
               </button>
             </div>
             <p style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.5, margin: "0 0 8px" }}>
               {place.desc.length > 100 ? place.desc.slice(0, 100) + "…" : place.desc}
             </p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
               {place.tags.map(t => (
                 <span key={t} style={{ background: "var(--green-bg)", color: "var(--green2)", borderRadius: 6, padding: "3px 8px", fontSize: 11, fontWeight: 700 }}>{t}</span>
               ))}
+              <span style={{ marginLeft: "auto", fontSize: 18, color: "var(--text3)" }}>›</span>
             </div>
           </div>
         </div>
@@ -1478,6 +1604,7 @@ function FoodScreen({ city, userCuisines, userBudget, userId, userName, savedPla
   const [searchQuery, setSearchQuery] = useState("");
   const [communityPlaces, setCommunityPlaces] = useState([]);
   const [submitOpen, setSubmitOpen] = useState(false);
+  const [submitTab, setSubmitTab] = useState("experience"); // "experience" | "newplace"
   const cd = CITIES[city];
 
   useEffect(() => {
@@ -1564,25 +1691,447 @@ function FoodScreen({ city, userCuisines, userBudget, userId, userName, savedPla
         </>
       )}
 
-      {/* Share CTA */}
+      {/* Community-submitted new places (pending → won't show until approved, this is just local state preview) */}
+      {communityPlaces.length > 0 && (
+        <>
+          <div style={{ fontSize: 18, fontWeight: 700, marginTop: 28, marginBottom: 14 }}>Community-added places</div>
+          {communityPlaces.map(p => (
+            <div key={p.id} className="exp-list-row">
+              <div className="exp-list-img-wrap">
+                {p.photo_url ? <img src={p.photo_url} alt={p.name} className="exp-list-img" /> : <div className="exp-list-img exp-list-img-placeholder">🍽️</div>}
+              </div>
+              <div className="exp-list-body">
+                <div className="exp-list-top"><span className="exp-list-name">{p.name}</span><span className="exp-list-cuisine">{p.cuisine}</span></div>
+                <div className="exp-list-area">📍 {p.area}</div>
+                {p.description && <p className="exp-list-exp">{p.description}</p>}
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+
+      {/* Share / Add CTA */}
       <div className="food-share-sticky" onClick={() => setSubmitOpen(o => !o)}>
         <span className="food-share-sticky-icon">✏️</span>
-        <div><div className="food-share-sticky-title">Share your experience</div><div className="food-share-sticky-sub">Help others discover great places.</div></div>
+        <div><div className="food-share-sticky-title">Share or add a place</div><div className="food-share-sticky-sub">Help others discover great places.</div></div>
         <span className="food-share-sticky-plus">{submitOpen ? "×" : "+"}</span>
       </div>
       {submitOpen && (
         <div className="share-sheet-overlay" onClick={() => setSubmitOpen(false)}>
           <div className="share-sheet" onClick={e => e.stopPropagation()}>
             <div className="share-sheet-handle" />
-            <div style={{ marginBottom: 12 }}>
-              <select className="ob-input" style={{ marginBottom: 10 }} defaultValue="">
-                <option value="" disabled>Select a place...</option>
-                {cd.food.map(p => <option key={p.id} value={p.name}>{p.name} — {p.hood}</option>)}
-              </select>
-              <input className="ob-input" style={{ marginBottom: 10 }} placeholder="Your favorite item" />
-              <textarea className="ob-input experience-textarea" rows={3} placeholder="What was it like?" />
-              <button className="filter-apply" style={{ marginTop: 10 }} onClick={() => setSubmitOpen(false)}>Share with the community</button>
+            <div className="share-sheet-tabs">
+              <button className={`share-sheet-tab ${submitTab === "experience" ? "active" : ""}`} onClick={() => setSubmitTab("experience")}>Share an Experience</button>
+              <button className={`share-sheet-tab ${submitTab === "newplace" ? "active" : ""}`} onClick={() => setSubmitTab("newplace")}>Add a New Place</button>
             </div>
+            {submitTab === "experience"
+              ? <ShareFoodExperienceForm cd={cd} userId={userId} userName={userName} onDone={() => setSubmitOpen(false)} />
+              : <SubmitFoodPlaceForm city={city} userId={userId} userName={userName} onSubmitted={place => setCommunityPlaces(p => [place, ...p])} />
+            }
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ShareFoodExperienceForm({ cd, userId, userName, onDone }) {
+  const [selectedPlace, setSelectedPlace] = useState("");
+  const [favoriteItem, setFavoriteItem] = useState("");
+  const [note, setNote] = useState("");
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!userId) { setError("Sign in to share your experience."); return; }
+    if (!selectedPlace) { setError("Please select a place first."); return; }
+    if (!photoFile && !note.trim() && !favoriteItem.trim()) { setError("Add a photo, note, or favorite item."); return; }
+    setSubmitting(true); setError("");
+    try {
+      let photoUrl = null;
+      if (photoFile) photoUrl = await uploadFoodExperiencePhoto(userId, photoFile);
+      await shareFoodExperience(userId, userName || "Someone", selectedPlace, { photoUrl, note: note.trim(), favoriteItem: favoriteItem.trim() });
+      setDone(true);
+      setTimeout(onDone, 1200);
+    } catch (e) {
+      console.error(e);
+      setError("Couldn't share that — please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (done) return <div style={{ textAlign: "center", padding: "24px 0" }}><div style={{ fontSize: 32 }}>✓</div><div style={{ fontWeight: 700, marginTop: 6 }}>Thanks for sharing!</div></div>;
+
+  return (
+    <div style={{ paddingBottom: 8 }}>
+      {error && <div className="profile-save-error">⚠️ {error}</div>}
+      <select className="ob-input ob-select" style={{ marginBottom: 10 }} value={selectedPlace} onChange={e => setSelectedPlace(e.target.value)}>
+        <option value="">Select a place...</option>
+        {cd.food.map(p => <option key={p.id} value={p.name}>{p.name} — {p.hood}</option>)}
+      </select>
+      <label className="experience-photo-picker">
+        {photoPreview ? <img src={photoPreview} alt="" className="experience-photo-preview" /> : <span>📷 Add a photo</span>}
+        <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; setPhotoFile(f || null); setPhotoPreview(f ? URL.createObjectURL(f) : null); }} />
+      </label>
+      <input className="ob-input" style={{ marginTop: 10 }} placeholder="Your favorite item" value={favoriteItem} onChange={e => setFavoriteItem(e.target.value)} />
+      <textarea className="ob-input experience-textarea" style={{ marginTop: 10 }} placeholder="What was it like?" value={note} onChange={e => setNote(e.target.value)} rows={3} />
+      <button className="filter-apply" style={{ marginTop: 12 }} disabled={submitting} onClick={handleSubmit}>{submitting ? "Sharing…" : "Share with the community"}</button>
+    </div>
+  );
+}
+
+function SubmitFoodPlaceForm({ city, userId, userName, onSubmitted }) {
+  const [name, setName] = useState("");
+  const [area, setArea] = useState("");
+  const [cuisine, setCuisine] = useState("");
+  const [description, setDescription] = useState("");
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!userId) { setError("Sign in to add a place."); return; }
+    if (!name.trim() || !area.trim()) { setError("Name and area are required."); return; }
+    setSubmitting(true); setError("");
+    try {
+      let photoUrl = null;
+      if (photoFile) photoUrl = await uploadCommunityPlacePhoto(userId, photoFile);
+      const place = await submitCommunityPlace(userId, userName || "Someone", {
+        city, name: name.trim(), area: area.trim(), cuisine: cuisine.trim(), description: description.trim(), photoUrl,
+      });
+      setDone(true);
+      onSubmitted(place);
+    } catch (e) {
+      console.error(e);
+      setError("Couldn't submit that — please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (done) return (
+    <div style={{ textAlign: "center", padding: "24px 0" }}>
+      <div style={{ fontSize: 32 }}>✓</div>
+      <div style={{ fontWeight: 700, marginTop: 6 }}>Submitted for review!</div>
+      <p style={{ fontSize: 13, color: "var(--text3)", marginTop: 6, lineHeight: 1.5, padding: "0 10px" }}>Our team reviews every new place before it goes live, to keep recommendations trustworthy. You'll see it appear here once approved.</p>
+    </div>
+  );
+
+  return (
+    <div style={{ paddingBottom: 8 }}>
+      {error && <div className="profile-save-error">⚠️ {error}</div>}
+      <label className="experience-photo-picker">
+        {photoPreview ? <img src={photoPreview} alt="" className="experience-photo-preview" /> : <span>📷 Add a photo</span>}
+        <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; setPhotoFile(f || null); setPhotoPreview(f ? URL.createObjectURL(f) : null); }} />
+      </label>
+      <input className="ob-input" style={{ marginTop: 10 }} placeholder="Place name*" value={name} onChange={e => setName(e.target.value)} />
+      <input className="ob-input" style={{ marginTop: 10 }} placeholder="Area / neighbourhood*" value={area} onChange={e => setArea(e.target.value)} />
+      <input className="ob-input" style={{ marginTop: 10 }} placeholder="Cuisine" value={cuisine} onChange={e => setCuisine(e.target.value)} />
+      <textarea className="ob-input experience-textarea" style={{ marginTop: 10 }} placeholder="What's your experience there?" value={description} onChange={e => setDescription(e.target.value)} rows={3} />
+      <div style={{ fontSize: 12, color: "var(--text3)", margin: "10px 0 12px", lineHeight: 1.5 }}>New places are reviewed by our team before they go live.</div>
+      <button className="filter-apply" disabled={submitting} onClick={handleSubmit}>{submitting ? "Submitting…" : "Submit for review"}</button>
+    </div>
+  );
+}
+
+// ─── EVENTS SCREEN ────────────────────────────────────────────────────────────
+// ─── WHAT'S HAPPENING ── community-submitted events ───────────────────────────
+// Users advertise house parties, meetups, etc. Submissions require admin
+// approval before going public (status: 'pending' → 'approved'), matching the
+// same safety pattern as community food places.
+
+const EVENT_CATEGORIES = ["House Party", "City Meetup", "Workshop", "Live Music", "Sports & Fitness", "Food & Drinks", "Networking", "Other"];
+
+function EventDetailView({ event, onBack, userId, onToggleInterest, isInterested, interestCount }) {
+  const handleShare = async () => {
+    try {
+      if (navigator.share) await navigator.share({ title: event.name, text: event.description });
+      else await navigator.clipboard.writeText(event.name);
+    } catch (e) { if (e.name !== "AbortError") console.error(e); }
+  };
+
+  return (
+    <div style={{ paddingBottom: 40 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 0 14px", borderBottom: "1px solid var(--border)" }}>
+        <button style={{ fontSize: 20, color: "var(--text2)", background: "none", border: "none", cursor: "pointer", padding: 0 }} onClick={onBack}>←</button>
+        <button style={{ fontSize: 13, fontWeight: 700, color: "var(--text2)", border: "1.5px solid var(--border)", borderRadius: 999, padding: "6px 14px", background: "var(--white)", cursor: "pointer" }} onClick={handleShare}>↗ Share</button>
+      </div>
+
+      {event.photo_url ? (
+        <img src={event.photo_url} alt={event.name} style={{ width: "100%", height: 240, objectFit: "cover", borderRadius: 16, marginTop: 16, display: "block" }} />
+      ) : (
+        <div style={{ width: "100%", height: 180, borderRadius: 16, marginTop: 16, background: "var(--bg2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40 }}>🎉</div>
+      )}
+
+      <div style={{ paddingTop: 18 }}>
+        <span style={{ background: "var(--green-bg)", color: "var(--green2)", borderRadius: 999, padding: "4px 12px", fontSize: 12, fontWeight: 700 }}>{event.category}</span>
+        <h1 style={{ fontSize: 24, fontWeight: 800, margin: "12px 0 10px", lineHeight: 1.25 }}>{event.name}</h1>
+        <p style={{ fontSize: 14, color: "var(--text2)", lineHeight: 1.65, marginBottom: 20 }}>{event.description}</p>
+
+        <div style={{ border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden", marginBottom: 18 }}>
+          {[
+            ["📅", "Date & time", event.event_date],
+            ["📍", "Location", event.location],
+            ["🎟️", "Entry", event.entry_fee ? event.entry_fee : "Free"],
+          ].filter(([, , v]) => v).map(([icon, label, val], i, arr) => (
+            <div key={label} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "13px 16px", borderBottom: i < arr.length - 1 ? "1px solid var(--border)" : "none" }}>
+              <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{icon}</span>
+              <div>
+                <div style={{ fontSize: 11, color: "var(--text3)", marginBottom: 2 }}>{label}</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>{val}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {(event.contact_info || event.payment_info) && (
+          <div style={{ border: "1.5px solid var(--green2)", background: "var(--green-light)", borderRadius: 14, padding: 16, marginBottom: 18 }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: "var(--green2)", letterSpacing: ".04em", textTransform: "uppercase", marginBottom: 8 }}>Contact the organiser</div>
+            {event.contact_info && <div style={{ fontSize: 13, color: "var(--text2)", marginBottom: event.payment_info ? 6 : 0 }}>📞 {event.contact_info}</div>}
+            {event.payment_info && <div style={{ fontSize: 13, color: "var(--text2)" }}>💳 {event.payment_info}</div>}
+          </div>
+        )}
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18, fontSize: 13, color: "var(--text3)" }}>
+          <span>{interestCount} {interestCount === 1 ? "person" : "people"} interested</span>
+        </div>
+
+        <button
+          style={{ width: "100%", background: isInterested ? "var(--bg2)" : "var(--green2)", color: isInterested ? "var(--text2)" : "white", borderRadius: 14, padding: 15, fontSize: 15, fontWeight: 800, border: "none", cursor: userId ? "pointer" : "not-allowed", opacity: userId ? 1 : 0.6, transition: ".15s" }}
+          disabled={!userId}
+          onClick={onToggleInterest}>
+          {!userId ? "Sign in to show interest" : isInterested ? "✓ You're interested" : "I'm interested"}
+        </button>
+
+        <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 10, textAlign: "center" }}>
+          Posted by {event.submitter_name || "a NearMet user"}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CreateEventForm({ city, userId, userName, onDone }) {
+  const [form, setForm] = useState({ name: "", category: "House Party", location: "", event_date: "", description: "", contact_info: "", payment_info: "", entry_fee: "" });
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleSubmit = async () => {
+    if (!userId) { setError("Sign in to post an event."); return; }
+    if (!form.name.trim() || !form.location.trim() || !form.event_date.trim()) { setError("Event name, location, and date/time are required."); return; }
+    setSubmitting(true); setError("");
+    try {
+      let photoUrl = null;
+      if (photoFile) photoUrl = await uploadEventPhoto(userId, photoFile);
+      await submitCommunityEvent(userId, userName || "Someone", {
+        city,
+        name: form.name.trim(),
+        category: form.category,
+        location: form.location.trim(),
+        event_date: form.event_date.trim(),
+        description: form.description.trim(),
+        contact_info: form.contact_info.trim(),
+        payment_info: form.payment_info.trim(),
+        entry_fee: form.entry_fee.trim(),
+        photo_url: photoUrl,
+      });
+      setDone(true);
+      setTimeout(onDone, 1200);
+    } catch (e) {
+      console.error(e);
+      setError("Couldn't submit that — please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (done) return (
+    <div style={{ textAlign: "center", padding: "24px 0" }}>
+      <div style={{ fontSize: 32 }}>✓</div>
+      <div style={{ fontWeight: 700, marginTop: 6 }}>Your event is live!</div>
+      <p style={{ fontSize: 13, color: "var(--text3)", marginTop: 6, lineHeight: 1.5, padding: "0 10px" }}>People can now see it and show their interest.</p>
+    </div>
+  );
+
+  return (
+    <div style={{ paddingBottom: 8 }}>
+      {error && <div className="profile-save-error">⚠️ {error}</div>}
+
+      <label className="experience-photo-picker" style={{ marginBottom: 10 }}>
+        {photoPreview ? <img src={photoPreview} alt="" className="experience-photo-preview" /> : <span>📷 Add a poster or photo</span>}
+        <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; setPhotoFile(f || null); setPhotoPreview(f ? URL.createObjectURL(f) : null); }} />
+      </label>
+
+      <input className="ob-input" style={{ marginBottom: 10 }} placeholder="Event name*" value={form.name} onChange={e => set("name", e.target.value)} />
+
+      <select className="ob-input ob-select" style={{ marginBottom: 10 }} value={form.category} onChange={e => set("category", e.target.value)}>
+        {EVENT_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+      </select>
+
+      <input className="ob-input" style={{ marginBottom: 10 }} placeholder="Location*" value={form.location} onChange={e => set("location", e.target.value)} />
+      <input className="ob-input" style={{ marginBottom: 10 }} placeholder="Date & time* (e.g. Sat 12 Jul, 8 PM)" value={form.event_date} onChange={e => set("event_date", e.target.value)} />
+      <textarea className="ob-input experience-textarea" rows={3} style={{ marginBottom: 10 }} placeholder="What's it about? Who should come?" value={form.description} onChange={e => set("description", e.target.value)} />
+      <input className="ob-input" style={{ marginBottom: 10 }} placeholder="Entry fee (e.g. ₹500, or leave blank if free)" value={form.entry_fee} onChange={e => set("entry_fee", e.target.value)} />
+      <input className="ob-input" style={{ marginBottom: 10 }} placeholder="Contact info (phone, Instagram, etc.)" value={form.contact_info} onChange={e => set("contact_info", e.target.value)} />
+      <input className="ob-input" style={{ marginBottom: 12 }} placeholder="Payment info (UPI ID, link, etc. — optional)" value={form.payment_info} onChange={e => set("payment_info", e.target.value)} />
+
+      <button className="filter-apply" disabled={submitting} onClick={handleSubmit}>{submitting ? "Posting…" : "Post event"}</button>
+    </div>
+  );
+}
+
+// Sample event shown when no real events exist yet, so the flow is visible immediately.
+// This is local-only (not in Supabase) — toggling interest on it just updates local state
+// and won't persist, since it has no real event_id in the database.
+const SAMPLE_EVENT = {
+  id: "sample-1",
+  isSample: true,
+  name: "Saturday Rooftop Hangout",
+  category: "House Party",
+  location: "Bandra West, Mumbai",
+  event_date: "Sat 5 Jul, 7:00 PM",
+  description: "Casual rooftop get-together — bring a drink, meet some new people, good music playing all night. No pressure, just good vibes and good company.",
+  entry_fee: "",
+  contact_info: "Message on the app or ping +91 98765 43210",
+  payment_info: "",
+  photo_url: "https://images.unsplash.com/photo-1529543544282-ea669407fca3?w=700&q=80",
+  submitter_name: "Priya",
+};
+
+function EventsScreen({ city, userId, userName }) {
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [openEvent, setOpenEvent] = useState(null);
+  const [activeCat, setActiveCat] = useState("All");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [interested, setInterested] = useState({}); // local optimistic state: eventId -> bool
+  const [interestCounts, setInterestCounts] = useState({ "sample-1": 7 }); // eventId -> count, sample event starts with 7
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true); setLoadError("");
+    getCommunityEvents(city)
+      .then(async data => {
+        if (!active) return;
+        setEvents(data || []);
+        // fetch interest counts for each event
+        const counts = {};
+        await Promise.all((data || []).map(async e => {
+          try { counts[e.id] = await getCommunityEventInterestCount(e.id); } catch { counts[e.id] = 0; }
+        }));
+        if (active) setInterestCounts(p => ({ ...p, ...counts }));
+      })
+      .catch(e => { console.error(e); if (active) setLoadError("Couldn't load events right now."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [city]);
+
+  // Show the sample event whenever there are no real events yet, so the flow is visible.
+  const displayEvents = events.length > 0 ? events : [SAMPLE_EVENT];
+
+  const toggleInterest = async (eventId) => {
+    const wasInterested = !!interested[eventId];
+    setInterested(p => ({ ...p, [eventId]: !wasInterested }));
+    setInterestCounts(p => ({ ...p, [eventId]: (p[eventId] || 0) + (wasInterested ? -1 : 1) }));
+    if (eventId === "sample-1") return; // local-only, nothing to persist
+    if (!userId) return;
+    try { await toggleCommunityEventInterest(userId, eventId); }
+    catch (e) {
+      console.error(e);
+      // revert on failure
+      setInterested(p => ({ ...p, [eventId]: wasInterested }));
+      setInterestCounts(p => ({ ...p, [eventId]: (p[eventId] || 0) + (wasInterested ? 1 : -1) }));
+    }
+  };
+
+  const filtered = activeCat === "All" ? displayEvents : displayEvents.filter(e => e.category === activeCat);
+
+  if (openEvent) return (
+    <EventDetailView
+      event={openEvent} onBack={() => setOpenEvent(null)} userId={openEvent.isSample ? "sample" : userId}
+      isInterested={!!interested[openEvent.id]}
+      interestCount={interestCounts[openEvent.id] ?? 0}
+      onToggleInterest={() => toggleInterest(openEvent.id)}
+    />
+  );
+
+  return (
+    <div style={{ paddingTop: 20, paddingBottom: 100 }}>
+      {/* Headline / explainer */}
+      <div style={{ marginBottom: 16 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.03em", marginBottom: 4 }}>What's happening</h1>
+        <p style={{ fontSize: 13, color: "var(--text3)", lineHeight: 1.5 }}>
+          A space for the community to advertise house parties, city meetups, and other gatherings in {city === "nyc" ? "New York" : "Mumbai"}. Found something you like? Show your interest or reach out directly to the organiser.
+        </p>
+      </div>
+
+      {/* Category filter */}
+      <div style={{ display: "flex", gap: 8, overflowX: "auto", scrollbarWidth: "none", paddingBottom: 12, marginBottom: 16 }}>
+        {["All", ...EVENT_CATEGORIES].map(cat => (
+          <button key={cat}
+            style={{ flexShrink: 0, border: "1.5px solid var(--border)", borderRadius: 999, padding: "7px 14px", fontSize: 13, fontWeight: 600, color: activeCat === cat ? "white" : "var(--text3)", background: activeCat === cat ? "var(--green2)" : "var(--white)", cursor: "pointer", transition: ".15s", borderColor: activeCat === cat ? "var(--green2)" : "var(--border)" }}
+            onClick={() => setActiveCat(cat)}>{cat}</button>
+        ))}
+      </div>
+
+      {/* Events list */}
+      {loading && <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text3)" }}>Loading events…</div>}
+      {!loading && loadError && <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text3)" }}>{loadError}</div>}
+      {!loading && !loadError && filtered.length === 0 && (
+        <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text3)" }}>
+          <div style={{ fontSize: 32 }}>🎉</div>
+          <p style={{ marginTop: 10, fontSize: 14 }}>No events yet — be the first to post one.</p>
+        </div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 24 }}>
+        {filtered.map(e => (
+          <div key={e.id}
+            style={{ display: "flex", gap: 14, alignItems: "flex-start", padding: 14, background: "var(--white)", border: "1px solid var(--border)", borderRadius: 16, boxShadow: "var(--shadow)", cursor: "pointer" }}
+            onClick={() => setOpenEvent(e)}>
+            <div style={{ flexShrink: 0, width: 110, height: 90, borderRadius: 10, overflow: "hidden", background: "var(--bg2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {e.photo_url ? <img src={e.photo_url} alt={e.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: 24 }}>🎉</span>}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ background: "var(--green-bg)", color: "var(--green2)", borderRadius: 999, padding: "2px 9px", fontSize: 10, fontWeight: 700 }}>{e.category}</span>
+              <div style={{ fontSize: 15, fontWeight: 700, marginTop: 5, marginBottom: 3, color: "var(--text)" }}>{e.name}</div>
+              <div style={{ fontSize: 12, color: "var(--text3)", marginBottom: 2 }}>📅 {e.event_date}</div>
+              <div style={{ fontSize: 12, color: "var(--text3)" }}>📍 {e.location}</div>
+              <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 4 }}>{interestCounts[e.id] ?? 0} interested</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Sticky create event banner */}
+      <div
+        style={{ position: "fixed", bottom: 56, left: 0, right: 0, background: "#1a3a1a", color: "white", display: "flex", alignItems: "center", gap: 14, padding: "14px 20px", cursor: "pointer", zIndex: 60 }}
+        onClick={() => setCreateOpen(o => !o)}>
+        <span style={{ fontSize: 20, flexShrink: 0 }}>📅</span>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>Post an event</div>
+          <div style={{ fontSize: 12, opacity: 0.75, marginTop: 1 }}>House party, meetup, or anything else.</div>
+        </div>
+        <span style={{ fontSize: 24, fontWeight: 300, marginLeft: "auto", opacity: 0.9 }}>{createOpen ? "×" : "+"}</span>
+      </div>
+
+      {createOpen && (
+        <div className="share-sheet-overlay" onClick={() => setCreateOpen(false)}>
+          <div className="share-sheet" onClick={e => e.stopPropagation()}>
+            <div className="share-sheet-handle" />
+            <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 14 }}>Post an event</div>
+            <CreateEventForm city={city} userId={userId} userName={userName} onDone={() => setCreateOpen(false)} />
           </div>
         </div>
       )}
@@ -1771,7 +2320,6 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
         </div>
       </div>
 
-      {onReplayTour && <button className="profile-replay-tour" onClick={onReplayTour}>↻ Replay the tour</button>}
       <button className="profile-signout" onClick={onSignOut}>Sign out</button>
     </div>
   );
@@ -1834,6 +2382,7 @@ export default function App() {
       ["connections", "👥", "Connections"],
       ["places", "📍", "Places to Explore"],
       ["food", "🍽️", "Food Places"],
+      ["events", "🎉", "What's Happening"],
     ];
     return (
       <div className="app-root">
@@ -1861,6 +2410,7 @@ export default function App() {
           {tab === "connections" && <ConnectionsScreen city={user.city} userId={session.user.id} me={user} />}
           {tab === "places" && <PlacesToExploreScreen city={user.city} userId={session.user.id} userName={user.name} />}
           {tab === "food" && <FoodScreen city={user.city} userCuisines={user.cuisines} userBudget={user.budget} userId={session.user.id} userName={user.name} savedPlaces={user.saved_food_places} onToggleSave={async name => { const cur = user.saved_food_places || []; const next = cur.includes(name) ? cur.filter(n => n !== name) : [...cur, name]; try { await updateProfile(session.user.id, { saved_food_places: next }); await refreshProfile(); } catch (e) { console.error(e); } }} />}
+          {tab === "events" && <EventsScreen city={user.city} userId={session.user.id} userName={user.name} />}
           {tab === "profile" && <ProfileScreen user={user} userId={session.user.id} onSignOut={handleSignOut} onUpdateProfile={async updates => { await updateProfile(session.user.id, updates); await refreshProfile(); }} onReplayTour={() => setTourStep(0)} />}
         </main>
       </div>
@@ -1887,6 +2437,7 @@ export default function App() {
       ["connections", "👥", "Connections"],
       ["places", "📍", "Places to Explore"],
       ["food", "🍽️", "Food Places"],
+      ["events", "🎉", "What's Happening"],
     ];
     return (
       <div className="app-root">
@@ -1913,6 +2464,7 @@ export default function App() {
           {tab === "connections" && <ConnectionsScreen city={localUser.city} userId={null} me={localUser} />}
           {tab === "places" && <PlacesToExploreScreen city={localUser.city} userId={null} userName={localUser.name} />}
           {tab === "food" && <FoodScreen city={localUser.city} userCuisines={localUser.cuisines || []} userBudget={localUser.budget || "flexible"} userId={null} userName={localUser.name} savedPlaces={localUser.saved_food_places || []} onToggleSave={name => { setLocalUser(u => { const cur = u.saved_food_places || []; const next = cur.includes(name) ? cur.filter(n => n !== name) : [...cur, name]; return { ...u, saved_food_places: next }; }); }} />}
+          {tab === "events" && <EventsScreen city={localUser.city} userId={null} userName={localUser.name} />}
           {tab === "profile" && <ProfileScreen user={localUser} userId={null} onSignOut={() => { setLocalUser(null); setScreen("landing"); }} onUpdateProfile={async updates => { setLocalUser(u => ({ ...u, ...updates })); }} onReplayTour={() => setTourStep(0)} />}
         </main>
       </div>
