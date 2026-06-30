@@ -1,8 +1,27 @@
-import { useState, useEffect } from "react";
+// ─────────────────────────────────────────────────────────────────────────────
+// App.jsx  — NearMet redesign
+// Changes:
+//   • Nav: Connections / Places to Explore / Food Places (+ bell + profile)
+//   • Connections → "For You" tab: one profile at a time, full scroll view,
+//     Next button, no pass/back complexity
+//   • Connections → "By Activity" tab: grouped by shared Things-to-Do,
+//     tap activity → see everyone who wants it → tap person → full profile
+//   • Places to Explore: new section with curated city spots (Mumbai + NYC)
+//   • Food Places: unchanged from current implementation
+//   • Removed: Events tab (moved to future roadmap)
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { useState, useEffect, useRef } from "react";
 import "./App.css";
 import { useAuth } from "./context/AuthContext.jsx";
 import AuthPage from "./pages/AuthPage.jsx";
-import { signOut, updateProfile, uploadProfilePhoto, uploadFoodExperiencePhoto, getFoodExperiences, shareFoodExperience, deleteFoodExperience, getPeople, passProfile, resetPasses, getOrCreateConnection, getConnections, getMessages, sendMessage, getCommunityPlaces, uploadCommunityPlacePhoto, submitCommunityPlace } from "./lib/supabase.js";
+import {
+  signOut, updateProfile, uploadProfilePhoto,
+  uploadFoodExperiencePhoto, getFoodExperiences, shareFoodExperience,
+  deleteFoodExperience, getPeople, passProfile, resetPasses,
+  getOrCreateConnection, getConnections, getMessages, sendMessage,
+  getCommunityPlaces, uploadCommunityPlacePhoto, submitCommunityPlace,
+} from "./lib/supabase.js";
 
 // ─── LOGO ────────────────────────────────────────────────────────────────────
 function NearMetLogo({ size = 28, dark = false }) {
@@ -14,20 +33,14 @@ function NearMetLogo({ size = 28, dark = false }) {
   );
 }
 
-// ─── PRODUCT TOUR ──────────────────────────────────────────────────────────────
-// Diverse mixed names for the seeded shared experience on food detail pages
-const SHARED_EXP_NAMES = ["Rohan","Priya","Arjun","Meera","Karan","Aditi","Rahul","Ishaan","Pooja","Vikram","Nisha","Aarav","Kavya","Dev","Sanya","Nikhil","Riya","Aman","Sneha","Yash","Ananya","Aditya","Zara","Kabir","Tanvi","Siddharth","Diya","Mihir","Simran","Neil"];
-
+// ─── TOUR ────────────────────────────────────────────────────────────────────
 const TOUR_STEPS = [
-  { icon:"👋", title:"Welcome to NearMet", body:"Quick tour — find food spots worth trying, meet people nearby who share your taste, and discover what's happening in your city. Takes about a minute." },
-  { icon:"🍽️", title:"Food Places", body:"Browse curated food spots across Mumbai — cafés, restaurants, street food, bakeries and more. Filter by area or category, or search by name and cuisine." },
-  { icon:"⭐", title:"Recommendations for you", body:"The more you set up your food preferences in your profile, the more personalized your recommendations get — matched to your exact cuisines and budget." },
-  { icon:"📸", title:"Community experiences", body:"Every place has real shared experiences from people like you — the dish they tried, what they loved, and photos. Tap any place to explore it." },
-  { icon:"🎟️", title:"Events", body:"See what's happening around the city — gigs, festivals, open mics and meetups — matched to your interests from your profile." },
-  { icon:"👥", title:"Connections", body:"Meet other registered NearMet users nearby. We rank matches by shared food places, things you both want to do, and shared interests — no random strangers." },
-  { icon:"💬", title:"Direct messaging", body:"Tap 'Message' on any profile to start a real conversation. All your chats are accessible from the 💬 icon in the top bar, from any screen." },
-  { icon:"🧭", title:"Your profile", body:"Set your food preferences, cuisines, and budget here — this directly powers what you see recommended on the Food Places screen. It gets better the more you fill in." },
-  { icon:"✅", title:"You're all set!", body:"Explore the city, find your people, and share your favorite spots. You can replay this tour anytime from your Profile tab." },
+  { icon: "👋", title: "Welcome to NearMet", body: "Quick tour — find people who want to do the same things as you, discover food spots worth trying, and explore the best of your city." },
+  { icon: "👥", title: "Connections — For You", body: "Browse one person at a time. Scroll through their full profile — interests, things they want to do, food and city picks. Message anyone you resonate with." },
+  { icon: "🎯", title: "Connections — By Activity", body: "Instead of creating events, we group people by what they already want to do. Want to go trekking? Open By Activity and instantly see everyone who's already up for it." },
+  { icon: "🏙️", title: "Places to Explore", body: "A curated guide to the best spots in your city — beaches, parks, neighbourhoods, art lanes, and hidden gems. Users add their own picks too." },
+  { icon: "🍽️", title: "Food Places", body: "Community-driven food recommendations with real shared experiences, photos, and tips on what to order." },
+  { icon: "✅", title: "You're set!", body: "The more you fill in your profile — especially Things I Want To Do — the better your matches get. You can replay this tour from your profile any time." },
 ];
 
 function TourOverlay({ stepIndex, onNext, onBack, onSkip }) {
@@ -37,9 +50,9 @@ function TourOverlay({ stepIndex, onNext, onBack, onSkip }) {
   return (
     <div className="tour-modal-bg">
       <div className="tour-modal">
-        <div className="tour-progress-bar"><div className="tour-progress-fill" style={{width:`${progress}%`}}/></div>
+        <div className="tour-progress-bar"><div className="tour-progress-fill" style={{ width: `${progress}%` }} /></div>
         <div className="tour-step-icon">{step.icon}</div>
-        <div className="tour-card-step">{stepIndex+1} / {TOUR_STEPS.length}</div>
+        <div className="tour-card-step">{stepIndex + 1} / {TOUR_STEPS.length}</div>
         <div className="tour-card-title">{step.title}</div>
         <p className="tour-card-body">{step.body}</p>
         <div className="tour-card-footer">
@@ -54,1296 +67,754 @@ function TourOverlay({ stepIndex, onNext, onBack, onSkip }) {
   );
 }
 
-
 // ─── DATA ─────────────────────────────────────────────────────────────────────
+
+// ── Places to Explore data ───────────────────────────────────────────────────
+const PLACES_TO_EXPLORE = {
+  mumbai: [
+
+    // ── BEACHES ──────────────────────────────────────────────────────────────
+
+    { id: 1, name: "Juhu Beach", area: "Juhu", category: "Beach",
+      tag: "Mumbai's favourite beach", address: "Juhu Beach, Juhu Tara Road, Juhu, Mumbai 400049",
+      desc: "Mumbai's most famous beach — chaotic, colourful and completely alive. Best in the early mornings or at sunset when the vendors set up and the city exhales.",
+      img: "/places-explore/juhu-beach/photo1.jpeg",
+      photos: ["/places-explore/juhu-beach/photo2.webp", "/places-explore/juhu-beach/photo3.webp", "/places-explore/juhu-beach/photo4.jpeg"],
+      tags: ["Beach", "Sunset", "Street food"] },
+
+    { id: 2, name: "Versova Beach", area: "Andheri West", category: "Beach",
+      tag: "Community cleanup success story", address: "Versova Beach, Juhu Versova Link Road, Andheri West, Mumbai 400061",
+      desc: "Once Mumbai's cleanest beach after a celebrated community cleanup. A quieter stretch with fishing boats, fresh seafood nearby, and a strong local neighbourhood feel.",
+      img: "/places-explore/versova-beach/photo1.jpg",
+      photos: ["/places-explore/versova-beach/photo2.jpeg"],
+      tags: ["Beach", "Peaceful", "Local"] },
+
+    { id: 3, name: "Dadar Chowpatty", area: "Dadar West", category: "Beach",
+      tag: "Sunset & street food", address: "Dadar Chowpatty Beach, Kirti College Lane, Prabhadevi, Mumbai 400028",
+      desc: "A lively neighbourhood beach in the heart of the city. Perfect for an evening walk — grab bhel puri or pav bhaji from the stalls, watch the sunset and feel the city slow down.",
+      img: "/places-explore/dadar-chowpatty/photo1.jpg",
+      photos: ["/places-explore/dadar-chowpatty/photo2.jpg", "/places-explore/dadar-chowpatty/photo3.jpg"],
+      tags: ["Beach", "Sunset", "Street food"] },
+
+    { id: 4, name: "Aksa Beach", area: "Malad West", category: "Beach",
+      tag: "Quiet escape up north", address: "Aksa Village, Malad West, Mumbai 400095",
+      desc: "One of the cleaner and more serene beaches in Mumbai. Popular with locals who make the trip up north for weekend mornings. Less crowded than Juhu with a real village feel.",
+      img: "/places-explore/aksa-beach/photo1.jpg",
+      photos: ["/places-explore/aksa-beach/photo2.webp", "/places-explore/aksa-beach/photo3.webp"],
+      tags: ["Beach", "Peaceful", "Morning walk"] },
+
+    { id: 5, name: "Manori Beach", area: "Malad West", category: "Beach",
+      tag: "Hidden gem", address: "Manori Gorai Road, Manori Village, Malad West, Mumbai 400095",
+      desc: "A secluded beach village accessible by ferry — one of Mumbai's best kept secrets. Low footfall, fishing community, and a completely different pace of life from the city.",
+      img: "/places-explore/manori-beach/photo1.jpg",
+      photos: ["/places-explore/manori-beach/photo2.avif", "/places-explore/manori-beach/photo3.jpg"],
+      tags: ["Beach", "Hidden gem", "Ferry ride"] },
+
+    { id: 6, name: "Madh Island Beach", area: "Malad West", category: "Beach",
+      tag: "Scenic island getaway", address: "Madh Island Beach, Madh–Marve Road, Malad West, Mumbai 400061",
+      desc: "A semi-island with a long stretch of beach, small resorts and seafood shacks. Reached via a short ferry ride — feels miles away from Mumbai even though it isn't.",
+      img: "/places-explore/madh-island-beach/photo1.jpeg",
+      photos: ["/places-explore/madh-island-beach/photo2.jpeg"],
+      tags: ["Beach", "Ferry ride", "Seafood"] },
+
+    { id: 7, name: "Gorai Beach", area: "Borivali West", category: "Beach",
+      tag: "Near Essel World", address: "Gorai Beach, Gorai Road, Borivali West, Mumbai 400091",
+      desc: "A wide sandy beach at the northern tip of Mumbai, also home to the Global Pagoda and Essel World. Popular for weekend picnics and a rare chance to find quiet patches of open shore.",
+      img: "/places-explore/gorai-beach/photo1.webp",
+      photos: ["/places-explore/gorai-beach/photo2.webp", "/places-explore/gorai-beach/photo3.webp", "/places-explore/gorai-beach/photo4.webp"],
+      tags: ["Beach", "Picnic", "Weekend trip"] },
+
+    { id: 8, name: "Uran Beach", area: "Navi Mumbai", category: "Beach",
+      tag: "Off the beaten path", address: "Uran Beach, Kathe Aali, Nagaon, Uran, Navi Mumbai 400702",
+      desc: "A rarely visited beach across the harbour in Navi Mumbai — completely unspoiled, dramatic views of the sea, and almost no crowds. Worth the trip for anyone who wants the real coastline.",
+      img: "/places-explore/uran-beach/photo1.jpeg",
+      photos: ["/places-explore/uran-beach/photo2.webp"],
+      tags: ["Beach", "Off the beaten path", "Navi Mumbai"] },
+
+    { id: 9, name: "Alibaug Beach", area: "Alibaug, Raigad", category: "Beach",
+      tag: "Best day trip from Mumbai", address: "Alibaug Beach, Alibaug, Raigad District, Maharashtra 402201",
+      desc: "The quintessential Mumbai day trip — a ferry from Gateway of India to Alibaug. Clean beach, the iconic Kolaba Fort in the sea, fresh seafood, and a proper escape from the city.",
+      img: "/places-explore/alibaug-beach/photo1.jpeg",
+      photos: ["/places-explore/alibaug-beach/photo2.jpeg"],
+      tags: ["Beach", "Day trip", "Ferry ride"] },
+
+    // ── PROMENADES & LANDMARKS ────────────────────────────────────────────────
+
+    { id: 10, name: "Marine Drive", area: "South Mumbai", category: "Promenade",
+      tag: "The Queen's Necklace", address: "Netaji Subhash Chandra Bose Road, South Mumbai 400020",
+      desc: "Mumbai's beloved 3.6 km sea-facing promenade. At night the street lights curve into a perfect arc — giving it the name Queen's Necklace. Best experienced at sunset or late at night.",
+      img: "/places-explore/marine-drive/photo1.jpg",
+      photos: ["/places-explore/marine-drive/photo2.jpeg", "/places-explore/marine-drive/photo3.jpeg", "/places-explore/marine-drive/photo4.jpeg"],
+      tags: ["Promenade", "Sunset", "Night walk"] },
+
+    // ── PARKS & NATURE ────────────────────────────────────────────────────────
+
+    { id: 11, name: "Sanjay Gandhi National Park", area: "Borivali East", category: "Nature",
+      tag: "Forest inside the city", address: "Sanjay Gandhi National Park, Borivali East, Mumbai 400066",
+      desc: "A 104 sq km forest sitting inside one of the world's most densely populated cities. Home to leopards, the ancient Kanheri Caves, butterflies, and miles of trekking trails.",
+      img: "/places-explore/sanjay-gandhi-np/photo1.avif",
+      photos: ["/places-explore/sanjay-gandhi-np/photo2.jpg", "/places-explore/sanjay-gandhi-np/photo3.jpg", "/places-explore/sanjay-gandhi-np/photo4.jpeg"],
+      tags: ["Nature", "Trekking", "Borivali"] },
+
+    { id: 12, name: "Malabar Hill Elevated Nature Trail", area: "Malabar Hill", category: "Nature",
+      tag: "Best urban trek", address: "Siri Road, Near Kamala Nehru Park, Walkeshwar, Malabar Hill, Mumbai 400006",
+      desc: "A beautiful elevated walking trail through forest cover in the heart of South Mumbai. Connects Kamala Nehru Park to the Banganga Tank area — one of Mumbai's best urban walking experiences.",
+      img: "/places-explore/malabar-hill-trail/photo1.webp",
+      photos: ["/places-explore/malabar-hill-trail/photo2.jpeg"],
+      tags: ["Nature", "Walking trail", "South Mumbai"] },
+
+    { id: 13, name: "Hanging Gardens", area: "Malabar Hill", category: "Park",
+      tag: "Terraced gardens with sea views", address: "Pherozeshah Mehta Gardens, B G Kher Marg, Malabar Hill, Mumbai",
+      desc: "Terraced gardens perched on top of a reservoir on Malabar Hill. Famous for its animal-shaped topiary and sweeping views of the Arabian Sea — one of the most peaceful spots in South Mumbai.",
+      img: "/places-explore/hanging-gardens/photo1.webp",
+      photos: ["/places-explore/hanging-gardens/photo2.jpg"],
+      tags: ["Park", "Sea view", "Malabar Hill"] },
+
+    { id: 14, name: "Kamala Nehru Park", area: "Malabar Hill", category: "Park",
+      tag: "Views of Marine Drive", address: "B G Kher Marg, Malabar Hill, Mumbai",
+      desc: "A small hilltop park next to Hanging Gardens offering one of the best views of Marine Drive and the Queen's Necklace. The giant 'Old Woman's Shoe' is a beloved landmark.",
+      img: "/places-explore/kamala-nehru-park/photo1.jpg",
+      photos: ["/places-explore/kamala-nehru-park/photo2.avif"],
+      tags: ["Park", "Views", "Malabar Hill"] },
+
+    { id: 15, name: "Cuffe Parade Park", area: "Colaba", category: "Park",
+      tag: "Peaceful waterfront park", address: "Maker Towers, Near World Trade Centre, Cuffe Parade, Colaba, Mumbai 400005",
+      desc: "A quiet waterfront park at the southern tip of Mumbai. Popular with Cuffe Parade residents for morning walks and evening sits — great views of the harbour with almost no tourists.",
+      img: "/places-explore/cuffe-parade-park/photo1.jpg",
+      photos: ["/places-explore/cuffe-parade-park/photo2.jpeg"],
+      tags: ["Park", "Waterfront", "Peaceful"] },
+
+    // ── CAVES ─────────────────────────────────────────────────────────────────
+
+    { id: 16, name: "Kanheri Caves", area: "Borivali East", category: "Caves",
+      tag: "Buddhist caves from the 1st century", address: "Sanjay Gandhi National Park, Borivali East, Mumbai 400066",
+      desc: "Over 100 Buddhist rock-cut caves carved between the 1st and 9th centuries, hidden inside Sanjay Gandhi National Park. The combination of ancient history, forest, and near-silence makes this one of Mumbai's most underrated spots.",
+      img: "/places-explore/kanheri-caves/photo1.jpg",
+      photos: ["/places-explore/kanheri-caves/photo2.jpg", "/places-explore/kanheri-caves/photo3.jpeg"],
+      tags: ["Caves", "History", "Nature"] },
+
+    { id: 17, name: "Mahakali Caves", area: "Andheri East", category: "Caves",
+      tag: "Ancient rock-cut caves", address: "Mahakali Caves Road, Andheri East, Mumbai 400093",
+      desc: "A group of 19 rock-cut Buddhist monuments dating from the 1st to 6th centuries. Less visited than Elephanta or Kanheri but equally impressive — set in green hillside right in the middle of Andheri.",
+      img: "/places-explore/mahakali-caves/photo1.jpg",
+      photos: ["/places-explore/mahakali-caves/photo2.JPG", "/places-explore/mahakali-caves/photo3.avif"],
+      tags: ["Caves", "History", "Buddhist heritage"] },
+
+    // ── INDOOR BOULDERING ─────────────────────────────────────────────────────
+
+    { id: 18, name: "The Indian Bouldering Company", area: "Fort", category: "Indoor Bouldering",
+      tag: "Mumbai's first bouldering gym", address: "3rd Floor, Shreeniwas House, 27, Hazarimal Somani Rd, Azad Maidan, Fort, Mumbai 400001",
+      phone: "7208758422",
+      desc: "Mumbai's original indoor bouldering space — no ropes, just you, the wall, and the problem. Great beginner-friendly setting with a strong climbing community. Book a session to try it.",
+      img: "/places-explore/indian-bouldering-company/photo1.jpg",
+      photos: ["/places-explore/indian-bouldering-company/photo2.webp"],
+      tags: ["Indoor Bouldering", "Active", "Fort"] },
+
+    { id: 19, name: "High Rock", area: "Powai", category: "Indoor Bouldering",
+      tag: "Bouldering in Hiranandani", address: "S4, A-Wing, Supreme Business Park, Hiranandani Gardens, Powai, Mumbai 400076",
+      phone: "9004614937",
+      desc: "A well-equipped bouldering gym inside Hiranandani Gardens in Powai. Good variety of routes across all skill levels, a regular crowd of climbers, and a clean well-maintained space.",
+      img: "/places-explore/high-rock/photo1.jfif",
+      photos: ["/places-explore/high-rock/photo2.jfif", "/places-explore/high-rock/photo3.jpeg"],
+      tags: ["Indoor Bouldering", "Active", "Powai"] },
+
+    // ── MUSEUMS ───────────────────────────────────────────────────────────────
+
+    { id: 20, name: "Chhatrapati Shivaji Maharaj Vastu Sangrahalaya", area: "Kala Ghoda, Fort", category: "Museum",
+      tag: "Mumbai's premier museum", address: "159-161, Mahatma Gandhi Road, Kala Ghoda, Fort, Mumbai 400023",
+      desc: "One of India's finest art and history museums with over 70,000 objects spanning from the Stone Age to the present. The building itself — a Grade I heritage structure — is worth visiting for the architecture alone.",
+      img: "/places-explore/csmvs-museum/photo1.jfif",
+      photos: ["/places-explore/csmvs-museum/photo2.jpg", "/places-explore/csmvs-museum/photo3.jfif", "/places-explore/csmvs-museum/photo4.jfif", "/places-explore/csmvs-museum/photo5.jpeg"],
+      tags: ["Museum", "Heritage", "Art"] },
+
+    { id: 21, name: "Dr. Bhau Daji Lad Museum", area: "Byculla", category: "Museum",
+      tag: "Mumbai's oldest museum", address: "91A, Rani Baug, Dr Babasaheb Ambedkar Rd, Byculla East, Mumbai 400027",
+      desc: "Mumbai's oldest museum, first opened in 1857 inside the stunning Rani Baug zoological garden. Houses a rare collection of decorative arts, maps, and artefacts chronicling early Bombay. Beautifully restored — worth visiting just for the building.",
+      img: "/places-explore/bhau-daji-lad-museum/photo1.webp",
+      photos: ["/places-explore/bhau-daji-lad-museum/photo2.webp", "/places-explore/bhau-daji-lad-museum/photo3.webp", "/places-explore/bhau-daji-lad-museum/photo4.webp"],
+      tags: ["Museum", "Heritage", "Byculla"] },
+
+    { id: 22, name: "National Gallery of Modern Art", area: "Fort", category: "Museum",
+      tag: "Modern and contemporary art", address: "Jahangir Public Hall, Mahatma Gandhi Road, Fort, Mumbai 400032",
+      desc: "Mumbai's home for modern and contemporary Indian art, opened in 1996. Rotating exhibitions alongside a permanent collection of paintings and sculptures from prominent Indian artists.",
+      img: "/places-explore/ngma-mumbai/photo1.jpg",
+      photos: ["/places-explore/ngma-mumbai/photo2.jpg", "/places-explore/ngma-mumbai/photo3.jpg", "/places-explore/ngma-mumbai/photo4.jpg"],
+      tags: ["Museum", "Modern art", "Fort"] },
+
+    { id: 23, name: "Framji Dadabhoy Alpaiwalla Museum", area: "Malabar Hill", category: "Museum",
+      tag: "Parsi heritage museum", address: "N S Patkar Marg, Babulnath, Khareghat Colony, Malabar Hill, Mumbai 400007",
+      desc: "A small, remarkable museum dedicated to the history and heritage of Mumbai's Zoroastrian (Parsi) community. Run by the Bombay Parsi Punchayet — artefacts, manuscripts, and cultural objects that tell the story of a community that shaped this city.",
+      img: "/places-explore/alpaiwalla-museum/photo1.jfif",
+      photos: ["/places-explore/alpaiwalla-museum/photo2.jpg"],
+      tags: ["Museum", "Parsi heritage", "Malabar Hill"] },
+
+  ],
+  nyc: [
+    { id: 1, name: "The High Line", area: "Chelsea / Meatpacking", tag: "Elevated park walk", desc: "A 1.45-mile elevated park built on a former freight rail line. Public art, Hudson River views, and some of the most interesting architecture in the city frame the walk.", img: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=600&q=80", tags: ["Outdoors", "Art", "Walking"] },
+    { id: 2, name: "DUMBO", area: "Brooklyn", tag: "Best Manhattan views", desc: "Down Under the Manhattan Bridge Overpass — cobblestone streets, the iconic bridge-framed Manhattan view on Washington St, and a thriving arts and food scene.", img: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80", tags: ["Views", "Photography", "Brooklyn"] },
+    { id: 3, name: "Prospect Park", area: "Brooklyn", tag: "Brooklyn's green lung", desc: "Olmsted and Vaux's own favourite creation — they considered it better than Central Park. 585 acres of meadows, forest, a lake, and the Long Meadow.", img: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=600&q=80", tags: ["Nature", "Outdoors", "Brooklyn"] },
+    { id: 4, name: "Bushwick Collective", area: "Bushwick, Brooklyn", tag: "Open-air street art museum", desc: "A rotating outdoor gallery of world-class street art covering entire city blocks in Bushwick. New murals appear regularly — no two visits are the same.", img: "https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=600&q=80", tags: ["Art", "Street art", "Brooklyn"] },
+    { id: 5, name: "Staten Island Ferry", area: "Lower Manhattan", tag: "Free Statue of Liberty views", desc: "The best free ride in New York — a 25-minute ferry between Manhattan and Staten Island with unobstructed views of the Statue of Liberty and the skyline.", img: "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=600&q=80", tags: ["Free", "Views", "Waterfront"] },
+    { id: 6, name: "Coney Island Boardwalk", area: "Brooklyn", tag: "Classic NYC seaside", desc: "A 2.7-mile boardwalk along the Atlantic Ocean — the original American amusement park, Nathan's hot dogs, the Cyclone roller coaster, and the ocean.", img: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&q=80", tags: ["Beach", "Classic", "Brooklyn"] },
+  ],
+};
+
+// Activity grouping for By Activity tab
+const ACTIVITY_ICONS = {
+  "Attend a live music gig": "🎵",
+  "Explore hidden bookstores": "📚",
+  "Try a new restaurant": "🍽️",
+  "Join a running club": "🏃",
+  "Visit an art gallery": "🎨",
+  "Attend a comedy show": "😂",
+  "Go hiking": "🥾",
+  "Take a cooking class": "👨‍🍳",
+  "Watch a play": "🎭",
+  "Plan a road trip": "🚗",
+  "Join a sports team": "⚽",
+  "Attend a film screening": "🎬",
+  "Try pottery or a craft class": "🏺",
+  "Go to a food festival": "🍜",
+  "Explore street art": "🖼️",
+  "Attend a rooftop event": "🌆",
+  "Join a book club": "📖",
+  "Try open mic night": "🎤",
+  "Run a half marathon": "🏅",
+  "Learn guitar": "🎸",
+  "Go for trekking": "🏔️",
+  "Watch stand-up comedy": "🎙️",
+  "Try new restaurants": "🍽️",
+  "Play football": "⚽",
+  "Go for a run": "👟",
+  "Explore cafes": "☕",
+};
+
 const CITIES = {
   nyc: {
     label: "New York City", cur: "$",
     food: [
-      { id:1, name:"Olive Bistro", cuisine:"Italian", price:"$1,500 for two", rating:4.7, tag:"High rated", hood:"West Village", desc:"A cozy Italian bistro with warm lighting and exceptional pasta.", phone:"+1 212-555-0101", img:"https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80", photos:["https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80","https://images.unsplash.com/photo-1569050467447-ce54b3bbc37d?w=400&q=80"], menu:[{item:"Truffle Pasta",price:"$28"},{item:"Branzino",price:"$34"},{item:"Tiramisu",price:"$12"},{item:"Margherita",price:"$18"}] },
-      { id:2, name:"Sakura Sushi", cuisine:"Japanese", price:"$1,200 for two", rating:4.6, tag:"Near you", hood:"East Village", desc:"A cozy sushi place offering authentic Japanese cuisine with a modern touch.", phone:"+1 212-555-0202", img:"https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=600&q=80", photos:["https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=400&q=80","https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80"], menu:[{item:"Spicy Tuna Roll",price:"$18"},{item:"Salmon Sashimi",price:"$22"},{item:"Dragon Roll",price:"$24"},{item:"Miso Ramen",price:"$16"}] },
-      { id:3, name:"La Pizzeria", cuisine:"Italian", price:"$1,000 for two", rating:4.5, tag:"Best for dinner", hood:"Brooklyn", desc:"Wood-fired Neapolitan pizza made with imported Italian ingredients.", phone:"+1 718-555-0303", img:"https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&q=80", photos:["https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80","https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80"], menu:[{item:"Margherita",price:"$16"},{item:"Truffle Pizza",price:"$24"},{item:"Burrata",price:"$14"},{item:"Tiramisu",price:"$10"}] },
-      { id:4, name:"Truffle House", cuisine:"Continental", price:"$1,800 for two", rating:4.4, tag:"Popular", hood:"Midtown", desc:"Fine dining with an emphasis on truffle-infused seasonal ingredients.", phone:"+1 212-555-0404", img:"https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&q=80", photos:["https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80","https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80"], menu:[{item:"Truffle Risotto",price:"$42"},{item:"Wagyu Beef",price:"$68"},{item:"Lobster Bisque",price:"$28"},{item:"Crème Brûlée",price:"$16"}] },
-      { id:5, name:"Bunna Cafe", cuisine:"Ethiopian", price:"$800 for two", rating:4.8, tag:"Hidden gem", hood:"Bushwick", desc:"Authentic Ethiopian food in a warm communal setting.", phone:"+1 347-555-0505", img:"https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=600&q=80", photos:["https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80"], menu:[{item:"Injera Platter",price:"$24"},{item:"Tibs",price:"$18"},{item:"Kitfo",price:"$20"},{item:"Tej Honey Wine",price:"$8"}] },
-      { id:6, name:"Saravana Bhavan", cuisine:"Indian", price:"$600 for two", rating:4.7, tag:"Family fav", hood:"Murray Hill", desc:"South Indian classics done right. The masala dosa is legendary.", phone:"+1 212-555-0606", img:"https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=600&q=80", photos:["https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80","https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=400&q=80","https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80","https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=80"], menu:[{item:"Masala Dosa",price:"$12"},{item:"Idli Sambar",price:"$9"},{item:"Thali",price:"$16"},{item:"Filter Coffee",price:"$4"}] },
-    ],
-    mapPlaces: [
-      {id:1,name:"Olive Bistro",rating:4.7,top:"28%",left:"18%"},{id:2,name:"Sakura Sushi",rating:4.6,top:"32%",left:"62%"},{id:3,name:"Safar's Eats",rating:4.5,top:"45%",left:"35%"},{id:4,name:"La Pizzeria",rating:4.5,top:"50%",left:"65%"},{id:5,name:"Goodfellas Cafe",rating:4.4,top:"58%",left:"22%"},{id:6,name:"Bastian",rating:4.4,top:"62%",left:"68%"},{id:7,name:"Truffle House",rating:4.4,top:"70%",left:"42%"},{id:8,name:"The Daily All Day",rating:4.3,top:"78%",left:"32%"},{id:9,name:"PizzaExpress",rating:4.3,top:"87%",left:"72%"},
-    ],
-    events: [
-      { id:1, name:"Indie Night Live Concert", cats:["Music","Nightlife"], date:"24", mon:"May", fullDate:"24 May 2025", time:"7:00 PM – 10:30 PM", loc:"Bandra Fort Amphitheatre, NYC", entry:"Free Entry", interested:1800, img:"https://images.unsplash.com/photo-1501386761578-eaa54b02c811?w=700&q=80", desc:"An evening of indie music featuring local artists. Great vibes, great crowd.", organizer:"The Habitat", mapTop:"28%", mapLeft:"22%" },
-      { id:2, name:"Art Festival 2025", cats:["Art & Culture","Festivals"], date:"25", mon:"May", fullDate:"25 May 2025", time:"11:00 AM – 7:00 PM", loc:"Jio World Garden, BKC", entry:"Paid", interested:2300, img:"https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=700&q=80", desc:"A celebration of contemporary art featuring 80+ artists from across the city.", organizer:"Art Collective NYC", mapTop:"35%", mapLeft:"58%" },
-      { id:3, name:"Rooftop Social Mixer", cats:["Networking","Nightlife"], date:"26", mon:"May", fullDate:"26 May 2025", time:"6:30 PM – 10:00 PM", loc:"AER Bar, Midtown", entry:"Paid", interested:950, img:"https://images.unsplash.com/photo-1529543544282-ea669407fca3?w=700&q=80", desc:"Meet interesting people over drinks with a stunning city view.", organizer:"Social NYC", mapTop:"50%", mapLeft:"40%" },
-      { id:4, name:"Jazz in the Park", cats:["Music"], date:"25", mon:"May", fullDate:"25 May 2025", time:"6:00 PM – 9:00 PM", loc:"Five Gardens, Central Park", entry:"Free Entry", interested:640, img:"https://images.unsplash.com/photo-1415201364774-f6f0bb35f28f?w=700&q=80", desc:"An evening of smooth jazz, good vibes and great company under the open sky.", organizer:"Park Events NYC", mapTop:"44%", mapLeft:"72%" },
-      { id:5, name:"Open Mic Night", cats:["Comedy","Music"], date:"30", mon:"May", fullDate:"30 May 2025", time:"8:00 PM – 11:00 PM", loc:"Alt Media Centre, Queens", entry:"Free Entry", interested:180, img:"https://images.unsplash.com/photo-1527224857830-43a7acc85260?w=700&q=80", desc:"NYC's most loved open mic. Comedians, musicians, poets — all welcome.", organizer:"Alt Media", mapTop:"32%", mapLeft:"54%" },
-    ],
-    thirdPlaces: [
-      { id:1, name:"Cafe Aranya", cats:["Cafe","Community"], dist:"700 m", desc:"A cozy cafe with open seating and great coffee.", visitors:56, img:"https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&q=80", addedBy:"Sarah K." },
-      { id:2, name:"Greenview Park", cats:["Nature","Relaxation"], dist:"1.2 km", desc:"Peaceful park perfect for a walk or some quiet time.", visitors:128, img:"https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=600&q=80", addedBy:"Mike R." },
-      { id:3, name:"City Central Library", cats:["Study & Work"], dist:"1.6 km", desc:"Quiet space to read, study and focus.", visitors:94, img:"https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=600&q=80", addedBy:"Jin L." },
-      { id:4, name:"Kala Street Art Lane", cats:["Art & Culture"], dist:"1.9 km", desc:"Vibrant street art and creative community vibes.", visitors:76, img:"https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=600&q=80", addedBy:"Priya S." },
+      { id: 1, name: "Olive Bistro", cuisine: "Italian", price: "$1,500 for two", rating: 4.7, tag: "High rated", hood: "West Village", desc: "A cozy Italian bistro with warm lighting and exceptional pasta.", phone: "+1 212-555-0101", img: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80", photos: ["https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80", "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80", "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80", "https://images.unsplash.com/photo-1569050467447-ce54b3bbc37d?w=400&q=80"], menu: [{ item: "Truffle Pasta", price: "$28" }, { item: "Branzino", price: "$34" }, { item: "Tiramisu", price: "$12" }, { item: "Margherita", price: "$18" }] },
+      { id: 2, name: "Sakura Sushi", cuisine: "Japanese", price: "$1,200 for two", rating: 4.6, tag: "Near you", hood: "East Village", desc: "A cozy sushi place offering authentic Japanese cuisine with a modern touch.", phone: "+1 212-555-0202", img: "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=600&q=80", photos: [], menu: [] },
+      { id: 3, name: "La Pizzeria", cuisine: "Italian", price: "$1,000 for two", rating: 4.5, tag: "Best for dinner", hood: "Brooklyn", desc: "Wood-fired Neapolitan pizza made with imported Italian ingredients.", phone: "+1 718-555-0303", img: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&q=80", photos: [], menu: [] },
+      { id: 4, name: "Bunna Cafe", cuisine: "Ethiopian", price: "$800 for two", rating: 4.8, tag: "Hidden gem", hood: "Bushwick", desc: "Authentic Ethiopian food in a warm communal setting.", phone: "+1 347-555-0505", img: "https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=600&q=80", photos: [], menu: [] },
+      { id: 5, name: "Saravana Bhavan", cuisine: "Indian", price: "$600 for two", rating: 4.7, tag: "Family fav", hood: "Murray Hill", desc: "South Indian classics done right. The masala dosa is legendary.", phone: "+1 212-555-0606", img: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=600&q=80", photos: [], menu: [] },
+      { id: 6, name: "Truffle House", cuisine: "Continental", price: "$1,800 for two", rating: 4.4, tag: "Popular", hood: "Midtown", desc: "Fine dining with an emphasis on truffle-infused seasonal ingredients.", phone: "+1 212-555-0404", img: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&q=80", photos: [], menu: [] },
     ],
     people: [
-      { id:1, ini:"R", name:"Rohit", age:26, city:"New York", color:"#e8f0e8", tc:"#2d6a2d",
-        photos:["https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80","https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&q=80","https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&q=80"],
-        interests:["Travel","Books","Live Music","Food & Dining","Art & Culture","Photography","Fitness","Films"],
-        sharedInterests:["Live Music","Food & Dining","Photography"],
-        prompts:[{q:"What recent incident changed your perspective on something and how?",a:"Solo backpacking in the Himalayas taught me to slow down and truly appreciate the little things."},{q:"If you were the mayor for a day what's one thing you'd change about your city?",a:"I'd make public spaces more vibrant and accessible for everyone."},{q:"What's something you've been curious about recently?",a:"I've been trying to understand how AI can actually make everyday life better."}],
-        cityWants:["Run half marathon","Learn guitar","Go for trekking","Watch stand-up comedy","Try new restaurants"],
-        sharedThings:["Attend a live music gig","Try new restaurants"],
-        songs:[{title:"The Night We Met",artist:"Lord Huron"},{title:"Yellow",artist:"Coldplay"},{title:"Choo Lo",artist:"The Local Train"}],
-        recs:[{title:"Interstellar",type:"Movie"},{title:"Breaking Bad",type:"Series"},{title:"Cosmos",type:"Documentary"}],
-        foodRecs:[{name:"The Bombay Canteen, Lower Parel",desc:"Modern Indian cuisine with a twist",img:"https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=200&q=80"},{name:"Bastian, Bandra",desc:"Seafood · Great ambience",img:"https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=200&q=80"},{name:"Leopold Cafe, Colaba",desc:"Classic vibes and comfort food",img:"https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=200&q=80"}],
-        cityRecs:[{name:"Marine Drive",desc:"Perfect sunset walks and sea breeze",img:"https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=200&q=80"},{name:"Worli Sea Face",desc:"Peaceful evenings by the sea",img:"https://images.unsplash.com/photo-1529543544282-ea669407fca3?w=200&q=80"},{name:"Sanjay Gandhi National Park",desc:"Best for a morning trek",img:"https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=200&q=80"}],
-      },
-      { id:2, ini:"A", name:"Aisha", age:24, city:"New York", color:"#f0e8e8", tc:"#8b2020",
-        photos:["https://images.unsplash.com/photo-1494790108755-2616b612b786?w=400&q=80","https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&q=80","https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&q=80"],
-        interests:["Art & Culture","Photography","Food & Dining","Books","Wellness","Films"],
-        sharedInterests:["Photography","Food & Dining"],
-        prompts:[{q:"What recent incident changed your perspective on something and how?",a:"Watching sunrise at the Hudson taught me that the best moments are the unplanned ones."},{q:"If you were the mayor for a day what's one thing you'd change?",a:"I'd convert every empty lot into a community garden. Green spaces change how people feel."}],
-        cityWants:["Take a pottery class","Find the best bagel in NYC","See a Broadway show","Join a book club","Learn to skateboard"],
-        sharedThings:["Explore hidden bookstores"],
-        songs:[{title:"Heat Waves",artist:"Glass Animals"},{title:"Blinding Lights",artist:"The Weeknd"}],
-        recs:[{title:"Everything Everywhere",type:"Movie"},{title:"Fleabag",type:"Series"}],
-        foodRecs:[{name:"Russ & Daughters, Lower East Side",desc:"Iconic NYC deli since 1914",img:"https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=200&q=80"},{name:"Superiority Burger, East Village",desc:"Best vegetarian burger in the city",img:"https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=200&q=80"}],
-        cityRecs:[{name:"The High Line",desc:"Best walk in Manhattan",img:"https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&q=80"},{name:"Brooklyn Bridge at sunset",desc:"Worth the walk every time",img:"https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=200&q=80"}],
-      },
-      { id:3, ini:"M", name:"Marcus", age:28, city:"New York", color:"#e8eef5", tc:"#1a3a5c",
-        photos:["https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=400&q=80","https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=400&q=80","https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&q=80"],
-        interests:["Live Music","Films","Books","Outdoors","Food & Dining"],
-        sharedInterests:["Live Music","Books"],
-        prompts:[{q:"What school activity do you still miss?",a:"Jazz band rehearsals. There's something about creating something together in real time that can't be replicated."},{q:"What myth would you change society's view on?",a:"That you need to be extroverted to build genuine connections. The deepest ones I have are with fellow introverts."}],
-        cityWants:["Brooklyn Bridge at sunset","Find best jazz bar","Try Ethiopian food in Bushwick","Take a cooking class","Run a 10k"],
-        sharedThings:["Attend a live music gig"],
-        songs:[{title:"So What",artist:"Miles Davis"},{title:"Redbone",artist:"Childish Gambino"}],
-        recs:[{title:"Moonlight",type:"Movie"},{title:"The Wire",type:"Series"},{title:"13th",type:"Documentary"}],
-        foodRecs:[{name:"Bunna Cafe, Bushwick",desc:"Authentic Ethiopian — get the injera platter",img:"https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=200&q=80"},{name:"Di Fara Pizza, Brooklyn",desc:"Best slice in New York, no contest",img:"https://images.unsplash.com/photo-1513104890138-7c749659a591?w=200&q=80"}],
-        cityRecs:[{name:"Prospect Park, Brooklyn",desc:"The real Central Park",img:"https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=200&q=80"},{name:"DUMBO at night",desc:"Manhattan Bridge view is unreal",img:"https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=200&q=80"}],
-      },
+      { id: 1, ini: "R", name: "Rohit", age: 26, city: "New York", color: "#e8f0e8", tc: "#2d6a2d", photos: ["https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80", "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&q=80"], interests: ["Travel", "Books", "Live Music", "Food & Dining", "Photography"], sharedInterests: ["Live Music", "Food & Dining"], prompts: [{ q: "What recent incident changed your perspective on something?", a: "Solo backpacking in the Himalayas taught me to slow down and truly appreciate the little things." }, { q: "If you were mayor for a day, what would you change?", a: "I'd make public spaces more vibrant and accessible for everyone." }], cityWants: ["Attend a live music gig", "Explore hidden bookstores", "Go hiking", "Try new restaurants"], foodRecs: [{ name: "Bunna Cafe, Bushwick", desc: "Authentic Ethiopian — get the injera" }], cityRecs: [{ name: "The High Line", desc: "Best walk in Manhattan" }] },
+      { id: 2, ini: "A", name: "Aisha", age: 24, city: "New York", color: "#f0e8e8", tc: "#8b2020", photos: ["https://images.unsplash.com/photo-1494790108755-2616b612b786?w=400&q=80", "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&q=80"], interests: ["Art & Culture", "Photography", "Food & Dining", "Books", "Wellness"], sharedInterests: ["Photography", "Food & Dining"], prompts: [{ q: "What recent incident changed your perspective?", a: "Watching sunrise at the Hudson taught me the best moments are unplanned ones." }], cityWants: ["Take a cooking class", "Visit an art gallery", "Join a book club", "Attend a film screening"], foodRecs: [{ name: "Russ & Daughters", desc: "Iconic NYC deli since 1914" }], cityRecs: [{ name: "Brooklyn Bridge at sunset", desc: "Worth the walk every time" }] },
+      { id: 3, ini: "M", name: "Marcus", age: 28, city: "New York", color: "#e8eef5", tc: "#1a3a5c", photos: ["https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=400&q=80"], interests: ["Live Music", "Films", "Books", "Outdoors"], sharedInterests: ["Live Music", "Books"], prompts: [{ q: "What school activity do you still miss?", a: "Jazz band rehearsals. Creating something together in real time can't be replicated." }], cityWants: ["Attend a live music gig", "Go hiking", "Try open mic night", "Join a running club"], foodRecs: [{ name: "Di Fara Pizza, Brooklyn", desc: "Best slice in New York, no contest" }], cityRecs: [{ name: "DUMBO at night", desc: "Manhattan Bridge view is unreal" }] },
     ],
   },
   mumbai: {
     label: "Mumbai", cur: "₹",
     food: [
-      { id:1, name:"Aram Vada Pav", cuisine:"Street Food", price:"Rs.50-150 for two", rating:4.6, tag:"Legendary since 1939", hood:"CST", address:"Capital Cinema Building, Opposite CSMT, Azad Maidan, Fort, Mumbai 400001", phone:"8655712155", desc:"Experience a taste of tradition at Aram Vada Pav - Mumbai's legendary spot for authentic Maharashtrian street food since 1939. Known for the original vada pav, Misal Pav, Thalipeeth and the traditional sweet drink Piyush.", sharedExp:"Tried the vada pav and had a great experience. The vada was crispy, the pav was soft and the chutney added a flavorful spicy kick.", tryThis:"Vada Pav", img:"/places/aram-vada-pav/photo1.webp", photos:["/places/aram-vada-pav/photo2.jpg"] },
-      { id:2, name:"ARAKU Coffee", cuisine:"Cafe", price:"Rs.800-1200 for two", rating:4.5, tag:"Farm-to-cup", hood:"Colaba", address:"Sunny House, Mandlik Rd, Apollo Bandar, Colaba, Mumbai 400001", phone:"7337205222", desc:"ARAKU Coffee sources 100% organic single-origin Arabica coffee from Araku Valley. The menu includes artisanal bakes, all-day breakfast, seasonal dishes, and a curated selection of cocktails and wines.", sharedExp:"The coffee was great and the food was both delicious and beautifully presented with plenty of options to choose from.", tryThis:"Pistachio and Rhubarb Cake", img:"/places/araku-coffee/photo1.jpg", photos:[] },
-      { id:3, name:"Mag St. Cafe", cuisine:"Cafe", price:"Rs.800-1500 for two", rating:4.4, tag:"Local favorite", hood:"Colaba", address:"4, Mandlik Rd, Apollo Bandar, Colaba, Mumbai 400001", phone:"7208544366", desc:"A beloved destination for Mumbaikars seeking casual and comforting dining. From Lobster Rolls and Truffle Fries to artisanal pizzas - fresh locally sourced ingredients meet international culinary offerings.", sharedExp:"Absolutely delicious food with generous portions for the price. Great service and the whole experience was enjoyable.", tryThis:"Udon Noodles and Korean Cheese Bun", img:"/places/mag-st-cafe/photo1.webp", photos:["/places/mag-st-cafe/photo2.jpg","/places/mag-st-cafe/photo3.webp"] },
-      { id:4, name:"Leopold Cafe", cuisine:"Multi-cuisine", price:"Rs.1000-1500 for two", rating:4.4, tag:"Iconic landmark", hood:"Colaba", address:"Shahid Bhagat Singh Road, Colaba Causeway, Apollo Bandar, Colaba, Mumbai 400001", phone:"8585828201", desc:"An iconic cafe in Colaba known for its historic charm and lively atmosphere. One of Mumbai's most celebrated landmarks with a diverse menu and vibrant setting.", sharedExp:"Great lively atmosphere and an extensive menu featuring Indian, continental and Chinese dishes. Tasty food in generous portions.", tryThis:"Chicken Chilli and Grilled Chicken Sandwich", img:"/places/leopold-cafe/photo3.webp", photos:["/places/leopold-cafe/photo1.webp","/places/leopold-cafe/photo2.webp"] },
-      { id:5, name:"Woodside Inn", cuisine:"Gastropub", price:"Rs.1500-2500 for two", rating:4.5, tag:"Best gastropub", hood:"Colaba", address:"Indian Mercantile Mansion, Wodehouse Road, Opposite Regal Cinema, Colaba, Mumbai 400001", phone:"9321728192", desc:"Cosy, warmly decorated gastropub serving a range of global dishes. Never forced - great food, great drinks, great atmosphere.", sharedExp:"My favorite thing about Woodside is that it never feels forced. You can come here after a long day, order a beer and some truffle fries and lose track of time.", tryThis:"Draft Beer and Chicken Poppers", img:"/places/woodside-inn/photo2.webp", photos:["/places/woodside-inn/photo1.jpeg"] },
-      { id:6, name:"Cafe Mondegar", cuisine:"Cafe", price:"Rs.800-1500 for two", rating:4.3, tag:"Vintage classic", hood:"Colaba", address:"Metro House, Colaba Causeway, near Regal Cinema, Apollo Bandar, Colaba, Mumbai 400001", phone:"9833322277", desc:"A legendary South Mumbai landmark famous for its vibrant Mario Miranda murals and retro jukebox. The ultimate vintage spot for a chilled beer and classic comfort food.", sharedExp:"Incredible food, great music and good service. Highly recommended.", tryThis:"Paneer Croquettes and Spring Rolls", img:"/places/cafe-mondegar/photo1.jpg", photos:["/places/cafe-mondegar/photo2.webp"] },
-      { id:7, name:"Kuai Kitchen", cuisine:"Chinese Restaurant", price:"Rs.600-1200 for two", rating:4.4, tag:"Best Oriental", hood:"Colaba", address:"Shop No. 16/A Cusrow Baug, Main Road Colaba Causeway, Shahid Bhagat Singh Rd, Colaba, Mumbai 400001", phone:"9819045664", desc:"Kuai Kitchen is a vibrant casual restaurant dedicated to being the ultimate destination for delicious and affordable Oriental cuisine.", sharedExp:"Top-tier food paired with flawless hospitality. Highly recommend for Asian cuisine.", tryThis:"Kuai Special Roll and Pinacolada", img:"/places/kuai-kitchen/photo1.jpg", photos:["/places/kuai-kitchen/photo2.webp","/places/kuai-kitchen/photo3.webp"] },
-      { id:8, name:"Nandan Coffee", cuisine:"Specialty Coffee Cafe", price:"Rs.600-1000 for two", rating:4.7, tag:"Specialty coffee", hood:"Kala Ghoda", address:"Mulla House, 34, Homi Modi St, opposite Central Bank Head Office, Kala Ghoda, Fort, Mumbai 400001", phone:"7738069879", desc:"Nandan Coffee has earned a reputation for offering more than just exceptional coffee. Its specialty coffee is sourced straight from an organic estate in Kodaikanal. Warm hospitality and a calm atmosphere.", sharedExp:"The interior is incredible and the specialty coffee is sourced straight from their organic estate in Kodaikanal. The service is friendly too.", tryThis:"Tiramisu French Toast and Mediterranean Spiced Eggs", img:"/places/nandan-coffee/photo1.jpg", photos:["/places/nandan-coffee/photo2.jpg","/places/nandan-coffee/photo3.webp"] },
-      { id:9, name:"Zen Cafe", cuisine:"Cafe", price:"Rs.500-900 for two", rating:4.5, tag:"Work-friendly", hood:"Kala Ghoda", address:"Fort Foundation Building, Bake House Ln, Kala Ghoda, Fort, Mumbai 400001", phone:"9167768950", desc:"Single origin coffees brewed with precision and served with freshly baked sourdough and a global menu at this trendy work-friendly venue.", sharedExp:"Highly recommend checking this place out! The staff is super friendly and welcoming.", tryThis:"Coffee and Hummus", img:"/places/zen-cafe/photo1.jpg", photos:["/places/zen-cafe/photo2.jpg","/places/zen-cafe/photo3.png"] },
-      { id:10, name:"Miya Kebabs", cuisine:"Kebab Restaurant", price:"Rs.400-800 for two", rating:4.3, tag:"Consistent quality", hood:"Kala Ghoda", address:"Ali Chambers, Flora Fountain, 81-82, M Shetty Marg, Kala Ghoda, Fort, Mumbai 400023", phone:"8847747644", desc:"A popular eatery in Kala Ghoda known for its flavorful food and generous portions. Consistent quality, quick service and satisfying meals.", sharedExp:"Had a great experience and the food was tasty.", tryThis:"Chicken Changezi", img:"/places/miya-kebabs/photo1.jpg", photos:["/places/miya-kebabs/photo1.jpg"] },
-      { id:11, name:"Kala Ghoda Cafe", cuisine:"Cafe", price:"Rs.600-1000 for two", rating:4.5, tag:"Neighbourhood gem", hood:"Kala Ghoda", address:"10, Rope Walk Ln, Kala Ghoda, Fort, Mumbai 400001", phone:"9833803418", desc:"A charming cafe in Kala Ghoda known for its warm atmosphere and comforting food. Friendly service and relaxed setting.", sharedExp:"The food was fantastic and the restaurant has a very welcoming vibe. The perfect place to enjoy quality time with friends.", tryThis:"Chocolate Profiteroles and Cottage Cheese Burger", img:"/places/kala-ghoda-cafe/photo1.webp", photos:["/places/kala-ghoda-cafe/photo2.webp","/places/kala-ghoda-cafe/photo3.webp"] },
-      { id:12, name:"The Nutcracker", cuisine:"Cafe", price:"Rs.700-1200 for two", rating:4.6, tag:"All-day breakfast", hood:"Kala Ghoda", address:"One Forbes Building, Modern House, Dr. V.B. Gandhi Marg, Kala Ghoda, Fort, Mumbai", phone:"9321759393", desc:"The Nutcracker serves wholesome comfort food and all-day breakfast. Renowned for its extensive egg menu, gourmet burgers and decadent desserts.", sharedExp:"Delicious food, great coffee and excellent service. Highly recommend a visit.", tryThis:"Paprika Penne Pasta with Garlic Bread and Cream Cheese Bagel", img:"/places/the-nutcracker/photo1.jpg", photos:["/places/the-nutcracker/photo2.webp","/places/the-nutcracker/photo3.webp"] },
-      { id:13, name:"HnH Salad Co.", cuisine:"Healthy Cafe", price:"Rs.500-900 for two", rating:4.4, tag:"Healthy and delicious", hood:"Kala Ghoda", address:"Ground floor, Khattau Buildings, General Vaidya Road, 7, Shahid Bhagat Singh Rd, Kala Ghoda, Fort, Mumbai 400001", phone:"7045989242", desc:"HnH Salad Co. is redefining healthy eating by serving chef-crafted, flavor-packed nutritious dishes that prove wellness is never bland.", sharedExp:"Healthy food that actually tastes amazing. A fantastic spot for a delicious and wholesome meal.", tryThis:"Salad Bowl", img:"/places/hnh-salad/photo1.webp", photos:["/places/hnh-salad/photo2.jpg"] },
-      { id:14, name:"Cafe Trofima", cuisine:"Cafe", price:"Rs.600-1000 for two", rating:4.4, tag:"Neighbourhood favorite", hood:"Dadar", address:"Raja Badhe Chowk, Opp. Raja Rani Travels, Shivaji Park Road No. 2, Lady Jamshedji Rd, Mumbai 400028", phone:"8291019988", desc:"A well-loved cafe in Shivaji Park known for its warm ambience and wide-ranging menu. Quality food, friendly service and an inviting atmosphere.", sharedExp:"This is a great place to hang out with friends. The staff is friendly and the food is absolutely delicious.", tryThis:"White Sauce Pasta", img:"/places/cafe-trofima/photo1.jpg", photos:["/places/cafe-trofima/photo2.jpg"] },
-      { id:15, name:"Ashok Vada Pav", cuisine:"Street Food", price:"Rs.50-150 for two", rating:4.5, tag:"Mumbai must-try", hood:"Dadar", address:"Kashinath Dhuru Marg, Near Kirti College, Dadar West, Mumbai 400028", phone:"8591894170", desc:"A popular Dadar eatery known for its flavorful vada pav and long-standing local following. Consistent quality and fresh preparation.", sharedExp:"A must-visit spot for vada pav lovers. Enjoyed it and would recommend to everyone.", tryThis:"Vada Pav", img:"/places/ashok-vada-pav/photo1.jpg", photos:["/places/ashok-vada-pav/photo2.jpg"] },
-      { id:16, name:"Earth Cafe", cuisine:"Healthy Cafe", price:"Rs.600-1000 for two", rating:4.8, tag:"Top rated", hood:"Churchgate", address:"Ground Floor, Ram Mahal, Dinshaw Vacha Rd, near KC College, Churchgate, Mumbai 400020", phone:"9081881844", desc:"Earth Cafe's menu features a wide variety of dishes made with fresh and high-quality ingredients. From hearty meals to refreshing smoothies and guilt-free desserts.", sharedExp:"The vegan food here is delicious and the hospitality was excellent.", tryThis:"Rainbow Sandwich and Orange Chocolate Cake", img:"/places/earth-cafe/photo2.webp", photos:["/places/earth-cafe/photo1.webp","/places/earth-cafe/photo3.webp"] },
-      { id:17, name:"K. Rustom and Co.", cuisine:"Ice Cream Parlour", price:"Rs.200-400 for two", rating:4.7, tag:"Mumbai institution", hood:"Churchgate", address:"Brabourne Stadium 86, Veer Nariman Rd, Churchgate, Mumbai 400020", phone:"02222821768", desc:"Mumbai's most beloved ice cream shop, specializing in wafer-biscuit ice cream sandwiches. A Churchgate landmark for generations.", sharedExp:"Hands down one of the best ice creams I've ever tasted. The quality and flavor are outstanding.", tryThis:"Mango Ice Cream Sandwich", img:"/places/k-rustom/photo1.png", photos:["/places/k-rustom/photo2.webp"] },
-      { id:18, name:"Ramen Bar Wagamama", cuisine:"Japanese Restaurant", price:"Rs.1200-2000 for two", rating:4.5, tag:"Best ramen", hood:"Churchgate", address:"42, Cambata Building, Maharshi Karve Road, Near Eros Theatre, Churchgate, Mumbai 400020", phone:"9702703111", desc:"A popular Japanese restaurant in Churchgate known for its authentic flavors and comforting dining experience. Attentive service and consistent quality.", sharedExp:"Had a truly wonderful experience here! The food was outstanding, and the service was friendly.", tryThis:"Bang Bang Cauliflower and Gyozas", img:"/places/ramen-wagamama/photo1.jpg", photos:["/places/ramen-wagamama/photo2.jpg","/places/ramen-wagamama/photo3.webp"] },
-      { id:19, name:"Mezcalita Churchgate", cuisine:"Mexican Restaurant", price:"Rs.1500-2500 for two", rating:4.7, tag:"Mexican cantina", hood:"Churchgate", address:"Nagin Mahal, 82, Veer Nariman Rd, Churchgate, Mumbai 400020", phone:"8657512648", desc:"Discover an authentic taste of Mexico at Mezcalita. From sizzling fajitas to zesty tacos and refreshing cocktails - each dish transports you straight to the heart of Mexico.", sharedExp:"A vibrant spot that absolutely nails the energy of a modern Mexican cantina. The tacos are consistently excellent and the cocktails make it one of Mumbai's most fun dining experiences.", tryThis:"Tacos", img:"/places/mezcalita-cg/photo1.jpeg", photos:["/places/mezcalita-cg/photo2.jpg"] },
-      { id:20, name:"Pizza By The Bay", cuisine:"Restaurant", price:"Rs.1200-2000 for two", rating:4.5, tag:"Sea view dining", hood:"Churchgate", address:"Soona Mahal, 143, Marine Dr, Churchgate, Mumbai 400020", phone:"7718838749", desc:"One of Mumbai's most iconic dining institutions since 1968, famous for its prime location overlooking the Arabian Sea.", sharedExp:"Delicious food and friendly service. The spectacular sea view makes this place an absolute must-visit.", tryThis:"Pollo Arabiata Pizza", img:"/places/pizza-by-the-bay/photo2.webp", photos:["/places/pizza-by-the-bay/photo1.webp"] },
-      { id:21, name:"Mockingbird Cafe Bar", cuisine:"Cafe", price:"Rs.800-1500 for two", rating:4.3, tag:"Chill vibes", hood:"Churchgate", address:"80, Veer Nariman Rd, Churchgate, Mumbai 400020", phone:"8097606010", desc:"Mockingbird Cafe Bar is a great place to chill with great ambiance, a wide range of wonderful cuisine and reasonably priced drinks.", sharedExp:"Delicious food, good service and a wonderful atmosphere. The perfect place to spend quality time with friends or loved ones.", tryThis:"Garden Fresh Pizza and Peri Peri French Fries", img:"/places/mockingbird/photo1.jpg", photos:["/places/mockingbird/photo2.webp","/places/mockingbird/photo3.webp"] },
-      { id:22, name:"Coffee Island", cuisine:"Cafe", price:"Rs.400-800 for two", rating:4.4, tag:"European-style cafe", hood:"Churchgate", address:"Shop No 10/11 Ground Floor, Eros Cinema, 42, Maharshi Karve Rd, Churchgate, Mumbai 400020", phone:"9211729505", desc:"A vibrant European-style cafe popular for artisanal brews like the signature Islander Cold Coffee, fresh pastries, and late-night workspaces.", sharedExp:"It was an amazing experience with beautiful ambience and great service.", tryThis:"Flatbread and Islander Cold Coffee", img:"/places/coffee-island/photo1.webp", photos:["/places/coffee-island/photo2.webp"] },
-      { id:23, name:"Gaylord Restaurant", cuisine:"Multi-cuisine Restaurant", price:"Rs.1500-2500 for two", rating:4.4, tag:"Fine dining", hood:"Churchgate", address:"V N Rd, Churchgate, Mumbai 400020", phone:"7045556060", desc:"Buzzing spot with indoor and outdoor seating with an extensive menu of multi-cuisine fare and snacks. Elegant interiors, perfect for a fine dining experience.", sharedExp:"Elegant interiors and an excellent atmosphere make this the perfect spot for a fine dining experience.", tryThis:"Mushroom Cheese Lasagna and Creme Brulee", img:"/places/gaylord/photo1.jpeg", photos:["/places/gaylord/photo2.webp","/places/gaylord/photo3.webp"] },
-      { id:24, name:"Boojee Cafe", cuisine:"Cafe", price:"Rs.800-1500 for two", rating:4.6, tag:"Brunch spot", hood:"Bandra West", address:"Shop No. 6, 29, New Kantwadi Road, Off Perry Cross Road, Bandra West, Mumbai 400050", phone:"9930203882", desc:"A Bandra cafe known for its specialty coffee, delicious brunch offerings and inviting atmosphere. Quality food, friendly service and stylish interiors.", sharedExp:"It was an amazing experience from start to finish. The food was incredible and full of flavor.", tryThis:"Bombay Burger and Nachos", img:"/places/boojee-cafe/photo3.webp", photos:["/places/boojee-cafe/photo1.jpeg","/places/boojee-cafe/photo2.jpg"] },
-      { id:25, name:"Bokka Coffee", cuisine:"Cafe", price:"Rs.500-900 for two", rating:4.5, tag:"Coffee perfection", hood:"Bandra West", address:"Shop No. 6 and 7, Silver Croft, 16th Road, Near Khane Khas, Bandra West, Mumbai 400050", phone:"8355805500", desc:"A cozy Bandra cafe known for its excellent coffee and thoughtfully prepared breakfast offerings. Quality food, friendly service and a welcoming atmosphere.", sharedExp:"Absolutely loved this place. The coffee was brewed to perfection and all the desserts were fantastic.", tryThis:"Specialty Cake", img:"/places/bokka-coffee/photo1.webp", photos:["/places/bokka-coffee/photo2.webp"] },
-      { id:26, name:"Abokado", cuisine:"Japanese Cafe", price:"Rs.800-1400 for two", rating:4.5, tag:"Must-try sushi", hood:"Bandra West", address:"Shop No. 1, Sefa House, Pali Mala Rd, Bandra West, Mumbai 400049", phone:"8369936468", desc:"A cozy Japanese inspired cafe in Bandra known for its welcoming atmosphere and consistently well-received food. Authentic flavors in an intimate setting.", sharedExp:"Truly authentic flavors and the Japanese sushi here is absolutely amazing. A must-visit spot for all sushi lovers.", tryThis:"Sushi", img:"/places/abokado/photo2.jpg", photos:["/places/abokado/photo1.webp"] },
-      { id:27, name:"Veronica", cuisine:"Cafe", price:"Rs.600-1200 for two", rating:4.6, tag:"Best sandwiches", hood:"Bandra West", address:"9, Waroda Rd, Beside Agna Square, Ranwar, Bandra West, Mumbai 400050", phone:"9372981697", desc:"Veronica's is a vibrant trend-setting Bandra deli famous for its massive, premium artisanal sandwiches and high-energy neighbourhood vibe.", sharedExp:"One of Mumbai's finest sandwich and bakery spots. The bread is exceptional and even the simplest dishes feel memorable.", tryThis:"Dirty Fries with Cheese", img:"/places/veronica/photo2.webp", photos:["/places/veronica/photo1.webp"] },
-      { id:28, name:"Miyo Dessert Bar", cuisine:"Bakery and Desserts", price:"Rs.600-1000 for two", rating:4.6, tag:"Make It Your Own", hood:"Bandra West", address:"Shop 3, Silvercroft, Junction of 16th and 33rd Rd, Bandra West, Mumbai 400050", phone:"9004502803", desc:"Miyo Dessert Bar is a freestyle dessert bar operating on a unique MIYO concept - an anti-menu philosophy where you fully customize your sweet treats.", sharedExp:"Creative, elegant and consistently impressive. Beautifully plated and perfectly balanced sophisticated flavors.", tryThis:"Belgian Chocolate Gelato", img:"/places/miyo-dessert/photo2.jpeg", photos:["/places/miyo-dessert/photo1.webp"] },
-      { id:29, name:"GIGI Bombay", cuisine:"Japanese Restaurant", price:"Rs.2000-3500 for two", rating:4.7, tag:"Premium fusion", hood:"Bandra West", address:"14th Rd, Bandra West, Mumbai 400050", phone:"8976943116", desc:"Gigi Bombay is a trendy Japanese-European fusion restaurant and cocktail bar in Bandra West. Every dish feels carefully executed.", sharedExp:"A near-perfect combination of ambience, service and food. Every dish feels carefully executed making it one of the city's most premium dining experiences.", tryThis:"Chilli Garlic Edamame, Pumpkin Ravioli and Salmon Sushi", img:"/places/gigi-bombay/photo1.jpg", photos:["/places/gigi-bombay/photo2.webp","/places/gigi-bombay/photo3.webp"] },
-      { id:30, name:"Pomodoro", cuisine:"Italian Restaurant", price:"Rs.1000-1800 for two", rating:4.6, tag:"Hand-rolled pasta", hood:"Bandra West", address:"Shop No. 2, 16th Rd, Bandra West, Mumbai 400050", phone:"7887886327", desc:"Your cozy neighbourhood pasta bar specializing in hand-rolled pastas and specialty coffee. Authentic Italian comfort food at its best.", sharedExp:"Authentic Italian comfort food at its best. The pasta is consistently excellent, the flavors are clean and honest.", tryThis:"Tiramisu and Parmesan Truffle Fries", img:"/places/pomodoro/photo1.webp", photos:["/places/pomodoro/photo2.webp","/places/pomodoro/photo3.webp"] },
-      { id:31, name:"Hot Momos", cuisine:"Momos and Tibetan", price:"Rs.150-400 for two", rating:4.6, tag:"Best momos", hood:"Kharghar", address:"Shop No. 14, Swarna CHS, Plot No. 13/14, Sector 7, Kharghar, Panvel, Maharashtra 410210", phone:"8767681828", desc:"A popular Kharghar eatery known for its flavorful food and generous portions. Quick service, consistent quality and a loyal local following.", sharedExp:"Hands down the best momos in Kharghar! The momos here are absolutely delicious.", tryThis:"Chicken Kurkure Momos", img:"/places/hot-momos/photo1.jpg", photos:["/places/hot-momos/photo2.webp"] },
-      { id:32, name:"Luuma House", cuisine:"Continental", price:"Rs.2000-3500 for two", rating:4.5, tag:"Fine dining", hood:"Vile Parle", address:"Plot No.47, Gulmohar Rd, JVPD Scheme, Vile Parle West, Mumbai 400049", phone:"7891991936", desc:"Experience elevated global dining at Luuma House - a premier fine dining restaurant and cocktail bar. A unique blend of Mediterranean, Pan-Asian, and Modern Indian cuisines with live music.", sharedExp:"My experience here was fantastic. The food was delicious and the staff was welcoming.", tryThis:"Dim Sum and Black Rice Sushi", img:"/places/luuma-house/photo1.jpg", photos:["/places/luuma-house/photo2.webp","/places/luuma-house/photo3.webp"] },
-      { id:33, name:"Gattu Chinese", cuisine:"Chinese Restaurant", price:"Rs.400-800 for two", rating:4.4, tag:"Street-style Chinese", hood:"Vile Parle", address:"Shop No. 3, Iria, Irla, Vile Parle West, Mumbai 400056", phone:"8655110777", desc:"Casual locale serving street-style Chinese snacks and rice dishes. Great food quality, generous portions and very reasonably priced.", sharedExp:"Great food quality, generous portion sizes and very reasonably priced.", tryThis:"Special Fried Rice Chicken and Chicken Lollipop", img:"/places/gattu-chinese/photo2.webp", photos:["/places/gattu-chinese/photo2.webp","/places/gattu-chinese/photo3.webp"] },
-      { id:34, name:"Prithvi Cafe", cuisine:"Cafe", price:"Rs.500-900 for two", rating:4.8, tag:"Hidden gem", hood:"Juhu", address:"Alongside Prithvi Theatre, 20, Juhu Rd, Janki Kutir, Juhu, Mumbai 400049", phone:"7045940218", desc:"A charming culinary haven nestled alongside the iconic Prithvi Theatre. Cafe classics, hearty meals and expertly brewed coffee in a vibrant literary atmosphere.", sharedExp:"A wonderful spot to relax and enjoy a fantastic meal. The food quality is excellent.", tryThis:"Chole Kulche, Beer Chhas and Kitkat Shake", img:"/places/prithvi-cafe/photo1.png", photos:["/places/prithvi-cafe/photo2.png","/places/prithvi-cafe/photo3.webp"] },
-      { id:35, name:"Benne - Bangalore Dosa", cuisine:"South Indian", price:"Rs.200-500 for two", rating:4.7, tag:"Best South Indian", hood:"Juhu", address:"Ground floor, Nirav apartment, 1, Gulmohar Rd, Gulmohar Colony, Juhu, Mumbai 400049", phone:"", desc:"A popular minimalist South Indian eatery in Juhu famous for authentic Bengaluru-style butter dosas. The best South Indian breakfast in Juhu.", sharedExp:"Hands down the best South Indian breakfast in Juhu. The food is incredibly tasty and the quality is excellent.", tryThis:"Benne Masala Dosa", img:"/places/benne-dosa/photo2.webp", photos:["/places/benne-dosa/photo1.jpg"] },
-      { id:36, name:"One8 Commune", cuisine:"Multi-cuisine Restaurant", price:"Rs.2000-3500 for two", rating:4.6, tag:"Trendy", hood:"Juhu", address:"Kishore Kumar Bunglow, 18/B, Juhu Tara Rd, Shivaji Nagr, Juhu, Mumbai 400049", phone:"8108411818", desc:"One8 Commune is known for its vibrant ambiance with eclectic decor, experimental cocktails and signature dishes like the Mushroom Googly Dimsums.", sharedExp:"Beautiful aesthetics paired with good food. Everything was plated elegantly and the ingredients tasted wonderfully fresh.", tryThis:"Mushroom Dimsums", img:"/places/one8-commune/photo2.jpg", photos:["/places/one8-commune/photo1.png"] },
-      { id:37, name:"Ettarra Coffee House", cuisine:"Cafe", price:"Rs.500-900 for two", rating:4.5, tag:"South Indian coffee", hood:"Juhu", address:"Ground Floor, boutique hotel, Juhu residency, Juhu Tara, Juhu, Mumbai 400049", phone:"8655805815", desc:"South Indian filter coffee crafted to capture flavorful notes and refreshing aromatic servings with every cup. A beautifully designed space with food that matches the aesthetic.", sharedExp:"A beautifully designed space with food that matches the aesthetic. Thoughtful flavors, great presentation and a calm atmosphere.", tryThis:"Baked Soya Keema Pav", img:"/places/ettarra-coffee/photo1.jpg", photos:["/places/ettarra-coffee/photo2.jpeg"] },
-      { id:38, name:"The Bombay Canteen", cuisine:"Indian", price:"Rs.2000-3000 for two", rating:4.8, tag:"Must visit", hood:"Lower Parel", address:"Unit-1, Process House, S.B. Road, Kamala Mills, Lower Parel, Mumbai 400013", phone:"8880802424", desc:"Bombay Canteen brings to you the bright and vibrant flavors of authentic Indian food. Beautifully plated and exceptionally fresh - a celebration of India's regional cuisines.", sharedExp:"Incredible food and top-tier service. The dishes are beautifully plated and taste exceptionally fresh.", tryThis:"Chilled Sea Bass Sev Puri and Coffee Rasgulla Sundae", img:"/places/bombay-canteen/photo1.jpg", photos:["/places/bombay-canteen/photo2.webp","/places/bombay-canteen/photo3.webp"] },
-      { id:39, name:"Si Nonna's", cuisine:"Italian Restaurant", price:"Rs.1500-2500 for two", rating:4.5, tag:"Naples in Mumbai", hood:"Lower Parel", address:"B, Kamala Mills Compound, Shop 12 and 13, Trade World, Senapati Bapat Marg, Lower Parel, Mumbai 400013", phone:"9136693001", desc:"Si Nonna's is where the authentic taste of Naples meets your cravings. Mouthwatering Italian delights with multiple outlets across Mumbai.", sharedExp:"Delicious food, great options and multiple outlets.", tryThis:"Pizza Number 4 and Tiramisu", img:"/places/si-nonnas/photo3.webp", photos:["/places/si-nonnas/photo1.jpeg","/places/si-nonnas/photo2.jpeg"] },
-      { id:40, name:"Queen Margherita", cuisine:"Italian Restaurant", price:"Rs.1200-2000 for two", rating:4.5, tag:"Wood-fired pizza", hood:"Lower Parel", address:"Neeru Silk Mills, Mathuradas Mill Compound, 11/B, Gr Floor, Lower Parel, Mumbai 400013", phone:"9137537902", desc:"Pizza, pasta and Italian food served at an informal eatery with a wood-fired oven.", sharedExp:"Fantastic spot for amazing pizza.", tryThis:"Classic Chicken Queen Margherita and Tiramisu", img:"/places/queen-margherita/photo1.webp", photos:["/places/queen-margherita/photo2.webp","/places/queen-margherita/photo3.webp"] },
-      { id:41, name:"Britannia and Co.", cuisine:"Parsi", price:"Rs.800-1500 for two", rating:4.6, tag:"Parsi heritage", hood:"Fort", address:"Wakefield House, 11 16, SS Ram Gulam Marg, opp. New Indian Customs House, Ballard Estate, Fort, Mumbai 400001", phone:"02222615264", desc:"If you want a taste of Mumbai's rich culinary history, Britannia and Co. is a mandatory stop. Serving phenomenal authentic Parsi cuisine since 1923.", sharedExp:"Fantastic experience - the food is good and if you want authentic Parsi flavors then this is the place to go.", tryThis:"Mutton Berry Pulao", img:"/places/britannia/photo2.jpg", photos:["/places/britannia/photo1.webp"] },
-      { id:42, name:"Mokai", cuisine:"Cafe", price:"Rs.1000-1800 for two", rating:4.5, tag:"Pinterest-worthy", hood:"Pali Hill", address:"Pali Mala Rd, Pali Hill, Mumbai 400050", phone:"9820983607", desc:"Mokai in Bandra is known for its Pinterest-y aesthetics and delectable drinks and food. Shifting the conventions of the traditional brunch system.", sharedExp:"A great blend of chic ambience and comforting food. The flavors are approachable yet elevated making it a place you'll want to revisit.", tryThis:"Laksa Curry Wontons", img:"/places/mokai/photo1.webp", photos:["/places/mokai/photo2.webp"] },
-      { id:43, name:"Earth Soul Cafe", cuisine:"Cafe", price:"Rs.500-900 for two", rating:4.7, tag:"Trending", hood:"CBD Belapur", address:"Shop No. 13, Progressive's Sea Lounge, Plot No.44, Sector 15, CBD Belapur, Navi Mumbai 400614", phone:"9619409696", desc:"Earth Soul Cafe is an all-day cafe in Navi Mumbai. Fresh cold-press juices, smoothies, salads, sandwiches and always-brewing coffee. Perfect for slowing down surrounded by plants.", sharedExp:"This is the place you go when you want to slow down for a few hours. Surrounded by plants and tucked away from the city's chaos - a mini escape.", tryThis:"Pink Sauce Pasta", img:"/places/earth-soul-cafe/photo2.webp", photos:["/places/earth-soul-cafe/photo1.webp"] },
-      { id:44, name:"The Kerala Table", cuisine:"Seafood Restaurant", price:"Rs.1000-1800 for two", rating:4.6, tag:"South Indian fine dining", hood:"Vashi", address:"First Floor, Palm Beach Galleria Mall, 109 and 110, Plot No. 17, Sector 19D, Vashi, Navi Mumbai 400703", phone:"9090939348", desc:"Experience true South Indian fine dining with rich flavors of Kerala food and Malabar delicacies. Kerala-style fish fry and aromatic biryani.", sharedExp:"If you're craving authentic Keralite food that feels like it was made at someone's home rather than a commercial kitchen, this is the place.", tryThis:"Pepper Garlic Chicken and Paal Porotta Prawns", img:"/places/kerala-table/photo3.webp", photos:["/places/kerala-table/photo1.jpeg","/places/kerala-table/photo2.jpg"] },
-      { id:45, name:"HAV Coffee", cuisine:"Specialty Coffee Cafe", price:"Rs.400-800 for two", rating:4.5, tag:"Specialty brews", hood:"Chowpatty", address:"1, Dr N A Purandare Marg, next to Mahendra Car Showroom, Charni Road East, Chowpatty, Girgaon, Mumbai 400007", phone:"", desc:"HAV Coffee is known for premium specialty brews like the popular Spanish Latte. Artisan croissants and dedicated Jain-friendly options - perfect post-walk hangout.", sharedExp:"I absolutely enjoyed my experience here. The food was delicious and the ambience was lovely.", tryThis:"Chilli Cheese Toast and Paneer Tikka Sandwiches", img:"/places/hav-coffee/photo1.jpg", photos:["/places/hav-coffee/photo2.webp","/places/hav-coffee/photo3.webp"] },
-      { id:46, name:"Shree Thaker Bhojanalay", cuisine:"Vegetarian Thali Restaurant", price:"Rs.500-900 for two", rating:4.7, tag:"Legendary thali", hood:"Marine Lines", address:"Building No 31, Purshottam Niwas, Dadiseth Agiyari Ln, Marine Lines East, Kalbadevi, Mumbai 400002", phone:"02222069916", desc:"Long-running Indian restaurant offering a selection of traditional Gujarati thalis. Renowned for exceptional thali.", sharedExp:"Renowned for its exceptional thali and the food lived up to the hype - absolutely delicious.", tryThis:"Vegetarian Gujarati Thali", img:"/places/shree-thaker/photo1.webp", photos:["/places/shree-thaker/photo2.webp"] }
-    ],
-    mapPlaces: [
-      {id:4,name:"Leopold Cafe",rating:4.4,top:"15%",left:"55%"},{id:8,name:"Nandan Coffee",rating:4.7,top:"22%",left:"28%"},{id:11,name:"Kala Ghoda Cafe",rating:4.5,top:"28%",left:"65%"},{id:34,name:"Prithvi Cafe",rating:4.8,top:"40%",left:"32%"},{id:38,name:"The Bombay Canteen",rating:4.8,top:"50%",left:"62%"},{id:24,name:"Boojee Cafe",rating:4.6,top:"58%",left:"22%"},{id:29,name:"GIGI Bombay",rating:4.7,top:"62%",left:"66%"},{id:41,name:"Britannia and Co.",rating:4.6,top:"70%",left:"42%"},
-    ],
-    events: [
-      { id:1, name:"Indie Night Live Concert", cats:["Music","Nightlife"], date:"24", mon:"May", fullDate:"24 May 2025", time:"7:00 PM – 10:30 PM", loc:"Bandra Fort Amphitheatre, Mumbai", entry:"Free Entry", interested:1800, img:"https://images.unsplash.com/photo-1501386761578-eaa54b02c811?w=700&q=80", desc:"An evening of indie music featuring local artists.", organizer:"The Habitat", mapTop:"30%", mapLeft:"18%" },
-      { id:2, name:"Jazz in the Park", cats:["Music"], date:"25", mon:"May", fullDate:"25 May 2025", time:"6:00 PM – 9:00 PM", loc:"Five Gardens, Shivaji Park", entry:"Free Entry", interested:640, img:"https://images.unsplash.com/photo-1415201364774-f6f0bb35f28f?w=700&q=80", desc:"An evening of smooth jazz under the open sky.", organizer:"The Habitat", mapTop:"55%", mapLeft:"35%" },
-      { id:3, name:"Acoustic Sundays", cats:["Music","Workshops"], date:"26", mon:"May", fullDate:"26 May 2025", time:"4:00 PM – 8:00 PM", loc:"Blue Door Café, Bandra West", entry:"Paid", interested:320, img:"https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=700&q=80", desc:"Intimate acoustic sessions every Sunday.", organizer:"Blue Door", mapTop:"40%", mapLeft:"58%" },
-      { id:4, name:"Beachside Gig", cats:["Music","Outdoors"], date:"26", mon:"May", fullDate:"26 May 2025", time:"5:00 PM – 8:00 PM", loc:"Versova Beach", entry:"Free Entry", interested:890, img:"https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=700&q=80", desc:"Live music with the sea as your backdrop.", organizer:"Beach Events", mapTop:"22%", mapLeft:"12%" },
-      { id:5, name:"Sunset Beats", cats:["Music","Nightlife"], date:"26", mon:"May", fullDate:"26 May 2025", time:"5:00 PM – 8:00 PM", loc:"Worli Sea Face", entry:"Paid", interested:450, img:"https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=700&q=80", desc:"Electronic music meets Worli sea face.", organizer:"Sunset Events", mapTop:"68%", mapLeft:"62%" },
-      { id:6, name:"Live Band Night", cats:["Music","Nightlife"], date:"31", mon:"May", fullDate:"31 May 2025", time:"9:00 PM – 1:00 AM", loc:"Bandra Pub", entry:"Paid", interested:560, img:"https://images.unsplash.com/photo-1527224857830-43a7acc85260?w=700&q=80", desc:"Four bands, one night. Mumbai's best live music venue.", organizer:"Bandra Pub", mapTop:"75%", mapLeft:"30%" },
-    ],
-    thirdPlaces: [
-      { id:1, name:"Cafe Aranya", cats:["Cafe","Community"], dist:"700 m", desc:"A cozy cafe with open seating and great coffee.", visitors:56, img:"https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&q=80", addedBy:"Neha S." },
-      { id:2, name:"Greenview Park", cats:["Nature","Relaxation"], dist:"1.2 km", desc:"Peaceful park perfect for a walk or some quiet time.", visitors:128, img:"https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=600&q=80", addedBy:"Arjun M." },
-      { id:3, name:"City Central Library", cats:["Study & Work"], dist:"1.6 km", desc:"Quiet space to read, study and focus.", visitors:94, img:"https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=600&q=80", addedBy:"Kavya R." },
-      { id:4, name:"Kala Street Art Lane", cats:["Art & Culture"], dist:"1.9 km", desc:"Vibrant street art and creative community vibes.", visitors:76, img:"https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=600&q=80", addedBy:"Rohit P." },
+      { id: 1, name: "Aram Vada Pav", cuisine: "Street Food", price: "Rs.50-150 for two", rating: 4.6, tag: "Legendary since 1939", hood: "CST", address: "Capital Cinema Building, Opposite CSMT, Fort, Mumbai 400001", phone: "8655712155", desc: "Experience a taste of tradition at Aram Vada Pav — Mumbai's legendary spot for authentic Maharashtrian street food since 1939.", sharedExp: "Tried the vada pav and had a great experience. The vada was crispy, the pav was soft and the chutney added a flavorful spicy kick.", tryThis: "Vada Pav", img: "/places/aram-vada-pav/photo1.webp", photos: ["/places/aram-vada-pav/photo2.jpg"] },
+      { id: 2, name: "ARAKU Coffee", cuisine: "Cafe", price: "Rs.800-1200 for two", rating: 4.5, tag: "Farm-to-cup", hood: "Colaba", address: "Sunny House, Mandlik Rd, Colaba, Mumbai 400001", phone: "7337205222", desc: "ARAKU Coffee sources 100% organic single-origin Arabica coffee from Araku Valley. Artisanal bakes, all-day breakfast, and seasonal dishes.", sharedExp: "The coffee was great and the food was both delicious and beautifully presented.", tryThis: "Pistachio and Rhubarb Cake", img: "/places/araku-coffee/photo1.jpg", photos: [] },
+      { id: 3, name: "Mag St. Cafe", cuisine: "Cafe", price: "Rs.800-1500 for two", rating: 4.4, tag: "Local favorite", hood: "Colaba", address: "4, Mandlik Rd, Colaba, Mumbai 400001", phone: "7208544366", desc: "A beloved destination for casual and comforting dining. Lobster Rolls, Truffle Fries, artisanal pizzas — fresh locally sourced ingredients.", sharedExp: "Absolutely delicious food with generous portions for the price. Great service.", tryThis: "Korean Cheese Bun and Udon Noodles", img: "/places/mag-st-cafe/photo2.jpg", photos: ["/places/mag-st-cafe/photo1.webp", "/places/mag-st-cafe/photo3.webp"] },
+      { id: 4, name: "Leopold Cafe", cuisine: "Multi-cuisine", price: "Rs.1000-1500 for two", rating: 4.4, tag: "Iconic landmark", hood: "Colaba", address: "Shahid Bhagat Singh Road, Colaba Causeway, Mumbai 400001", phone: "8585828201", desc: "An iconic cafe in Colaba known for its historic charm and lively atmosphere. One of Mumbai's most celebrated landmarks.", sharedExp: "Great lively atmosphere and an extensive menu. Tasty food in generous portions.", tryThis: "Grilled Chicken Sandwich and Chicken Chilli", img: "/places/leopold-cafe/photo1.webp", photos: ["/places/leopold-cafe/photo2.webp", "/places/leopold-cafe/photo3.webp"] },
+      { id: 5, name: "Woodside Inn", cuisine: "Gastropub", price: "Rs.1500-2500 for two", rating: 4.5, tag: "Best gastropub", hood: "Colaba", address: "Indian Mercantile Mansion, Wodehouse Road, Colaba, Mumbai 400001", phone: "9321728192", desc: "Cosy, warmly decorated gastropub. Never forced — great food, great drinks, great atmosphere.", sharedExp: "My favorite thing about Woodside is that it never feels forced. You can come here after a long day, order a beer and some truffle fries and lose track of time.", tryThis: "Draft Beer and Chicken Poppers", img: "/places/woodside-inn/photo2.webp", photos: ["/places/woodside-inn/photo1.jpeg"] },
+      { id: 6, name: "Nandan Coffee", cuisine: "Specialty Coffee Cafe", price: "Rs.600-1000 for two", rating: 4.7, tag: "Specialty coffee", hood: "Kala Ghoda", address: "Mulla House, 34, Homi Modi St, Kala Ghoda, Fort, Mumbai 400001", phone: "7738069879", desc: "Nandan Coffee sources specialty coffee straight from an organic estate in Kodaikanal. Warm hospitality and a calm atmosphere.", sharedExp: "The interior is incredible and the specialty coffee is sourced straight from their organic estate in Kodaikanal. The service is friendly too.", tryThis: "Tiramisu French Toast and Mediterranean Spiced Eggs", img: "/places/nandan-coffee/photo3.webp", photos: ["/places/nandan-coffee/photo1.jpg", "/places/nandan-coffee/photo2.jpg"] },
+      { id: 7, name: "Kala Ghoda Cafe", cuisine: "Cafe", price: "Rs.600-1000 for two", rating: 4.5, tag: "Neighbourhood gem", hood: "Kala Ghoda", address: "10, Rope Walk Ln, Kala Ghoda, Fort, Mumbai 400001", phone: "9833803418", desc: "A charming cafe in Kala Ghoda known for its warm atmosphere and comforting food.", sharedExp: "The food was fantastic and the restaurant has a very welcoming vibe. The perfect place to enjoy quality time with friends.", tryThis: "Chocolate Profiteroles and Cottage Cheese Burger", img: "/places/kala-ghoda-cafe/photo3.webp", photos: ["/places/kala-ghoda-cafe/photo1.webp", "/places/kala-ghoda-cafe/photo2.webp"] },
+      { id: 8, name: "The Bombay Canteen", cuisine: "Indian", price: "Rs.2000-3000 for two", rating: 4.8, tag: "Must visit", hood: "Lower Parel", address: "Unit-1, Process House, S.B. Road, Kamala Mills, Lower Parel, Mumbai 400013", phone: "8880802424", desc: "Bombay Canteen brings the bright and vibrant flavors of authentic Indian food. Beautifully plated and exceptionally fresh.", sharedExp: "Incredible food and top-tier service. The dishes are beautifully plated and taste exceptionally fresh.", tryThis: "Chilled Sea Bass Sev Puri and Coffee Rasgulla Sundae", img: "/places/bombay-canteen/photo1.jpg", photos: ["/places/bombay-canteen/photo2.webp", "/places/bombay-canteen/photo3.webp"] },
+      { id: 9, name: "Boojee Cafe", cuisine: "Cafe", price: "Rs.800-1500 for two", rating: 4.6, tag: "Brunch spot", hood: "Bandra West", address: "Shop No. 6, 29, New Kantwadi Road, Off Perry Cross Road, Bandra West, Mumbai 400050", phone: "9930203882", desc: "A Bandra cafe known for its specialty coffee, delicious brunch offerings and inviting atmosphere.", sharedExp: "It was an amazing experience from start to finish. The food was incredible and full of flavor.", tryThis: "Bombay Burger and Nachos", img: "/places/boojee-cafe/photo3.webp", photos: ["/places/boojee-cafe/photo1.jpeg", "/places/boojee-cafe/photo2.jpg"] },
+      { id: 10, name: "GIGI Bombay", cuisine: "Japanese Restaurant", price: "Rs.2000-3500 for two", rating: 4.7, tag: "Premium fusion", hood: "Bandra West", address: "14th Rd, Bandra West, Mumbai 400050", phone: "8976943116", desc: "A trendy Japanese-European fusion restaurant and cocktail bar in Bandra West. Every dish feels carefully executed.", sharedExp: "A near-perfect combination of ambience, service and food. One of the city's most premium dining experiences.", tryThis: "Pumpkin Ravioli & Salmon Sushi and Chilli Garlic Edamame", img: "/places/gigi-bombay/photo1.jpg", photos: ["/places/gigi-bombay/photo2.webp", "/places/gigi-bombay/photo3.webp"] },
+      { id: 11, name: "Prithvi Cafe", cuisine: "Cafe", price: "Rs.500-900 for two", rating: 4.8, tag: "Hidden gem", hood: "Juhu", address: "Alongside Prithvi Theatre, 20, Juhu Rd, Juhu, Mumbai 400049", phone: "7045940218", desc: "A charming culinary haven nestled alongside the iconic Prithvi Theatre. Cafe classics, hearty meals and expertly brewed coffee in a vibrant literary atmosphere.", sharedExp: "A wonderful spot to relax and enjoy a fantastic meal. The food quality is excellent.", tryThis: "Pasta and Chole Kulche and Kitkat Shake", img: "/places/prithvi-cafe/photo3.webp", photos: ["/places/prithvi-cafe/photo1.png", "/places/prithvi-cafe/photo2.png"] },
+      { id: 12, name: "Earth Cafe", cuisine: "Healthy Cafe", price: "Rs.600-1000 for two", rating: 4.8, tag: "Top rated", hood: "Churchgate", address: "Ground Floor, Ram Mahal, Dinshaw Vacha Rd, near KC College, Churchgate, Mumbai 400020", phone: "9081881844", desc: "Earth Cafe features a wide variety of dishes made with fresh and high-quality ingredients — hearty meals to refreshing smoothies.", sharedExp: "The vegan food here is delicious and the hospitality was excellent.", tryThis: "Orange Chocolate Cake and Rainbow Sandwich", img: "/places/earth-cafe/photo3.webp", photos: ["/places/earth-cafe/photo1.webp", "/places/earth-cafe/photo2.webp"] },
+      { id: 13, name: "Britannia and Co.", cuisine: "Parsi", price: "Rs.800-1500 for two", rating: 4.6, tag: "Parsi heritage", hood: "Fort", address: "Wakefield House, 11 16, SS Ram Gulam Marg, Ballard Estate, Fort, Mumbai 400001", phone: "02222615264", desc: "If you want a taste of Mumbai's rich culinary history, Britannia and Co. is a mandatory stop. Serving phenomenal authentic Parsi cuisine since 1923.", sharedExp: "Fantastic experience — the food is good and if you want authentic Parsi flavors then this is the place to go.", tryThis: "Mutton Berry Pulao", img: "/places/britannia/photo2.jpg", photos: ["/places/britannia/photo1.webp"] },
+      // New places (IDs 14–25 — add all your new ones here)
+      { id: 14, name: "Mary Lodge by Subko", cuisine: "Bakery Cafe", price: "Rs.600-1200 for two", rating: 4.6, tag: "Bungalow cafe", hood: "Bandra West", address: "Ground Floor, Mary Lodge, 21A, Chapel Rd, Ranwar, Bandra West, Mumbai", phone: "8591745691", desc: "Fusion of old and new in a charming bungalow. Unique coffee options, savory treats and indulgent bakery items. Perfect for work sessions or casual dates.", sharedExp: "Great food, beautiful interiors and welcoming staff. I had a truly delightful experience here.", tryThis: "Espresso Cream Croissant and Harissa Sandwich", img: "/places/mary-lodge-subko/photo1.jpg", photos: ["/places/mary-lodge-subko/photo2.webp", "/places/mary-lodge-subko/photo3.webp"] },
+      { id: 15, name: "TÓA 66", cuisine: "Thai Restaurant", price: "Rs.3000-5000 for two", rating: 4.8, tag: "India's first Thai tasting menu", hood: "Churchgate", address: "Ground Floor, ADCB Rehman Manzil, 75, Veer Nariman Rd, Churchgate, Mumbai", phone: "9920820800", desc: "TÓA 66 brings India's first 7-course vegetarian Thai tasting menu to Mumbai. Designed by two master Thai chefs in an intimate 26-seater space.", sharedExp: "The 7-course Thai tasting menu is exceptional. The opening course and the two desserts were the absolute highlights. Highly recommended.", tryThis: "7-Course Thai Tasting Menu", img: "/places/toa-66/photo2.webp", photos: ["/places/toa-66/photo3.webp", "/places/toa-66/photo4.webp"] },
+      { id: 16, name: "Trishna", cuisine: "Seafood Restaurant", price: "Rs.2000-3500 for two", rating: 4.7, tag: "Premium seafood", hood: "Kala Ghoda", address: "Birla Mansion, Sai Baba Mandir Marg, Kala Ghoda, Fort, Mumbai 400001", phone: "9206260260", desc: "Premium seafood restaurant in the heart of Mumbai.", sharedExp: "Excellent seafood restaurant with exceptional food quality. Highly recommended for seafood lovers.", tryThis: "Butter Garlic Crab", img: "/places/trishna/photo1.webp", photos: ["/places/trishna/photo2.webp"] },
+      { id: 17, name: "Ekaa", cuisine: "Indian Restaurant", price: "Rs.3000-5000 for two", rating: 4.7, tag: "Open kitchen fine dining", hood: "Fort", address: "1st Floor, Kitab Mahal, D Sukhadwala Rd, Fort, Mumbai 400001", phone: "9987657989", desc: "Industrial-chic Indian spot with creative plates and an open kitchen concept — perfect for watching the culinary magic happen.", sharedExp: "Had an amazing time at Ekaa. The hospitality was wonderful and the food was absolutely great.", tryThis: "Awakening Tasting Menu", img: "/places/ekaa/photo1.webp", photos: ["/places/ekaa/photo2.webp", "/places/ekaa/photo3.webp"] },
     ],
     people: [
-      { id:1, ini:"A", name:"Ananya", age:26, city:"Mumbai", color:"#e8f0e8", tc:"#2d6a2d",
-        photos:["https://images.unsplash.com/photo-1494790108755-2616b612b786?w=400&q=80","https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&q=80","https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&q=80"],
-        interests:["Live Music","Food & Dining","Travel","Books","Art & Culture","Photography","Fitness","Films"],
-        sharedInterests:["Live Music","Food & Dining","Photography"],
-        prompts:[{q:"What recent incident changed your perspective on something and how?",a:"Losing my wallet while traveling alone taught me to be more adaptable and trust that things usually work out."},{q:"If you were the mayor for a day what's one thing you'd change about your city?",a:"I'd make public transport free for a day to see how much lighter the city feels without traffic."},{q:"What's something you've been curious about recently?",a:"How sustainable living can actually be affordable for everyone."}],
-        cityWants:["Run a half marathon","Attend a live music gig","Explore hidden bookstores","Try new restaurants","Plan a road trip"],
-        sharedThings:["Attend a live music gig","Try new restaurants"],
-        songs:[{title:"Lose Yourself",artist:"Eminem"},{title:"Heat Waves",artist:"Glass Animals"},{title:"The Night We Met",artist:"Lord Huron"}],
-        recs:[{title:"Interstellar",type:"Movie"},{title:"Breaking Bad",type:"Series"},{title:"Our Planet",type:"Documentary"}],
-        foodRecs:[{name:"The Bombay Canteen, Lower Parel",desc:"Modern Indian cuisine with a twist",img:"https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=200&q=80"},{name:"Bastian, Bandra",desc:"Seafood · Great ambience",img:"https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=200&q=80"},{name:"Leopold Cafe, Colaba",desc:"Classic vibes and comfort food",img:"https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=200&q=80"}],
-        cityRecs:[{name:"Marine Drive",desc:"Perfect sunset walks and sea breeze",img:"https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=200&q=80"},{name:"Worli Sea Face",desc:"Peaceful evenings by the sea",img:"https://images.unsplash.com/photo-1529543544282-ea669407fca3?w=200&q=80"},{name:"Sanjay Gandhi National Park",desc:"Best for a morning trek",img:"https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=200&q=80"}],
-      },
-      { id:2, ini:"R", name:"Rohit", age:27, city:"Mumbai", color:"#e8eef5", tc:"#1a3a5c",
-        photos:["https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80","https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&q=80","https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&q=80"],
-        interests:["Tech","Fitness","Travel","Food & Dining","Live Music","Films"],
-        sharedInterests:["Live Music","Food & Dining"],
-        prompts:[{q:"What recent incident changed your perspective on something and how?",a:"Solo backpacking in the Himalayas taught me to slow down and truly appreciate the little things."},{q:"If you were the mayor for a day what's one thing you'd change about your city?",a:"I'd make public spaces more vibrant and accessible for everyone."},{q:"What's something you've been curious about recently?",a:"I've been trying to understand how AI can actually make everyday life better."}],
-        cityWants:["Run half marathon","Learn guitar","Go for trekking","Watch stand-up comedy","Try new restaurants"],
-        sharedThings:["Try new restaurants","Attend a live music gig"],
-        songs:[{title:"The Night We Met",artist:"Lord Huron"},{title:"Yellow",artist:"Coldplay"},{title:"Choo Lo",artist:"The Local Train"}],
-        recs:[{title:"Interstellar",type:"Movie"},{title:"Breaking Bad",type:"Series"},{title:"Cosmos",type:"Documentary"}],
-        foodRecs:[{name:"Prithvi Café, Juhu",desc:"Best chai and a literary crowd",img:"https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=200&q=80"},{name:"Bademiya, Colaba",desc:"Late night seekh kebabs — unmissable",img:"https://images.unsplash.com/photo-1567364819-71b9a6f29795?w=200&q=80"},{name:"Haji Ali Juice, Haji Ali",desc:"Fresh juices with a legendary view",img:"https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=200&q=80"}],
-        cityRecs:[{name:"Bandstand Promenade",desc:"Best evening walk in Bandra",img:"https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=200&q=80"},{name:"Colaba Causeway",desc:"Shopping and heritage in one stretch",img:"https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=200&q=80"},{name:"Versova Beach at dawn",desc:"Empty, calm, and absolutely beautiful",img:"https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=200&q=80"}],
-      },
+      { id: 1, ini: "A", name: "Ananya", age: 26, city: "Mumbai", color: "#e8f0e8", tc: "#2d6a2d", photos: ["https://images.unsplash.com/photo-1494790108755-2616b612b786?w=400&q=80", "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&q=80", "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&q=80"], interests: ["Live Music", "Food & Dining", "Travel", "Books", "Photography"], sharedInterests: ["Live Music", "Food & Dining", "Photography"], prompts: [{ q: "What recent incident changed your perspective?", a: "Losing my wallet while traveling alone taught me to be more adaptable and trust that things usually work out." }, { q: "One thing I've been wanting to do in Mumbai but haven't gotten around to is...", a: "Join a proper book club — the kind that meets in a cafe and argues about endings." }], cityWants: ["Attend a live music gig", "Try new restaurants", "Join a book club", "Explore street art", "Go to a food festival"], foodRecs: [{ name: "The Bombay Canteen, Lower Parel", desc: "Modern Indian cuisine with a twist" }, { name: "Prithvi Cafe, Juhu", desc: "Literary crowd, great chai" }], cityRecs: [{ name: "Marine Drive", desc: "Perfect sunset walks" }, { name: "Bandstand Promenade", desc: "Best evening walk in Bandra" }] },
+      { id: 2, ini: "R", name: "Rohit", age: 27, city: "Mumbai", color: "#e8eef5", tc: "#1a3a5c", photos: ["https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80", "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&q=80"], interests: ["Tech", "Fitness", "Travel", "Food & Dining", "Live Music"], sharedInterests: ["Live Music", "Food & Dining"], prompts: [{ q: "What recent incident changed your perspective?", a: "Solo backpacking in the Himalayas taught me to slow down and truly appreciate the little things." }, { q: "If I could get a group of people together to do one thing, it would be...", a: "A sunrise trek followed by the best chai you've ever had. No phones, just conversation." }], cityWants: ["Go hiking", "Attend a live music gig", "Try new restaurants", "Join a running club", "Go for a run"], foodRecs: [{ name: "Prithvi Cafe, Juhu", desc: "Best chai and a literary crowd" }, { name: "Nandan Coffee, Kala Ghoda", desc: "Incredible specialty coffee" }], cityRecs: [{ name: "Sanjay Gandhi National Park", desc: "Best morning trek in the city" }, { name: "Worli Sea Face", desc: "Peaceful evenings by the sea" }] },
+      { id: 3, ini: "K", name: "Kavya", age: 25, city: "Mumbai", color: "#f5eef8", tc: "#6b3a8c", photos: ["https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=400&q=80", "https://images.unsplash.com/photo-1548142813-c348350df52b?w=400&q=80"], interests: ["Art & Culture", "Books", "Photography", "Wellness", "Films"], sharedInterests: ["Art & Culture", "Books"], prompts: [{ q: "A place in Mumbai that makes me feel at home is...", a: "Kala Ghoda on a quiet weekday morning — coffee in hand, galleries just opening." }, { q: "Something I watched or read recently that stuck with me is...", a: "Parable of the Sower. I keep thinking about it." }], cityWants: ["Visit an art gallery", "Explore street art", "Try pottery or a craft class", "Join a book club", "Attend a film screening"], foodRecs: [{ name: "Kala Ghoda Cafe", desc: "Warmest cafe in South Mumbai" }], cityRecs: [{ name: "Kala Ghoda Art District", desc: "My favourite part of the city" }] },
+      { id: 4, ini: "S", name: "Sameer", age: 29, city: "Mumbai", color: "#eef5e8", tc: "#2d6a2d", photos: ["https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=400&q=80"], interests: ["Fitness", "Sports", "Outdoors", "Food & Dining", "Travel"], sharedInterests: ["Food & Dining", "Outdoors"], prompts: [{ q: "If I could get a group together to do one thing, it would be...", a: "A 5-a-side football game in Bandra every Sunday morning. Consistent, casual, no pressure." }], cityWants: ["Join a sports team", "Join a running club", "Go hiking", "Go for a run", "Go to a food festival"], foodRecs: [{ name: "GIGI Bombay, Bandra", desc: "Best fusion food in the city" }], cityRecs: [{ name: "Bandstand Promenade", desc: "Best morning run in Mumbai" }] },
     ],
   },
 };
 
-const CUISINES_LIST = ["All","Indian","Italian","Chinese","Japanese","Mexican","Thai","Continental","Dessert","Cafe","Middle Eastern","Korean","Mediterranean","Healthy","Street Food"];
-const THIRD_CATS = ["All","Nature","Study & Work","Community","Art & Culture","Wellness"];
-const CAT_FILTERS = ["All","Music","Art & Culture","Workshops","Sports","Festivals","Networking","Comedy","Outdoors","Food & Dining","Nightlife"];
-
-// NEW — interest & things chips for onboarding
 const INTEREST_OPTIONS = [
-  {id:"music",label:"Live Music",icon:"🎵"},{id:"art",label:"Art & Culture",icon:"🎨"},{id:"food",label:"Food & Dining",icon:"🍽️"},{id:"fitness",label:"Fitness",icon:"🏃"},{id:"comedy",label:"Comedy",icon:"😂"},{id:"books",label:"Books",icon:"📚"},{id:"travel",label:"Travel",icon:"✈️"},{id:"photography",label:"Photography",icon:"📷"},{id:"networking",label:"Networking",icon:"🤝"},{id:"sports",label:"Sports",icon:"⚽"},{id:"wellness",label:"Wellness",icon:"🧘"},{id:"tech",label:"Tech",icon:"💻"},{id:"film",label:"Films",icon:"🎬"},{id:"festivals",label:"Festivals",icon:"🎉"},{id:"workshops",label:"Workshops",icon:"✏️"},{id:"outdoors",label:"Outdoors",icon:"🌿"},
+  { id: "music", label: "Live Music", icon: "🎵" }, { id: "art", label: "Art & Culture", icon: "🎨" },
+  { id: "food", label: "Food & Dining", icon: "🍽️" }, { id: "fitness", label: "Fitness", icon: "🏃" },
+  { id: "comedy", label: "Comedy", icon: "😂" }, { id: "books", label: "Books", icon: "📚" },
+  { id: "travel", label: "Travel", icon: "✈️" }, { id: "photography", label: "Photography", icon: "📷" },
+  { id: "networking", label: "Networking", icon: "🤝" }, { id: "sports", label: "Sports", icon: "⚽" },
+  { id: "wellness", label: "Wellness", icon: "🧘" }, { id: "tech", label: "Tech", icon: "💻" },
+  { id: "film", label: "Films", icon: "🎬" }, { id: "festivals", label: "Festivals", icon: "🎉" },
+  { id: "workshops", label: "Workshops", icon: "✏️" }, { id: "outdoors", label: "Outdoors", icon: "🌿" },
 ];
+
 const THINGS_OPTIONS = [
-  "Attend a live music gig","Explore hidden bookstores","Try a new restaurant","Join a running club","Visit an art gallery","Attend a comedy show","Go hiking","Take a cooking class","Watch a play","Plan a road trip","Join a sports team","Attend a film screening","Try pottery or a craft class","Go to a food festival","Explore street art","Attend a rooftop event","Join a book club","Try open mic night",
+  "Attend a live music gig", "Explore hidden bookstores", "Try a new restaurant", "Join a running club",
+  "Visit an art gallery", "Attend a comedy show", "Go hiking", "Take a cooking class",
+  "Watch a play", "Plan a road trip", "Join a sports team", "Attend a film screening",
+  "Try pottery or a craft class", "Go to a food festival", "Explore street art",
+  "Attend a rooftop event", "Join a book club", "Try open mic night",
 ];
+
 const CUISINE_OPTIONS = [
-  {id:"Indian",label:"Indian",icon:"🍛"},{id:"Street Food",label:"Street Food",icon:"🌮"},{id:"Cafe & Coffee",label:"Café & Coffee",icon:"☕"},{id:"Bakery & Desserts",label:"Bakery & Desserts",icon:"🧁"},{id:"Seafood",label:"Seafood",icon:"🦐"},{id:"Chinese",label:"Chinese",icon:"🥢"},{id:"Japanese",label:"Japanese",icon:"🍣"},{id:"Continental & Italian",label:"Continental & Italian",icon:"🍝"},{id:"Momos & Tibetan",label:"Momos & Tibetan",icon:"🥟"},{id:"Lebanese & Middle Eastern",label:"Lebanese & Middle Eastern",icon:"🧆"},{id:"Bar & Rooftop",label:"Bar & Rooftop",icon:"🍹"},{id:"Irani & Parsi Cafe",label:"Irani & Parsi Café",icon:"🫖"},
+  { id: "Indian", label: "Indian", icon: "🍛" }, { id: "Street Food", label: "Street Food", icon: "🌮" },
+  { id: "Cafe & Coffee", label: "Café & Coffee", icon: "☕" }, { id: "Bakery & Desserts", label: "Bakery & Desserts", icon: "🧁" },
+  { id: "Seafood", label: "Seafood", icon: "🦐" }, { id: "Chinese", label: "Chinese", icon: "🥢" },
+  { id: "Japanese", label: "Japanese", icon: "🍣" }, { id: "Continental & Italian", label: "Continental & Italian", icon: "🍝" },
+  { id: "Momos & Tibetan", label: "Momos & Tibetan", icon: "🥟" }, { id: "Lebanese & Middle Eastern", label: "Lebanese & Middle Eastern", icon: "🧆" },
+  { id: "Bar & Rooftop", label: "Bar & Rooftop", icon: "🍹" }, { id: "Irani & Parsi Cafe", label: "Irani & Parsi Café", icon: "🫖" },
 ];
-// Maps each onboarding cuisine tag to substrings matched (case-insensitive) against a food place's `cuisine` field
-const CUISINE_TAG_MAP = {
-  "Indian": ["indian","punjabi","maharashtrian","parsi","gujarati","rajasthani","north indian","south indian","tandoor","thali","multi-cuisine"],
-  "Street Food": ["street food","vada pav","fast food","chaat","pav bhaji"],
-  "Cafe & Coffee": ["café","cafe","coffee","tea house"],
-  "Bakery & Desserts": ["bakery","pâtisserie","patisserie","ice cream","dessert"],
-  "Seafood": ["seafood","mangalorean","coastal","goan"],
-  "Chinese": ["chinese"],
-  "Japanese": ["japanese","sushi","ramen ","sizzler"],
-  "Continental & Italian": ["continental","italian","pizza","multi-cuisine","ethiopian"],
-  "Momos & Tibetan": ["momos","tibetan"],
-  "Lebanese & Middle Eastern": ["lebanese","middle eastern","kebab","mughlai","afghani"],
-  "Bar & Rooftop": ["rooftop","bar"],
-  "Irani & Parsi Cafe": ["irani","parsi"],
-};
+
 const BUDGET_OPTIONS = [
-  {id:"budget",label:"Budget-friendly",sub:"Mostly under ₹600 for two",icon:"🪙"},
-  {id:"mid",label:"Mid-range",sub:"₹600–1500 for two",icon:"💳"},
-  {id:"premium",label:"Premium",sub:"₹1500+ for two",icon:"💎"},
-  {id:"flexible",label:"Flexible",sub:"Depends on the day",icon:"🎲"},
+  { id: "budget", label: "Budget-friendly", sub: "Mostly under ₹600 for two", icon: "🪙" },
+  { id: "mid", label: "Mid-range", sub: "₹600–1500 for two", icon: "💳" },
+  { id: "premium", label: "Premium", sub: "₹1500+ for two", icon: "💎" },
+  { id: "flexible", label: "Flexible", sub: "Depends on the day", icon: "🎲" },
 ];
-// Estimates a 1–3 price level from a place's free-text price string (e.g. "₹800-1300 for two")
+
+const CUISINE_TAG_MAP = {
+  "Indian": ["indian", "punjabi", "maharashtrian", "parsi", "gujarati", "south indian", "thali", "multi-cuisine"],
+  "Street Food": ["street food", "vada pav", "fast food", "chaat"],
+  "Cafe & Coffee": ["café", "cafe", "coffee", "tea house", "healthy cafe"],
+  "Bakery & Desserts": ["bakery", "dessert", "ice cream"],
+  "Seafood": ["seafood", "mangalorean", "coastal"],
+  "Chinese": ["chinese"],
+  "Japanese": ["japanese", "sushi", "ramen"],
+  "Continental & Italian": ["continental", "italian", "pizza"],
+  "Momos & Tibetan": ["momos", "tibetan", "dimsum"],
+  "Lebanese & Middle Eastern": ["lebanese", "middle eastern", "kebab"],
+  "Bar & Rooftop": ["rooftop", "bar", "gastropub", "resto bar"],
+  "Irani & Parsi Cafe": ["irani", "parsi"],
+};
+
+const CONVERSATION_PROMPTS = [
+  "If I could get a group of people together to do one thing, it would be...",
+  "A place in Mumbai, or something I love doing here, that makes me feel at home is...",
+  "Lately, I've found myself really curious about...",
+  "One thing I've been wanting to do in Mumbai but still haven't gotten around to is...",
+  "One of my favorite things to do in Mumbai that doesn't cost a thing is...",
+  "Something I watched, read, or listened to recently that has stuck with me is...",
+  "A topic I could spend hours hearing different opinions on is...",
+  "When I need to slow down and reset, I usually...",
+];
+
 function priceLevelFromString(priceStr) {
   if (!priceStr) return 2;
   const nums = (priceStr.match(/\d+/g) || []).map(Number);
-  if (nums.length === 0) return 2;
-  const avg = nums.reduce((a,b)=>a+b,0) / nums.length;
-  if (avg < 600) return 1;
-  if (avg < 1500) return 2;
-  return 3;
+  if (!nums.length) return 2;
+  const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
+  return avg < 600 ? 1 : avg < 1500 ? 2 : 3;
 }
-const BUDGET_TO_LEVEL = { budget:1, mid:2, premium:3, flexible:null };
+const BUDGET_TO_LEVEL = { budget: 1, mid: 2, premium: 3, flexible: null };
 
+function scoreFoodPlace(place, userCuisines, userBudget) {
+  let score = 0;
+  if (userCuisines?.length) {
+    for (let i = 0; i < userCuisines.length; i++) {
+      const subs = CUISINE_TAG_MAP[userCuisines[i]] || [];
+      if (subs.some(s => place.cuisine.toLowerCase().includes(s))) {
+        score += (userCuisines.length - i) * 10;
+        break;
+      }
+    }
+  }
+  const targetLevel = BUDGET_TO_LEVEL[userBudget];
+  if (targetLevel != null) {
+    const diff = Math.abs(priceLevelFromString(place.price) - targetLevel);
+    score += diff === 0 ? 8 : diff === 1 ? 3 : 0;
+  }
+  score += place.rating;
+  return score;
+}
 
-// ─── ONBOARDING ── NEW: tap chips, no typing ──────────────────────────────────
+// ─── ONBOARDING ───────────────────────────────────────────────────────────────
 function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initialName }) {
   const skipBasics = !!(initialCity && initialName);
-  const [step, setStep] = useState(skipBasics ? 3 : 1); // skip straight to interests if signup already collected city+name
+  const [step, setStep] = useState(skipBasics ? 3 : 1);
   const [city, setCity] = useState(initialCity || "");
-  const [name, setName] = useState(initialName || ""); const [age, setAge] = useState(""); const [email, setEmail] = useState(""); const [phone, setPhone] = useState("");
+  const [name, setName] = useState(initialName || "");
+  const [age, setAge] = useState("");
   const [selInterests, setSelInterests] = useState([]);
   const [selThings, setSelThings] = useState([]);
-  const [selCuisines, setSelCuisines] = useState([]); // order = priority, first tapped = top preference
+  const [selCuisines, setSelCuisines] = useState([]);
   const [budget, setBudget] = useState("");
-  const togI = id => setSelInterests(p => p.includes(id) ? p.filter(x=>x!==id) : [...p, id]);
-  const togT = t  => setSelThings(p  => p.includes(t)  ? p.filter(x=>x!==t)  : [...p, t]);
-  const togC = id => setSelCuisines(p => p.includes(id) ? p.filter(x=>x!==id) : [...p, id]);
+
+  const togI = id => setSelInterests(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+  const togT = t => setSelThings(p => p.includes(t) ? p.filter(x => x !== t) : [...p, t]);
+  const togC = id => setSelCuisines(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
   const moveCuisine = (id, dir) => setSelCuisines(p => {
-    const idx = p.indexOf(id); const newIdx = idx + dir;
-    if (newIdx < 0 || newIdx >= p.length) return p;
-    const next = [...p]; [next[idx], next[newIdx]] = [next[newIdx], next[idx]]; return next;
+    const idx = p.indexOf(id); const ni = idx + dir;
+    if (ni < 0 || ni >= p.length) return p;
+    const n = [...p]; [n[idx], n[ni]] = [n[ni], n[idx]]; return n;
   });
 
-  // Step 0 — Landing
   if (step === 0) return (
     <div className="ob-root">
       <div className="ob-hero">
-        <div className="ob-hero-img" style={{backgroundImage:`url(https://images.unsplash.com/photo-1529543544282-ea669407fca3?w=800&q=80)`}}/>
-        <div className="ob-hero-overlay"/>
-        <div className="ob-hero-content"><div className="ob-logo-hero"><NearMetLogo size={52} dark/></div><p className="ob-hero-tagline">Explore your city.<br/>Find genuine connections.</p></div>
+        <div className="ob-hero-img" style={{ backgroundImage: `url(https://images.unsplash.com/photo-1529543544282-ea669407fca3?w=800&q=80)` }} />
+        <div className="ob-hero-overlay" />
+        <div className="ob-hero-content"><div className="ob-logo-hero"><NearMetLogo size={52} dark /></div><p className="ob-hero-tagline">Explore your city.<br />Find genuine connections.</p></div>
         <div className="ob-hero-bottom">
-          <button className="ob-cta-primary" onClick={()=>setStep(1)}>Create an account</button>
-          <button className="ob-cta-secondary" onClick={()=>onShowSignIn()}>I have an account</button>
-          <p className="ob-legal">By signing up, you agree to our <span className="ob-link">Terms & Conditions</span> and <span className="ob-link">Privacy Policy</span>.</p>
+          <button className="ob-cta-primary" onClick={() => setStep(1)}>Create an account</button>
+          <button className="ob-cta-secondary" onClick={onShowSignIn}>I have an account</button>
+          <p className="ob-legal">By signing up, you agree to our <span className="ob-link">Terms</span> and <span className="ob-link">Privacy Policy</span>.</p>
         </div>
       </div>
     </div>
   );
 
-  // Step 1 — City (only shown if not already known from signup)
   if (step === 1) return (
     <div className="ob-step-wrap">
-      <div className="ob-step-progress"><div className="ob-progress-bar" style={{width:"15%"}}/></div>
+      <div className="ob-step-progress"><div className="ob-progress-bar" style={{ width: "15%" }} /></div>
       <div className="ob-step-body">
         <div className="ob-step-label">STEP 1 OF 6 — YOUR CITY</div>
         <h2 className="ob-step-title">Which city are you in?</h2>
-        <p className="ob-step-sub">NearMet is live in two cities right now. More coming soon.</p>
+        <p className="ob-step-sub">NearMet is live in two cities right now.</p>
         <div className="ob-city-list">
-          {[{id:"nyc",flag:"🗽",name:"New York City",sub:"All 5 boroughs · Live now"},{id:"mumbai",flag:"🇮🇳",name:"Mumbai",sub:"All areas · Live now"}].map(c=>(
-            <button key={c.id} className={`ob-city-item ${city===c.id?"active":""}`} onClick={()=>setCity(c.id)}>
+          {[{ id: "nyc", flag: "🗽", name: "New York City", sub: "All 5 boroughs · Live now" }, { id: "mumbai", flag: "🇮🇳", name: "Mumbai", sub: "All areas · Live now" }].map(c => (
+            <button key={c.id} className={`ob-city-item ${city === c.id ? "active" : ""}`} onClick={() => setCity(c.id)}>
               <span className="ob-city-flag">{c.flag}</span>
               <div><div className="ob-city-name">{c.name}</div><div className="ob-city-sub">{c.sub}</div></div>
-              <div className={`ob-radio ${city===c.id?"filled":""}`}/>
+              <div className={`ob-radio ${city === c.id ? "filled" : ""}`} />
             </button>
           ))}
         </div>
       </div>
-      <div className="ob-step-nav"><button className="ob-btn-ghost" onClick={()=>{ if(onBackToLanding) onBackToLanding(); else onShowSignIn(); }}>Back</button><button className="ob-btn-primary" disabled={!city} onClick={()=>setStep(2)}>Next →</button></div>
+      <div className="ob-step-nav"><button className="ob-btn-ghost" onClick={() => { if (onBackToLanding) onBackToLanding(); else onShowSignIn(); }}>Back</button><button className="ob-btn-primary" disabled={!city} onClick={() => setStep(2)}>Next →</button></div>
     </div>
   );
 
-  // Step 2 — Basic info (Name + Age) — only shown if not already known from signup
   if (step === 2) return (
     <div className="ob-step-wrap">
-      <div className="ob-step-progress"><div className="ob-progress-bar" style={{width:"30%"}}/></div>
+      <div className="ob-step-progress"><div className="ob-progress-bar" style={{ width: "30%" }} /></div>
       <div className="ob-step-body">
         <div className="ob-step-label">STEP 2 OF 6 — ABOUT YOU</div>
         <h2 className="ob-step-title">What should we call you?</h2>
-        <p className="ob-step-sub">This appears on your profile.</p>
         <div className="ob-form">
-          <div className="ob-field"><label className="ob-field-label">NAME</label><input className="ob-input" type="text" placeholder="Your name" value={name} onChange={e=>setName(e.target.value)}/></div>
-          <div className="ob-field"><label className="ob-field-label">AGE</label><input className="ob-input" type="number" placeholder="18+" value={age} onChange={e=>setAge(e.target.value)}/></div>
+          <div className="ob-field"><label className="ob-field-label">NAME</label><input className="ob-input" type="text" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} /></div>
+          <div className="ob-field"><label className="ob-field-label">AGE</label><input className="ob-input" type="number" placeholder="18+" value={age} onChange={e => setAge(e.target.value)} /></div>
         </div>
       </div>
-      <div className="ob-step-nav"><button className="ob-btn-ghost" onClick={()=>setStep(1)}>Back</button><button className="ob-btn-primary" disabled={!name.trim() || !age || parseInt(age)<18} onClick={()=>setStep(3)}>Next →</button></div>
+      <div className="ob-step-nav"><button className="ob-btn-ghost" onClick={() => setStep(1)}>Back</button><button className="ob-btn-primary" disabled={!name.trim() || !age || parseInt(age) < 18} onClick={() => setStep(3)}>Next →</button></div>
     </div>
   );
 
-  // Step 3 — Interests (tap chips) — entry point when coming from signup
   if (step === 3) return (
     <div className="ob-step-wrap">
-      <div className="ob-step-progress"><div className="ob-progress-bar" style={{width: skipBasics ? "25%" : "45%"}}/></div>
-      <div className="ob-step-body" style={{overflowY:"auto"}}>
+      <div className="ob-step-progress"><div className="ob-progress-bar" style={{ width: skipBasics ? "25%" : "45%" }} /></div>
+      <div className="ob-step-body" style={{ overflowY: "auto" }}>
         <div className="ob-step-label">{skipBasics ? "STEP 1 OF 4" : "STEP 3 OF 6"} — YOUR INTERESTS</div>
         <h2 className="ob-step-title">What are you into?</h2>
-        <p className="ob-step-sub">Tap to select. This builds your feed and helps us find your people.</p>
+        <p className="ob-step-sub">This builds your feed and helps us find your people.</p>
         <div className="ob-chips-grid">
-          {INTEREST_OPTIONS.map(i=>(
-            <button key={i.id} className={`ob-chip ${selInterests.includes(i.id)?"active":""}`} onClick={()=>togI(i.id)}>
-              <span className="ob-chip-icon">{i.icon}</span>
-              <span className="ob-chip-label">{i.label}</span>
+          {INTEREST_OPTIONS.map(i => (
+            <button key={i.id} className={`ob-chip ${selInterests.includes(i.id) ? "active" : ""}`} onClick={() => togI(i.id)}>
+              <span className="ob-chip-icon">{i.icon}</span><span className="ob-chip-label">{i.label}</span>
               {selInterests.includes(i.id) && <span className="ob-chip-check">✓</span>}
             </button>
           ))}
         </div>
       </div>
-      <div className="ob-step-nav"><button className="ob-btn-ghost" onClick={()=>{ if(skipBasics){ if(onBackToLanding) onBackToLanding(); else onShowSignIn(); } else setStep(2); }}>Back</button><button className="ob-btn-primary" disabled={selInterests.length===0} onClick={()=>setStep(4)}>Next →</button></div>
+      <div className="ob-step-nav"><button className="ob-btn-ghost" onClick={() => { if (skipBasics) { if (onBackToLanding) onBackToLanding(); else onShowSignIn(); } else setStep(2); }}>Back</button><button className="ob-btn-primary" disabled={selInterests.length === 0} onClick={() => setStep(4)}>Next →</button></div>
     </div>
   );
 
-  // Step 4 — Things to do (tap chips)
   if (step === 4) return (
     <div className="ob-step-wrap">
-      <div className="ob-step-progress"><div className="ob-progress-bar" style={{width: skipBasics ? "50%" : "67%"}}/></div>
-      <div className="ob-step-body" style={{overflowY:"auto"}}>
+      <div className="ob-step-progress"><div className="ob-progress-bar" style={{ width: skipBasics ? "50%" : "67%" }} /></div>
+      <div className="ob-step-body" style={{ overflowY: "auto" }}>
         <div className="ob-step-label">{skipBasics ? "STEP 2 OF 4" : "STEP 4 OF 6"} — THINGS TO DO</div>
         <h2 className="ob-step-title">What do you want to do?</h2>
-        <p className="ob-step-sub">Tap everything that excites you. This is how we match you with the right people.</p>
+        <p className="ob-step-sub">This is how we match you with the right people in By Activity.</p>
         <div className="ob-things-grid">
-          {THINGS_OPTIONS.map(t=>(
-            <button key={t} className={`ob-thing-chip ${selThings.includes(t)?"active":""}`} onClick={()=>togT(t)}>
+          {THINGS_OPTIONS.map(t => (
+            <button key={t} className={`ob-thing-chip ${selThings.includes(t) ? "active" : ""}`} onClick={() => togT(t)}>
               {t}{selThings.includes(t) && <span className="ob-chip-check">✓</span>}
             </button>
           ))}
         </div>
       </div>
-      <div className="ob-step-nav"><button className="ob-btn-ghost" onClick={()=>setStep(3)}>Back</button><button className="ob-btn-primary" disabled={selThings.length===0} onClick={()=>setStep(5)}>Next →</button></div>
+      <div className="ob-step-nav"><button className="ob-btn-ghost" onClick={() => setStep(3)}>Back</button><button className="ob-btn-primary" disabled={selThings.length === 0} onClick={() => setStep(5)}>Next →</button></div>
     </div>
   );
 
-  // Step 5 — Cuisines (ranked priority list: tap to add, reorder with arrows; first = top preference)
   if (step === 5) return (
     <div className="ob-step-wrap">
-      <div className="ob-step-progress"><div className="ob-progress-bar" style={{width: skipBasics ? "75%" : "83%"}}/></div>
-      <div className="ob-step-body" style={{overflowY:"auto"}}>
+      <div className="ob-step-progress"><div className="ob-progress-bar" style={{ width: skipBasics ? "75%" : "83%" }} /></div>
+      <div className="ob-step-body" style={{ overflowY: "auto" }}>
         <div className="ob-step-label">{skipBasics ? "STEP 3 OF 4" : "STEP 5 OF 6"} — FOOD PREFERENCES</div>
         <h2 className="ob-step-title">What do you love to eat?</h2>
-        <p className="ob-step-sub">Tap to add a cuisine, then reorder so your favorite is on top. We'll use this to recommend places you'll actually like.</p>
+        <p className="ob-step-sub">Tap to add. We'll use this to recommend food places you'll actually like.</p>
         <div className="ob-chips-grid">
-          {CUISINE_OPTIONS.filter(c=>!selCuisines.includes(c.id)).map(c=>(
-            <button key={c.id} className="ob-chip" onClick={()=>togC(c.id)}>
-              <span className="ob-chip-icon">{c.icon}</span>
-              <span className="ob-chip-label">{c.label}</span>
+          {CUISINE_OPTIONS.filter(c => !selCuisines.includes(c.id)).map(c => (
+            <button key={c.id} className="ob-chip" onClick={() => togC(c.id)}>
+              <span className="ob-chip-icon">{c.icon}</span><span className="ob-chip-label">{c.label}</span>
             </button>
           ))}
         </div>
-        {selCuisines.length>0 && (
+        {selCuisines.length > 0 && (
           <div className="ob-ranked-list">
             <div className="ob-ranked-label">Your ranking (top = most preferred)</div>
-            {selCuisines.map((id,i)=>{ const c=CUISINE_OPTIONS.find(o=>o.id===id); return (
+            {selCuisines.map((id, i) => { const c = CUISINE_OPTIONS.find(o => o.id === id); return (
               <div key={id} className="ob-ranked-row">
-                <span className="ob-ranked-num">{i+1}</span>
-                <span className="ob-ranked-icon">{c?.icon}</span>
+                <span className="ob-ranked-num">{i + 1}</span><span className="ob-ranked-icon">{c?.icon}</span>
                 <span className="ob-ranked-label-text">{c?.label}</span>
                 <div className="ob-ranked-actions">
-                  <button className="ob-ranked-btn" disabled={i===0} onClick={()=>moveCuisine(id,-1)}>↑</button>
-                  <button className="ob-ranked-btn" disabled={i===selCuisines.length-1} onClick={()=>moveCuisine(id,1)}>↓</button>
-                  <button className="ob-ranked-btn ob-ranked-remove" onClick={()=>togC(id)}>×</button>
+                  <button className="ob-ranked-btn" disabled={i === 0} onClick={() => moveCuisine(id, -1)}>↑</button>
+                  <button className="ob-ranked-btn" disabled={i === selCuisines.length - 1} onClick={() => moveCuisine(id, 1)}>↓</button>
+                  <button className="ob-ranked-btn ob-ranked-remove" onClick={() => togC(id)}>×</button>
                 </div>
               </div>
-            );})}
+            ); })}
           </div>
         )}
       </div>
-      <div className="ob-step-nav"><button className="ob-btn-ghost" onClick={()=>setStep(4)}>Back</button><button className="ob-btn-primary" disabled={selCuisines.length===0} onClick={()=>setStep(6)}>Next →</button></div>
+      <div className="ob-step-nav"><button className="ob-btn-ghost" onClick={() => setStep(4)}>Back</button><button className="ob-btn-primary" disabled={selCuisines.length === 0} onClick={() => setStep(6)}>Next →</button></div>
     </div>
   );
 
-  // Step 6 — Budget
   if (step === 6) return (
     <div className="ob-step-wrap">
-      <div className="ob-step-progress"><div className="ob-progress-bar" style={{width: skipBasics ? "90%" : "95%"}}/></div>
-      <div className="ob-step-body" style={{overflowY:"auto"}}>
+      <div className="ob-step-progress"><div className="ob-progress-bar" style={{ width: "95%" }} /></div>
+      <div className="ob-step-body" style={{ overflowY: "auto" }}>
         <div className="ob-step-label">{skipBasics ? "STEP 4 OF 4" : "STEP 6 OF 6"} — YOUR BUDGET</div>
         <h2 className="ob-step-title">What's your usual budget for two?</h2>
-        <p className="ob-step-sub">This helps us surface places that fit how you like to spend.</p>
         <div className="ob-city-list">
-          {BUDGET_OPTIONS.map(b=>(
-            <button key={b.id} className={`ob-city-item ${budget===b.id?"active":""}`} onClick={()=>setBudget(b.id)}>
+          {BUDGET_OPTIONS.map(b => (
+            <button key={b.id} className={`ob-city-item ${budget === b.id ? "active" : ""}`} onClick={() => setBudget(b.id)}>
               <span className="ob-city-flag">{b.icon}</span>
               <div><div className="ob-city-name">{b.label}</div><div className="ob-city-sub">{b.sub}</div></div>
-              <div className={`ob-radio ${budget===b.id?"filled":""}`}/>
+              <div className={`ob-radio ${budget === b.id ? "filled" : ""}`} />
             </button>
           ))}
         </div>
       </div>
-      <div className="ob-step-nav"><button className="ob-btn-ghost" onClick={()=>setStep(5)}>Back</button><button className="ob-btn-primary" disabled={!budget} onClick={()=>setStep(7)}>Next →</button></div>
+      <div className="ob-step-nav"><button className="ob-btn-ghost" onClick={() => setStep(5)}>Back</button><button className="ob-btn-primary" disabled={!budget} onClick={() => setStep(7)}>Next →</button></div>
     </div>
   );
 
-  // Step 7 — Done
   return (
     <div className="ob-step-wrap">
-      <div className="ob-step-progress"><div className="ob-progress-bar" style={{width:"100%"}}/></div>
+      <div className="ob-step-progress"><div className="ob-progress-bar" style={{ width: "100%" }} /></div>
       <div className="ob-done-screen">
         <div className="ob-done-check">✓</div>
         <h2 className="ob-done-title">You're in, {name}.</h2>
-        <p className="ob-done-sub">Your feed is ready. Explore events happening in {city==="nyc"?"New York":"Mumbai"} and find people who share your world.</p>
+        <p className="ob-done-sub">Your feed is ready. Find people who want to do the same things as you in {city === "nyc" ? "New York" : "Mumbai"}.</p>
         <div className="ob-done-interests">
-          {selInterests.slice(0,6).map(id=>{ const i=INTEREST_OPTIONS.find(o=>o.id===id); return <span key={id} className="ob-done-chip">{i?.icon} {i?.label}</span>; })}
+          {selInterests.slice(0, 6).map(id => { const i = INTEREST_OPTIONS.find(o => o.id === id); return <span key={id} className="ob-done-chip">{i?.icon} {i?.label}</span>; })}
         </div>
-        <button className="ob-btn-primary ob-btn-full" style={{marginTop:32}} onClick={()=>onDone({city,name,interests:selInterests,things:selThings,cuisines:selCuisines,budget})}>Go to my feed →</button>
+        <button className="ob-btn-primary ob-btn-full" style={{ marginTop: 32 }} onClick={() => onDone({ city, name, interests: selInterests, things: selThings, cuisines: selCuisines, budget })}>Go to my feed →</button>
       </div>
     </div>
   );
 }
 
-// ─── FOOD DETAIL ──────────────────────────────────────────────────────────────
-function FoodDetail({ restaurant, onBack, userId, userName, isSaved, onToggleSave }) {
-  const [shareFeedback, setShareFeedback] = useState("");
-  const [experiences, setExperiences] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
-  const [formOpen, setFormOpen] = useState(false);
-  const [note, setNote] = useState("");
-  const [favoriteItem, setFavoriteItem] = useState("");
-  const [photoFile, setPhotoFile] = useState(null);
-  const [photoPreview, setPhotoPreview] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState("");
-
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    setLoadError("");
-    getFoodExperiences(restaurant.name)
-      .then(data => { if (active) setExperiences(data || []); })
-      .catch(e => { console.error("Failed to load experiences:", e); if (active) setLoadError("Couldn't load community experiences right now."); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [restaurant.name]);
-
-  const handlePhotoPick = (file) => {
-    setPhotoFile(file);
-    setPhotoPreview(file ? URL.createObjectURL(file) : null);
+// ─── PROFILE SLIDESHOW ────────────────────────────────────────────────────────
+function ProfileSlideshow({ photos, name, onBack }) {
+  const [idx, setIdx] = useState(0);
+  const touchStart = useRef(null);
+  const prev = () => setIdx(i => Math.max(0, i - 1));
+  const next = () => setIdx(i => Math.min((photos.length || 1) - 1, i + 1));
+  const onTouchStart = e => { touchStart.current = e.touches[0].clientX; };
+  const onTouchEnd = e => {
+    if (!touchStart.current) return;
+    const diff = touchStart.current - e.changedTouches[0].clientX;
+    if (diff > 50) next(); else if (diff < -50) prev();
+    touchStart.current = null;
   };
+  if (!photos.length) return (
+    <div className="pv-hero-wrap">
+      <div className="pv-hero-placeholder">{(name || "?").slice(0, 2).toUpperCase()}</div>
+      {onBack && <button className="pv-back-btn" onClick={onBack}>←</button>}
+    </div>
+  );
+  return (
+    <div className="pv-hero-wrap" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      <img src={photos[idx]} alt={name} className="pv-hero-img" />
+      {onBack && <button className="pv-back-btn" onClick={onBack}>←</button>}
+      {photos.length > 1 && (
+        <>
+          {idx > 0 && <button className="pv-slide-btn pv-slide-prev" onClick={prev}>‹</button>}
+          {idx < photos.length - 1 && <button className="pv-slide-btn pv-slide-next" onClick={next}>›</button>}
+          <div className="pv-dots">{photos.map((_, i) => <div key={i} className={`pv-dot ${i === idx ? "active" : ""}`} />)}</div>
+        </>
+      )}
+    </div>
+  );
+}
 
-  const handleShare = async () => {
-    const shareText = `${restaurant.name} — ${restaurant.cuisine} in ${restaurant.hood}`;
-    const shareUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurant.address || restaurant.name + " " + restaurant.hood)}`;
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: restaurant.name, text: shareText, url: shareUrl });
-      } else {
-        await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
-        setShareFeedback("Link copied!");
-        setTimeout(()=>setShareFeedback(""), 2000);
-      }
-    } catch (e) {
-      if (e.name !== "AbortError") console.error("Share failed:", e); // AbortError = user cancelled the share sheet, not an error
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (!userId) { setSubmitError("Sign in to share your experience."); return; }
-    if (!photoFile && !note.trim() && !favoriteItem.trim()) { setSubmitError("Add a photo, a note, or a favorite item before sharing."); return; }
-    setSubmitting(true);
-    setSubmitError("");
-    try {
-      let photoUrl = null;
-      if (photoFile) photoUrl = await uploadFoodExperiencePhoto(userId, photoFile);
-      const saved = await shareFoodExperience(userId, userName || "Someone", restaurant.name, { photoUrl, note: note.trim(), favoriteItem: favoriteItem.trim() });
-      setExperiences(prev => [saved, ...prev]);
-      setNote(""); setFavoriteItem(""); setPhotoFile(null); setPhotoPreview(null); setFormOpen(false);
-    } catch (e) {
-      console.error("Failed to share experience:", e);
-      setSubmitError("Couldn't share that — please try again.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    const prev = experiences;
-    setExperiences(experiences.filter(e => e.id !== id));
-    try { await deleteFoodExperience(id); } catch (e) { console.error("Delete failed:", e); setExperiences(prev); }
-  };
+// ─── FULL PROFILE VIEW (shared between For You + By Activity) ─────────────────
+function FullProfileView({ person, city, onBack, onMessage, connecting }) {
+  const cd = CITIES[city];
+  const allPhotos = (person.photo_urls || person.photos || []).filter(Boolean);
+  const theirPrompts = person.prompts
+    ? Array.isArray(person.prompts)
+      ? person.prompts.filter(p => p.a)
+      : Object.entries(person.prompts).filter(([, ans]) => ans?.trim()).map(([q, a]) => ({ q, a }))
+    : [];
+  const things = person.city_wants || person.cityWants || person.things || [];
+  const interests = person.interests || [];
+  const foodRecs = person.food_recs || person.foodRecs || [];
+  const cityRecs = person.city_recs || person.cityRecs || [];
 
   return (
-    <div className="detail-root">
-      <div className="detail-header">
-        <button className="detail-back" onClick={onBack}>←</button>
-        <div className="detail-header-title"><div>Spot details</div><div className="detail-header-sub">Click on a spot to view details</div></div>
-        <div className="detail-header-actions"><button className="detail-action-btn" onClick={()=>onToggleSave(restaurant.name)}>{isSaved ? "🔖" : "📑"}</button><button className="detail-action-btn" onClick={handleShare}>↗</button></div>
-      </div>
-      <div className="detail-hero-img-wrap">{restaurant.img ? <img src={restaurant.img} alt={restaurant.name} className="detail-hero-img"/> : <div className="detail-hero-img detail-hero-img-placeholder">📍</div>}</div>
-      <div className="detail-body">
-        <div className="detail-name-row">
+    <div className="pv-fullscreen">
+      <ProfileSlideshow photos={allPhotos} name={person.name} onBack={onBack} />
+
+      <div className="pv-content">
+        <div className="pv-name-row">
           <div>
-            <div className="detail-name">{restaurant.name}</div>
-            {restaurant.hood && <div className="detail-place-area">📍 {restaurant.hood}, Mumbai</div>}
+            <div className="pv-name">{person.name}{person.age ? `, ${person.age}` : ""}</div>
+            <div className="pv-city">📍 {cd.label}</div>
           </div>
-          
-        </div>
-        <div className="detail-meta">{restaurant.cuisine}</div>
-        <p className="detail-about">{restaurant.desc}</p>
-        {shareFeedback && <div className="share-feedback">✓ {shareFeedback}</div>}
-
-        {/* Action buttons */}
-        <div className="detail-actions-row">
-          {restaurant.phone && <a className="detail-act-item" href={`tel:${restaurant.phone}`}><span className="detail-act-icon">📞</span><span className="detail-act-label">Call</span></a>}
-          <a className="detail-act-item" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurant.address || restaurant.name + " " + restaurant.hood)}`} target="_blank" rel="noopener noreferrer"><span className="detail-act-icon">🗺️</span><span className="detail-act-label">Directions</span></a>
-          <button className="detail-act-item" onClick={handleShare}><span className="detail-act-icon">↗</span><span className="detail-act-label">Share</span></button>
-          <button className="detail-act-item" onClick={()=>onToggleSave(restaurant.name)}><span className="detail-act-icon">{isSaved ? "🔖" : "📑"}</span><span className="detail-act-label">{isSaved ? "Saved" : "Save"}</span></button>
         </div>
 
-        {/* Address + Phone card */}
-        {(restaurant.address || restaurant.phone) && (
-          <div className="detail-info-card">
-            {restaurant.address && <div className="detail-info-row"><span className="detail-info-icon">📍</span><span>{restaurant.address}</span></div>}
-            {restaurant.address && restaurant.phone && <div className="detail-info-divider"/>}
-            {restaurant.phone && <div className="detail-info-row"><span className="detail-info-icon">📞</span><span>{restaurant.phone}</span></div>}
-          </div>
+        {theirPrompts.length > 0 && (
+          <>
+            <div className="pv-section-title">💬 In their words</div>
+            {theirPrompts.map((p, i) => (
+              <div key={i} className="pv-prompt-card">
+                <div className="pv-prompt-q">{p.q}</div>
+                <div className="pv-prompt-a">"{p.a}"</div>
+              </div>
+            ))}
+          </>
         )}
 
-        {/* Curated Shared Experience from dataset */}
-        {restaurant.sharedExp && (
+        {interests.length > 0 && (
           <>
-            <div className="detail-section-title" style={{marginTop:22}}>Shared Experience</div>
-            <div className="detail-shared-exp-card">
-              <div className="detail-shared-exp-user">
-                <div className="detail-shared-exp-avatar">{SHARED_EXP_NAMES[restaurant.id % SHARED_EXP_NAMES.length].slice(0,2).toUpperCase()}</div>
-                <span className="detail-shared-exp-name">{SHARED_EXP_NAMES[restaurant.id % SHARED_EXP_NAMES.length]}</span>
-              </div>
-              <p className="detail-shared-exp-text">{restaurant.sharedExp}</p>
+            <div className="pv-section-title">Interests</div>
+            <div className="pv-interest-chips">
+              {interests.map(i => { const opt = INTEREST_OPTIONS.find(o => o.id === i); return <span key={i} className="pv-interest-chip">{opt?.icon} {opt?.label || i}</span>; })}
             </div>
           </>
         )}
 
-        {/* Try These */}
-        {restaurant.tryThis && (
+        {things.length > 0 && (
           <>
-            <div className="detail-section-title" style={{marginTop:22}}>Try These</div>
-            <div className="detail-try-items">
-              {restaurant.tryThis.split(' and ').map((item, i) => (
-                <div key={i} className="detail-try-item">
-                  {restaurant.photos[i] ? (
-                    <img src={restaurant.photos[i]} alt={item.trim()} className="detail-try-img"/>
-                  ) : (
-                    <div className="detail-try-img detail-try-img-placeholder">🍽️</div>
-                  )}
-                  <div className="detail-try-label">{item.trim()}</div>
+            <div className="pv-section-title">Things I want to do</div>
+            <div className="pv-things-list">
+              {things.map(t => (
+                <div key={t} className="pv-thing-row">
+                  <span className="pv-thing-icon">{ACTIVITY_ICONS[t] || "📌"}</span>
+                  <span>{t}</span>
                 </div>
               ))}
             </div>
           </>
         )}
 
-        <div className="detail-divider" style={{marginTop:24}}/>
-
-        {/* User-submitted community experiences from Supabase */}
-        <div className="detail-photos-header">
-          <span className="detail-section-title">Community experiences</span>
-          <button className="detail-viewall" onClick={()=>setFormOpen(o=>!o)}>{formOpen ? "Cancel" : "Add yours"}</button>
-        </div>
-        <p className="detail-experiences-sub">Real moments from people who've been here.</p>
-
-        {formOpen && (
-          <div className="experience-form">
-            {submitError && <div className="profile-save-error" style={{marginTop:0}}>⚠️ {submitError}</div>}
-            <label className="experience-photo-picker">
-              {photoPreview ? <img src={photoPreview} alt="" className="experience-photo-preview"/> : <span>📷 Add a photo</span>}
-              <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>handlePhotoPick(e.target.files?.[0] || null)}/>
-            </label>
-            <input className="ob-input" style={{marginTop:10}} placeholder="Your favorite item" value={favoriteItem} onChange={e=>setFavoriteItem(e.target.value)}/>
-            <textarea className="ob-input experience-textarea" style={{marginTop:10}} placeholder="What was it like?" value={note} onChange={e=>setNote(e.target.value)} rows={3}/>
-            <button className="filter-apply" style={{marginTop:12}} disabled={submitting} onClick={handleSubmit}>{submitting ? "Sharing…" : "Share with the community"}</button>
-          </div>
+        {foodRecs.length > 0 && (
+          <>
+            <div className="pv-section-title">Food picks in {cd.label}</div>
+            {(Array.isArray(foodRecs) ? foodRecs : []).filter(r => r && (r.name || typeof r === "string")).map((r, i) => {
+              const name = typeof r === "string" ? r : r.name;
+              const desc = typeof r === "object" ? r.desc : null;
+              if (!name) return null;
+              return (
+                <div key={i} className="pv-rec-item">
+                  <div><div className="pv-rec-name">{name}</div>{desc && <div className="pv-rec-desc">{desc}</div>}</div>
+                </div>
+              );
+            })}
+          </>
         )}
 
-        {loading && <div className="food-empty-state" style={{padding:"20px 0"}}>Loading experiences…</div>}
-        {!loading && loadError && <div className="food-empty-state" style={{padding:"20px 0"}}>{loadError}</div>}
-        {!loading && !loadError && experiences.length === 0 && (
-          <div className="food-empty-state" style={{padding:"20px 0"}}>No one's shared an experience here yet — be the first.</div>
+        {cityRecs.length > 0 && (
+          <>
+            <div className="pv-section-title">City favourites</div>
+            {(Array.isArray(cityRecs) ? cityRecs : []).filter(r => r && (r.name || typeof r === "string")).map((r, i) => {
+              const name = typeof r === "string" ? r : r.name;
+              const desc = typeof r === "object" ? r.desc : null;
+              if (!name) return null;
+              return (
+                <div key={i} className="pv-rec-item">
+                  <div><div className="pv-rec-name">{name}</div>{desc && <div className="pv-rec-desc">{desc}</div>}</div>
+                </div>
+              );
+            })}
+          </>
         )}
-        {!loading && experiences.map(exp => (
-          <div key={exp.id} className="experience-card">
-            {exp.photo_url && <img src={exp.photo_url} alt="" className="experience-card-img"/>}
-            <div className="experience-card-body">
-              <div className="experience-card-row">
-                <span className="experience-card-user">{exp.user_name}</span>
-                {userId === exp.user_id && <button className="experience-delete" onClick={()=>handleDelete(exp.id)}>Remove</button>}
-              </div>
-              {exp.favorite_item && <div className="experience-card-fav">⭐ Favorite: {exp.favorite_item}</div>}
-              {exp.note && <p className="experience-card-note">{exp.note}</p>}
-            </div>
-          </div>
-        ))}
 
-        <div style={{height:90}}/>
-      </div>
-
-      {/* Sticky Share CTA at bottom */}
-      <div className="detail-share-cta" onClick={()=>setFormOpen(o=>!o)}>
-        <span className="detail-share-cta-icon">✏️</span>
-        <div><div className="detail-share-cta-title">Share your experience</div><div className="detail-share-cta-sub">Help others discover great places in the city.</div></div>
-        <span className="detail-share-cta-arrow">›</span>
+        <button className="pv-chat-btn" style={{ marginTop: 24, marginBottom: 40 }} disabled={connecting} onClick={onMessage}>
+          {connecting ? "Connecting…" : `Message ${person.name} →`}
+        </button>
       </div>
     </div>
   );
 }
 
-// ─── MAP VIEW (food map) ──────────────────────────────────────────────────────
-function MapView({ city, onBack, onSelectPlace }) {
-  const cd = CITIES[city];
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [addOpen, setAddOpen] = useState(false);
-  const [selectedCuisines, setSelectedCuisines] = useState(["All"]);
-  const [selectedAreas, setSelectedAreas] = useState(["All"]);
-  const [sortBy, setSortBy] = useState("Recommended");
-  const [addForm, setAddForm] = useState({name:"",cuisine:"",address:"",phone:"",note:""});
-  const cityAreas = ["All", ...Array.from(new Set(cd.food.map(r=>r.hood)))];
-  const toggleCuisine = c => { if(c==="All"){setSelectedCuisines(["All"]);return;} setSelectedCuisines(prev=>{const w=prev.filter(x=>x!=="All");return w.includes(c)?w.filter(x=>x!==c)||["All"]:[...w,c];}); };
-  const toggleArea = a => { if(a==="All"){setSelectedAreas(["All"]);return;} setSelectedAreas(prev=>{const w=prev.filter(x=>x!=="All");return w.includes(a)?w.filter(x=>x!==a)||["All"]:[...w,a];}); };
-  return (
-    <div className="map-root">
-      <div className="map-header"><button className="detail-back" onClick={onBack}>←</button><div><div className="map-header-title">Food near me</div><div className="map-header-sub">Recommendations for you</div></div></div>
-      <div className="map-canvas" style={{position:"relative",height:520}}>
-        <img
-          src={city==="mumbai" ? "https://images.unsplash.com/photo-1562979314-bee7453e911c?w=1400&q=80" : "https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=1400&q=80"}
-          alt="city map"
-          style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",display:"block",filter:"saturate(0.7) brightness(1.05)"}}
-        />
-        {cd.mapPlaces.map(p=>(
-          <button key={p.id} className="map-pin" style={{top:p.top,left:p.left,position:"absolute"}} onClick={()=>{const found=cd.food.find(f=>f.name===p.name);if(found) onSelectPlace(found);}}>
-            <div className="map-pin-icon">🍴</div>
-            <div className="map-pin-label"><div className="map-pin-name">{p.name}</div><div className="map-pin-rating">★ {p.rating}</div></div>
-          </button>
-        ))}
-      </div>
-      <div className="map-bottom">
-        <button className="map-filter-btn" onClick={()=>setFilterOpen(true)}>⚙ Filter</button>
-        <button className="map-add-btn" onClick={()=>setAddOpen(true)}>+ Add a place</button>
-        <div className="map-hint">ⓘ Tap on any place to view details</div>
-      </div>
-      {filterOpen&&(<div className="modal-bg" onClick={()=>setFilterOpen(false)}><div className="modal-sheet filter-sheet" onClick={e=>e.stopPropagation()}><div className="filter-header"><button className="filter-close" onClick={()=>setFilterOpen(false)}>✕</button><div className="filter-title">Filter</div><button className="filter-reset" onClick={()=>{setSelectedCuisines(["All"]);setSelectedAreas(["All"]);}}>Reset</button></div><div className="filter-section-title">Area</div><div className="filter-chips">{cityAreas.map(a=><button key={a} className={`filter-chip-item ${selectedAreas.includes(a)?"active":""}`} onClick={()=>toggleArea(a)}>{a}</button>)}</div><div className="filter-divider"/><div className="filter-section-title">Cuisines</div><div className="filter-chips">{CUISINES_LIST.map(c=><button key={c} className={`filter-chip-item ${selectedCuisines.includes(c)?"active":""}`} onClick={()=>toggleCuisine(c)}>{c}</button>)}</div><div className="filter-divider"/><div className="filter-section-title">Sort by</div>{["Recommended","Highest Rated","Nearest"].map(s=><div key={s} className="filter-radio-row" onClick={()=>setSortBy(s)}><div className={`filter-radio ${sortBy===s?"active":""}`}/><span className="filter-radio-label">{s}</span></div>)}<button className="filter-apply" onClick={()=>setFilterOpen(false)}>Apply Filters</button></div></div>)}
-      {addOpen&&(<div className="modal-bg" onClick={()=>setAddOpen(false)}><div className="modal-sheet add-sheet" onClick={e=>e.stopPropagation()}><div className="filter-header"><button className="filter-close" onClick={()=>setAddOpen(false)}>✕</button><div className="filter-title">Add a new place</div><div/></div><div className="add-photo-area"><span className="add-photo-icon">📷</span><div className="add-photo-label">Add photos<br/><span style={{fontSize:12,color:"#999"}}>(Up to 5 photos)</span></div></div>{[["Place name*","text","e.g. Your Place Name","name"],["Address*","text","e.g. Street, Area, City","address"],["Contact number","tel","e.g. 98765 43210","phone"]].map(([lbl,type,ph,key])=><div key={key} className="add-field"><label className="add-label">{lbl}</label><input className="ob-input" type={type} placeholder={ph} value={addForm[key]} onChange={e=>setAddForm({...addForm,[key]:e.target.value})}/></div>)}<div className="add-field"><label className="add-label">Cuisine*</label><select className="ob-input ob-select" value={addForm.cuisine} onChange={e=>setAddForm({...addForm,cuisine:e.target.value})}><option value="">Select cuisine</option>{CUISINES_LIST.filter(c=>c!=="All").map(c=><option key={c}>{c}</option>)}</select></div><button className="add-location-btn">📍 Use current location</button><div className="add-field"><label className="add-label">Share more about this place</label><input className="ob-input" placeholder="Share more about this place" value={addForm.note} onChange={e=>setAddForm({...addForm,note:e.target.value})}/></div><button className="filter-apply" onClick={()=>setAddOpen(false)}>Submit</button></div></div>)}
-    </div>
-  );
-}
-
-// ─── FOOD SCREEN (unchanged) ──────────────────────────────────────────────────
-// Scores a food place against the user's ranked cuisine preferences and budget.
-// Cuisine match: higher-ranked preferences score more (rank 0 = top pick = most weight).
-// Budget match: places within 1 price-level of the user's budget score well; farther away scores lower.
-function scoreFoodPlace(place, userCuisines, userBudget) {
-  let score = 0;
-  if (userCuisines && userCuisines.length > 0) {
-    for (let i = 0; i < userCuisines.length; i++) {
-      const tag = userCuisines[i];
-      const subs = CUISINE_TAG_MAP[tag] || [];
-      const isMatch = subs.some(s => place.cuisine.toLowerCase().includes(s.toLowerCase()));
-      if (isMatch) {
-        score += (userCuisines.length - i) * 10; // top pick worths most, decays by rank
-        break; // count each place once for its best-matching cuisine rank
-      }
-    }
-  }
-  const targetLevel = BUDGET_TO_LEVEL[userBudget];
-  if (targetLevel != null) {
-    const placeLevel = priceLevelFromString(place.price);
-    const diff = Math.abs(placeLevel - targetLevel);
-    score += diff === 0 ? 8 : diff === 1 ? 3 : 0;
-  }
-  score += place.rating; // slight tie-break toward better-rated places
-  return score;
-}
-
-// Scores how good a match two people are, highest weight first:
-// 1) shared saved food places (highest — proxy for "shared recommendations" until
-//    events/third-place saving exist, at which point those should be added here too)
-// 2) shared things-to-do
-// 3) shared interests (lowest)
-// Prompt-theme overlap is intentionally NOT included yet — no real user has
-// ever been able to answer a prompt anywhere in the app, so there's nothing to match on.
-function scoreConnection(me, other) {
-  const sharedFood = (me.saved_food_places || []).filter(f => (other.saved_food_places || []).includes(f));
-  const sharedThings = (me.things || []).filter(t => (other.things || []).includes(t));
-  const sharedInterests = (me.interests || []).filter(i => (other.interests || []).includes(i));
-  const score = sharedFood.length * 30 + sharedThings.length * 12 + sharedInterests.length * 5;
-  return { score, sharedFood, sharedThings, sharedInterests };
-}
-
-// Maps "Explore food around you" category cards to substrings matched against a place's cuisine field
-const FOOD_CATEGORY_TAG_MAP = {
-  Cafés: ["café","cafe","coffee","tea house"],
-  "Street Food": ["street food","vada pav","fast food","chaat","pav bhaji"],
-  Bakeries: ["bakery","pâtisserie","patisserie"],
-  Desserts: ["ice cream","dessert","mithai"],
-  // "Restaurants" has no map — it's the catch-all for anything not matched above
-};
-const FOOD_CATEGORY_ICONS = {
-  Cafés: "☕", Restaurants: "🍽️", "Street Food": "🛒", Bakeries: "🧁", Desserts: "🍰", More: "⊞",
-};
-function matchesFoodCategory(place, category) {
-  const subs = FOOD_CATEGORY_TAG_MAP[category];
-  if (!subs) return !Object.values(FOOD_CATEGORY_TAG_MAP).flat().some(s => place.cuisine.toLowerCase().includes(s)); // Restaurants = catch-all
-  return subs.some(s => place.cuisine.toLowerCase().includes(s));
-}
-
-// Maps "Explore cuisines" circles to substrings matched against a place's cuisine field
-const CIRCLE_TAG_MAP = {
-  Indian: ["indian","punjabi","maharashtrian","parsi","gujarati","rajasthani","north indian","south indian","tandoor","thali","seafood","mangalorean","goan","manipuri","street food","mithai"],
-  Italian: ["italian","pizza","continental"],
-  Chinese: ["chinese"],
-  Mexican: ["mexican"],
-  Japanese: ["japanese","sushi","sizzler"],
-};
-function matchesCircle(place, circle) {
-  const subs = CIRCLE_TAG_MAP[circle] || [];
-  return subs.some(s => place.cuisine.toLowerCase().includes(s));
-}
-
-function FoodScreen({ city, onOpenDetail, userCuisines, userBudget, userId, userName }) {
-  const [likes, setLikes] = useState({});
-  const [activeArea, setActiveArea] = useState("All");
-  const [activeCategory, setActiveCategory] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [communityPlaces, setCommunityPlaces] = useState([]);
-  const [communityLoading, setCommunityLoading] = useState(true);
-  const [submitOpen, setSubmitOpen] = useState(false);
-  const cd = CITIES[city];
-
-  useEffect(() => {
-    let active = true;
-    getCommunityPlaces(city)
-      .then(data => { if (active) setCommunityPlaces(data || []); })
-      .catch(e => console.error("Failed to load community places:", e))
-      .finally(() => { if (active) setCommunityLoading(false); });
-    return () => { active = false; };
-  }, [city]);
-
-  const normalizedCommunity = communityPlaces.map(p => ({
-    id: `community-${p.id}`, name: p.name, cuisine: p.cuisine || "Community pick",
-    hood: p.area, desc: p.description || `Added by ${p.submitter_name}.`,
-    img: p.photo_url || null, rating: null, phone: null, address: null, price: null,
-    isCommunity: true, submitterName: p.submitter_name, sharedExp: p.description, tryThis: null,
-  }));
-
-  const cityAreas = ["All", ...Array.from(new Set(cd.food.map(r => r.hood)))];
-
-  const matchesSearch = (p) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.trim().toLowerCase();
-    return (p.name||"").toLowerCase().includes(q) || (p.cuisine||"").toLowerCase().includes(q) || (p.hood||"").toLowerCase().includes(q);
-  };
-  const matchesArea = (p) => activeArea === "All" || p.hood === activeArea;
-
-  const filtered = cd.food.filter(r => matchesArea(r) && matchesSearch(r) && (!activeCategory || matchesFoodCategory(r, activeCategory)));
-  const hasPrefs = userCuisines && userCuisines.length > 0;
-  const sorted = hasPrefs
-    ? [...filtered].sort((a,b) => scoreFoodPlace(b,userCuisines,userBudget) - scoreFoodPlace(a,userCuisines,userBudget))
-    : filtered;
-
-  const recommended = sorted.slice(0, 10);
-  const exploreList = sorted.slice(10);
-  const allExplore = [...exploreList, ...normalizedCommunity.filter(r => matchesArea(r) && matchesSearch(r))];
-
-  return (
-    <div className="screen-body" style={{paddingBottom:80}}>
-
-      {/* Row 1: area dropdown + search bar */}
-      <div className="food-top-row" data-tour="food-search">
-        <div className="food-area-dropdown-wrap">
-          <select className="food-area-dropdown" value={activeArea} onChange={e=>setActiveArea(e.target.value)}>
-            {cityAreas.map(a => <option key={a} value={a}>{a === "All" ? "All areas" : a}</option>)}
-          </select>
-        </div>
-        <div className="food-search-inner">
-          <span className="food-search-icon">🔍</span>
-          <input className="food-search-input" placeholder="Search food places" value={searchQuery} onChange={e=>setSearchQuery(e.target.value)}/>
-          {searchQuery && <button className="food-search-clear" onClick={()=>setSearchQuery("")}>×</button>}
-        </div>
-      </div>
-
-      {/* Hero banner */}
-      <div className="food-hero-banner">
-        <div className="food-hero-title">Discover the city's best places</div>
-        <div className="food-hero-sub">Community driven shared experiences</div>
-      </div>
-
-      {/* Category cards */}
-      <div className="food-cat-section" data-tour="food-categories">
-        <div className="food-cat-row">
-          {["Cafés","Restaurants","Street Food","Bakeries","Desserts","More"].map(cat => (
-            <button key={cat} className={`food-cat-card ${activeCategory===cat?"active":""}`}
-              onClick={()=> cat==="More" ? null : setActiveCategory(activeCategory===cat ? null : cat)}>
-              <span className="food-cat-icon">{FOOD_CATEGORY_ICONS[cat]}</span>
-              <span className="food-cat-label">{cat}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Recommendations — top 10, horizontally scrollable */}
-      <div className="section-hdr" data-tour="food-recommended" style={{marginTop:4}}>
-        <div className="sec-title">Recommendations for you</div>
-      </div>
-      <div className="food-hscroll">
-        {recommended.length === 0 && <div className="food-empty-state">No matches{searchQuery ? ` for "${searchQuery}"` : ""}{activeArea!=="All" ? ` in ${activeArea}` : ""}.</div>}
-        {recommended.map((r, idx) => (
-          <div key={r.id} className="food-card" data-tour={idx===0?"food-first-card":undefined} onClick={()=>onOpenDetail(r)}>
-            <div className="food-card-img-wrap">
-              {r.img ? <img src={r.img} alt={r.name} className="food-card-img"/> : <div className="food-card-img food-card-img-placeholder">🍽️</div>}
-              <button className="heart-btn" onClick={e=>{e.stopPropagation();setLikes(p=>({...p,[r.id]:!p[r.id]}))}}>{likes[r.id]?"❤️":"🤍"}</button>
-            </div>
-            <div className="food-card-body">
-              <div className="food-name">{r.name}</div>
-              <div className="food-card-hood">📍 {r.hood}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Explore Experiences — vertical list matching reference */}
-      {allExplore.length > 0 && (
-        <>
-          <div className="sec-title" style={{marginTop:28,marginBottom:14}} data-tour="food-community">Explore Experiences</div>
-          {allExplore.map(r => (
-            <div key={r.id} className="exp-list-row" onClick={()=>onOpenDetail(r)}>
-              <div className="exp-list-img-wrap">
-                {r.img ? <img src={r.img} alt={r.name} className="exp-list-img"/> : <div className="exp-list-img exp-list-img-placeholder">🍽️</div>}
-              </div>
-              <div className="exp-list-body">
-                <div className="exp-list-top">
-                  <span className="exp-list-name">{r.name}</span>
-                  <span className="exp-list-cuisine">{r.cuisine}</span>
-                </div>
-                <div className="exp-list-area">📍 {r.hood}</div>
-                {r.sharedExp && <p className="exp-list-exp">{r.sharedExp.length > 90 ? r.sharedExp.slice(0,90)+"…" : r.sharedExp}</p>}
-                {r.tryThis && <div className="exp-list-try"><span className="exp-list-try-label">Try:</span> {r.tryThis.split(" and ").slice(0,2).join(" and ")}</div>}
-              </div>
-            </div>
-          ))}
-        </>
-      )}
-
-      {/* Sticky Share CTA */}
-      <div className="food-share-sticky" onClick={()=>setSubmitOpen(o=>!o)}>
-        <span className="food-share-sticky-icon">✏️</span>
-        <div>
-          <div className="food-share-sticky-title">Share Your Experience</div>
-          <div className="food-share-sticky-sub">Help others discover great places in the city.</div>
-        </div>
-        <span className="food-share-sticky-plus">{submitOpen ? "×" : "+"}</span>
-      </div>
-
-      {/* Bottom sheet */}
-      {submitOpen && (
-        <ShareBottomSheet
-          city={city}
-          userId={userId}
-          userName={userName}
-          onClose={()=>setSubmitOpen(false)}
-          onSubmitted={place => { setCommunityPlaces(prev => [place, ...prev]); setSubmitOpen(false); }}
-          onExperienceShared={()=>setSubmitOpen(false)}
-        />
-      )}
-    </div>
-  );
-}
-
-function ShareBottomSheet({ city, userId, userName, onClose, onSubmitted, onExperienceShared }) {
-  const [activeTab, setActiveTab] = useState("experience"); // "experience" | "place"
-  const cd = CITIES[city];
-
-  return (
-    <div className="share-sheet-overlay" onClick={onClose}>
-      <div className="share-sheet" onClick={e=>e.stopPropagation()}>
-        <div className="share-sheet-handle"/>
-        <div className="share-sheet-tabs">
-          <button className={`share-sheet-tab ${activeTab==="experience"?"active":""}`} onClick={()=>setActiveTab("experience")}>Share an Experience</button>
-          <button className={`share-sheet-tab ${activeTab==="place"?"active":""}`} onClick={()=>setActiveTab("place")}>Add a New Place</button>
-        </div>
-        {activeTab === "experience"
-          ? <ShareExperienceForm city={city} userId={userId} userName={userName} onDone={onExperienceShared}/>
-          : <SubmitPlaceForm city={city} userId={userId} userName={userName} onSubmitted={onSubmitted}/>
-        }
-      </div>
-    </div>
-  );
-}
-
-function ShareExperienceForm({ city, userId, userName, onDone }) {
-  const cd = CITIES[city];
-  const [selectedPlace, setSelectedPlace] = useState("");
-  const [note, setNote] = useState("");
-  const [favoriteItem, setFavoriteItem] = useState("");
-  const [photoFile, setPhotoFile] = useState(null);
-  const [photoPreview, setPhotoPreview] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [done, setDone] = useState(false);
-
-  const handleSubmit = async () => {
-    if (!userId) { setError("Sign in to share your experience."); return; }
-    if (!selectedPlace) { setError("Please select a food place first."); return; }
-    if (!photoFile && !note.trim() && !favoriteItem.trim()) { setError("Add a photo, a note, or a favorite item."); return; }
-    setSubmitting(true); setError("");
-    try {
-      let photoUrl = null;
-      if (photoFile) photoUrl = await uploadFoodExperiencePhoto(userId, photoFile);
-      await shareFoodExperience(userId, userName || "Someone", selectedPlace, { photoUrl, note: note.trim(), favoriteItem: favoriteItem.trim() });
-      setDone(true);
-      setTimeout(onDone, 1200);
-    } catch (e) {
-      console.error("Failed to share experience:", e);
-      setError("Couldn't share that — please try again.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (done) return <div style={{textAlign:"center",padding:"24px 0"}}><div style={{fontSize:32}}>✓</div><div style={{fontWeight:700,marginTop:6}}>Thanks for sharing!</div></div>;
-
-  return (
-    <div style={{paddingBottom:8}}>
-      {error && <div className="profile-save-error">⚠️ {error}</div>}
-      <select className="ob-input ob-select" style={{marginBottom:10}} value={selectedPlace} onChange={e=>setSelectedPlace(e.target.value)}>
-        <option value="">Select a place...</option>
-        {cd.food.map(p => <option key={p.id} value={p.name}>{p.name} — {p.hood}</option>)}
-      </select>
-      <label className="experience-photo-picker">
-        {photoPreview ? <img src={photoPreview} alt="" className="experience-photo-preview"/> : <span>📷 Add a photo</span>}
-        <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];setPhotoFile(f||null);setPhotoPreview(f?URL.createObjectURL(f):null);}}/>
-      </label>
-      <input className="ob-input" style={{marginTop:10}} placeholder="Your favorite item" value={favoriteItem} onChange={e=>setFavoriteItem(e.target.value)}/>
-      <textarea className="ob-input experience-textarea" style={{marginTop:10}} placeholder="What was it like?" value={note} onChange={e=>setNote(e.target.value)} rows={3}/>
-      <button className="filter-apply" style={{marginTop:12}} disabled={submitting} onClick={handleSubmit}>{submitting ? "Sharing…" : "Share with the community"}</button>
-    </div>
-  );
-}
-
-function SubmitPlaceForm({ city, userId, userName, onSubmitted }) {
-  const [name, setName] = useState("");
-  const [area, setArea] = useState("");
-  const [cuisine, setCuisine] = useState("");
-  const [description, setDescription] = useState("");
-  const [photoFile, setPhotoFile] = useState(null);
-  const [photoPreview, setPhotoPreview] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [done, setDone] = useState(false);
-
-  const handlePhotoPick = (file) => {
-    setPhotoFile(file);
-    setPhotoPreview(file ? URL.createObjectURL(file) : null);
-  };
-
-  const handleSubmit = async () => {
-    if (!userId) { setError("Sign in to add a place."); return; }
-    if (!name.trim() || !area.trim()) { setError("Name and area are required."); return; }
-    setSubmitting(true);
-    setError("");
-    try {
-      let photoUrl = null;
-      if (photoFile) photoUrl = await uploadCommunityPlacePhoto(userId, photoFile);
-      const place = await submitCommunityPlace(userId, userName || "Someone", {
-        city, name: name.trim(), area: area.trim(), cuisine: cuisine.trim(), description: description.trim(), photoUrl,
-      });
-      setDone(true);
-      onSubmitted(place);
-    } catch (e) {
-      console.error("Failed to submit place:", e);
-      setError("Couldn't submit that — please try again.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (done) {
-    return (
-      <div className="experience-form" style={{textAlign:"center",padding:24}}>
-        <div style={{fontSize:32}}>✓</div>
-        <div style={{fontWeight:700,marginTop:6}}>Added! Thanks for sharing.</div>
-        <p style={{fontSize:13,color:"var(--text3)",marginTop:4}}>Your place is now visible to the community.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="experience-form">
-      {error && <div className="profile-save-error" style={{marginTop:0}}>⚠️ {error}</div>}
-      <label className="experience-photo-picker">
-        {photoPreview ? <img src={photoPreview} alt="" className="experience-photo-preview"/> : <span>📷 Add a photo</span>}
-        <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>handlePhotoPick(e.target.files?.[0] || null)}/>
-      </label>
-      <input className="ob-input" style={{marginTop:10}} placeholder="Place name" value={name} onChange={e=>setName(e.target.value)}/>
-      <input className="ob-input" style={{marginTop:10}} placeholder="Area / neighborhood" value={area} onChange={e=>setArea(e.target.value)}/>
-      <input className="ob-input" style={{marginTop:10}} placeholder="Cuisine" value={cuisine} onChange={e=>setCuisine(e.target.value)}/>
-      <textarea className="ob-input experience-textarea" style={{marginTop:10}} placeholder="What's your experience there?" value={description} onChange={e=>setDescription(e.target.value)} rows={3}/>
-      <button className="filter-apply" style={{marginTop:12}} disabled={submitting} onClick={handleSubmit}>{submitting ? "Adding…" : "Add this place"}</button>
-    </div>
-  );
-}
-
-// ─── EVENTS MAP SCREEN (new) ──────────────────────────────────────────────────
-function EventDetail({ event, onBack }) {
-  const [saved, setSaved] = useState(false);
-  return (
-    <div className="evd-root">
-      <div className="evd-header"><button className="evd-back" onClick={onBack}>←</button><button className="evd-share">↗ Share</button></div>
-      <div className="evd-hero"><img src={event.img} alt={event.name} className="evd-hero-img"/></div>
-      <div className="evd-body">
-        <div className="evd-cats">{event.cats.map(c=><span key={c} className="evd-cat-pill">{c}</span>)}</div>
-        <h1 className="evd-title">{event.name}</h1>
-        <p className="evd-desc">{event.desc}</p>
-        <div className="evd-details">
-          <div className="evd-row"><span className="evd-row-icon">📅</span><div><div className="evd-row-label">Date</div><div className="evd-row-val">{event.fullDate}</div></div><div className="evd-row-right"><div className="evd-row-label">Day</div><div className="evd-row-val">{["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date(event.fullDate).getDay()]}</div></div></div>
-          <div className="evd-row"><span className="evd-row-icon">🕐</span><div><div className="evd-row-label">Time</div><div className="evd-row-val">{event.time}</div></div></div>
-          <div className="evd-row"><span className="evd-row-icon">📍</span><div><div className="evd-row-label">Location</div><div className="evd-row-val">{event.loc}</div></div></div>
-          <div className="evd-row"><span className="evd-row-icon">🎟️</span><div><div className="evd-row-label">Entry</div><div className="evd-row-val" style={{color:event.entry==="Free Entry"?"var(--green2)":"#e74c3c",fontWeight:700}}>{event.entry}</div></div></div>
-        </div>
-        <div className="evd-organizer">
-          <div className="evd-org-avatar">🏛️</div>
-          <div><div className="evd-org-name">{event.organizer}</div><div className="evd-org-sub">Community · {event.loc.split(",").slice(-1)[0].trim()}</div><div className="evd-org-tagline">Bringing people together through live experiences.</div></div>
-          <button className="evd-view-profile">View Profile</button>
-        </div>
-        <div className="evd-interested"><div className="event-avatars" style={{marginRight:8}}><div className="ea"/><div className="ea"/><div className="ea"/></div><span>{event.interested>=1000?(event.interested/1000).toFixed(1)+"K":event.interested} interested</span></div>
-        <button className="evd-rsvp-btn" onClick={()=>setSaved(s=>!s)}>{saved?"✓ Saved":"I'm Interested"}</button>
-      </div>
-    </div>
-  );
-}
-
-function EventsMapScreen({ city }) {
-  const [openEvent, setOpenEvent] = useState(null);
-  const [showMap, setShowMap] = useState(false); // false = list (default)
-  const [activeCat, setActiveCat] = useState("All");
-  const [freeOnly, setFreeOnly] = useState(false);
-  const [bookmarks, setBookmarks] = useState({});
-  const events = CITIES[city].events;
-  const filtered = events.filter(e=>{
-    if (activeCat!=="All" && !e.cats.includes(activeCat)) return false;
-    if (freeOnly && e.entry!=="Free Entry") return false;
-    return true;
-  });
-
-  if (openEvent) return <EventDetail event={openEvent} onBack={()=>setOpenEvent(null)}/>;
-
-  return (
-    <div className="emap-root">
-      {/* Top bar — always visible */}
-      <div className="emap-topbar">
-        <div className="emap-topbar-left">
-          <div className="emap-cats-inline">
-            {CAT_FILTERS.slice(0,6).map(c=><button key={c} className={`emap-cat ${activeCat===c?"active":""}`} onClick={()=>setActiveCat(c)}>{c==="All"&&<span style={{marginRight:4}}>⊞</span>}{c}</button>)}
-          </div>
-        </div>
-        <div className="emap-topbar-right">
-          <button className={`emap-view-toggle ${showMap?"active":""}`} onClick={()=>setShowMap(v=>!v)}>
-            {showMap ? "☰ List" : "🗺 Map"}
-          </button>
-          <button className="emap-create-btn">+ Create an Event</button>
-        </div>
-      </div>
-
-      {/* Sub-filters — always visible */}
-      <div className="emap-subfilters">
-        <button className="emap-subfilter-btn">⚙ Filter</button>
-        <select className="emap-subfilter-btn" style={{paddingLeft:8}}><option>This Week</option><option>This Weekend</option><option>This Month</option></select>
-        <label className="emap-toggle-label"><div className={`emap-toggle ${freeOnly?"on":""}`} onClick={()=>setFreeOnly(f=>!f)}><div className="emap-toggle-thumb"/></div><span style={{color:"var(--green2)"}}>Free Event</span></label>
-        <label className="emap-toggle-label"><div className="emap-toggle"><div className="emap-toggle-thumb"/></div><span style={{color:"#e74c3c"}}>Paid Event</span></label>
-      </div>
-
-      {/* LIST VIEW (default) */}
-      {!showMap && (
-        <div className="screen-body" style={{paddingTop:0}}>
-          <div className="section-hdr"><div><div className="sec-title">Events near you</div><div className="sec-sub">Happening this week in {city==="nyc"?"New York":"Mumbai"}</div></div><button className="see-all-link">See all ›</button></div>
-          <div className="events-list">
-            {filtered.map(e=>(
-              <div key={e.id} className="event-list-item" style={{cursor:"pointer"}} onClick={()=>setOpenEvent(e)}>
-                <div className="event-list-img-wrap">
-                  <img src={e.img} alt={e.name} className="event-list-img"/>
-                  <div className="event-date-chip"><div className="event-date-num">{e.date}</div><div className="event-date-mon">{e.mon}</div></div>
-                </div>
-                <div className="event-list-body">
-                  <div className="event-list-name">{e.name}</div>
-                  <div className="event-list-cats">{e.cats.map((c,i)=><span key={c}>{i>0&&" • "}<span style={{color:"var(--green2)"}}>{c}</span></span>)}</div>
-                  <div className="event-list-meta">📅 {e.fullDate}</div>
-                  <div className="event-list-meta">🕐 {e.time}</div>
-                  <div className="event-list-meta">📍 {e.loc}</div>
-                  <div className="event-list-interested">
-                    <div className="event-avatars"><div className="ea"/><div className="ea"/><div className="ea"/></div>
-                    <span className="event-interested-count">{e.interested>=1000?(e.interested/1000).toFixed(1)+"K":e.interested} interested</span>
-                    <span className={`event-entry-badge ${e.entry==="Free Entry"?"free":"paid"}`}>{e.entry}</span>
-                  </div>
-                </div>
-                <button className="event-bookmark" onClick={ev=>{ev.stopPropagation();setBookmarks(b=>({...b,[e.id]:!b[e.id]}));}}>🔖</button>
-              </div>
-            ))}
-          </div>
-          <div className="create-event-cta">
-            <div className="create-event-icon">📅</div>
-            <div><div className="create-event-title">Create an event</div><div className="create-event-sub">Host your own event and invite people to join.</div></div>
-            <button className="create-event-btn">Create Event</button>
-          </div>
-        </div>
-      )}
-
-      {/* MAP VIEW (toggled) */}
-      {showMap && (
-        <div className="emap-canvas" style={{position:"relative",height:520}}>
-          <img
-            src={city==="mumbai" ? "https://images.unsplash.com/photo-1562979314-bee7453e911c?w=1400&q=80" : "https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=1400&q=80"}
-            alt="city map"
-            style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",display:"block",filter:"saturate(0.7) brightness(1.05)"}}
-          />
-                    <div className="emap-map-overlay" style={{pointerEvents:"none"}}/>
-          {city==="mumbai"&&<>
-            <div className="emap-area-label" style={{top:"14%",left:"30%"}}>ANDHERI WEST</div>
-            <div className="emap-area-label" style={{top:"47%",left:"10%"}}>JUHU</div>
-            <div className="emap-area-label" style={{top:"58%",left:"14%"}}>BANDRA WEST</div>
-            <div className="emap-area-label" style={{top:"72%",left:"42%"}}>WORLI</div>
-          </>}
-          <div className="emap-user-dot" style={{top:"44%",left:"46%",position:"absolute"}}/>
-          {filtered.map(e=>(
-            <button key={e.id} className={`emap-pin ${e.entry==="Free Entry"?"free":"paid"}`}
-              style={{top:e.mapTop,left:e.mapLeft,position:"absolute"}} onClick={()=>setOpenEvent(e)}>
-              <div className="emap-pin-body">
-                <div className="emap-pin-name">{e.name}</div>
-                <div className="emap-pin-meta">{e.fullDate} · {e.time.split("–")[0].trim()}</div>
-                <div className="emap-pin-loc">📍 {e.loc.split(",")[0]}</div>
-                <div className={`emap-pin-badge ${e.entry==="Free Entry"?"free":"paid"}`}>{e.entry}</div>
-              </div>
-            </button>
-          ))}
-          <div className="emap-zoom" style={{position:"absolute",bottom:16,right:16}}>
-            <button className="emap-zoom-btn">+</button>
-            <button className="emap-zoom-btn">−</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── DISCOVERY — Events & Third Places subtabs (unchanged) ───────────────────
-function DiscoveryEventsTab({ city }) {
-  const [interestsSelected, setInterestsSelected] = useState(null);
-  const [selectedInterests, setSelectedInterests] = useState([]);
-  const [bookmarks, setBookmarks] = useState({});
-  const cd = CITIES[city];
-  const EVENT_INTERESTS = [{name:"Music",icon:"🎵"},{name:"Art & Culture",icon:"🎨"},{name:"Workshops",icon:"✏️"},{name:"Sports",icon:"⚽"},{name:"Festivals",icon:"🎉"},{name:"Nightlife",icon:"🍸"},{name:"Health & Wellness",icon:"🌿"},{name:"Tech",icon:"💻"},{name:"Networking",icon:"👥"}];
-  if (interestsSelected===null) return (
-    <div className="events-interests-screen">
-      <div className="events-interests-title">What interests you?</div>
-      <div className="events-interests-sub">Select categories you enjoy. We'll show you events you'll love.</div>
-      <div className="interests-grid">
-        {EVENT_INTERESTS.map(i=>(
-          <button key={i.name} className={`interest-grid-item ${selectedInterests.includes(i.name)?"active":""}`} onClick={()=>setSelectedInterests(prev=>prev.includes(i.name)?prev.filter(x=>x!==i.name):[...prev,i.name])}>
-            <span className="interest-grid-icon">{i.icon}</span><span className="interest-grid-name">{i.name}</span><div className={`interest-grid-radio ${selectedInterests.includes(i.name)?"active":""}`}/>
-          </button>
-        ))}
-      </div>
-      <button className="ob-save-btn" style={{marginTop:24}} onClick={()=>setInterestsSelected(selectedInterests)}>Next</button>
-    </div>
-  );
-  return (
-    <div className="screen-body">
-      <div className="section-hdr"><div><div className="sec-title">Recommendations for you</div><div className="sec-sub">Events based on your interests</div></div><button className="see-all-link">See all ›</button></div>
-      <div className="events-list">
-        {cd.events.map(e=>(
-          <div key={e.id} className="event-list-item">
-            <div className="event-list-img-wrap"><img src={e.img} alt={e.name} className="event-list-img"/><div className="event-date-chip"><div className="event-date-num">{e.date}</div><div className="event-date-mon">{e.mon}</div></div></div>
-            <div className="event-list-body">
-              <div className="event-list-name">{e.name}</div>
-              <div className="event-list-cats">{e.cats.map((c,i)=><span key={c}>{i>0&&" • "}<span style={{color:"var(--green2)"}}>{c}</span></span>)}</div>
-              <div className="event-list-meta">📅 {e.fullDate}</div>
-              <div className="event-list-meta">🕐 {e.time}</div>
-              <div className="event-list-meta">📍 {e.loc}</div>
-              <div className="event-list-interested"><div className="event-avatars"><div className="ea"/><div className="ea"/><div className="ea"/></div><span className="event-interested-count">{e.interested>=1000?(e.interested/1000).toFixed(1)+"K":e.interested} interested</span></div>
-            </div>
-            <button className="event-bookmark" onClick={()=>setBookmarks(b=>({...b,[e.id]:!b[e.id]}))}>🔖</button>
-          </div>
-        ))}
-      </div>
-      <div className="create-event-cta"><div className="create-event-icon">📅</div><div><div className="create-event-title">Create an event</div><div className="create-event-sub">Host your own event and invite people to join the experience.</div></div><button className="create-event-btn">Create Event</button></div>
-    </div>
-  );
-}
-
-function ThirdPlacesScreen({ city }) {
-  const [activeCat, setActiveCat] = useState("All");
-  const [bookmarks, setBookmarks] = useState({});
-  const [addOpen, setAddOpen] = useState(false);
-  const [addForm, setAddForm] = useState({name:"",address:"",phone:"",note:""});
-  const cd = CITIES[city];
-  const filtered = activeCat==="All" ? cd.thirdPlaces : cd.thirdPlaces.filter(p=>p.cats.includes(activeCat));
-  const catColorMap = {"Nature":"#2d6a2d","Relaxation":"#5a8a2d","Study & Work":"#8b6914","Community":"#2980b9","Art & Culture":"#e67e22","Cafe":"#6d4c41","Wellness":"#8e44ad","Shopping":"#c0392b"};
-  return (
-    <div className="screen-body">
-      <div className="tp-header-row"><div><div className="sec-title" style={{fontSize:22}}>Nearby third places</div><div className="sec-sub">Relax, connect & recharge</div></div><button className="tp-filter-btn">⚙ Filter</button></div>
-      <div className="filter-scroll-row">{THIRD_CATS.map(c=><button key={c} className={`filter-pill ${activeCat===c?"active":""}`} onClick={()=>setActiveCat(c)}>{c==="All"&&<span style={{marginRight:4}}>⊞</span>}{c}</button>)}</div>
-      <div className="tp-location-hint">📍 Near you • Within 5 km</div>
-      <div className="tp-list">
-        {filtered.map(p=>(
-          <div key={p.id} className="tp-list-item">
-            <img src={p.img} alt={p.name} className="tp-list-img"/>
-            <div className="tp-list-body">
-              <div className="tp-list-name">{p.name}</div>
-              <div className="tp-list-cats">{p.cats.map((c,i)=><span key={c} style={{color:catColorMap[c]||"#2d6a2d"}}>{i>0&&" • "}{c}</span>)}</div>
-              <div className="tp-list-dist">📍 {p.dist} away</div>
-              <div className="tp-list-desc">{p.desc}</div>
-              <div className="tp-list-visitors"><div className="event-avatars"><div className="ea"/><div className="ea"/><div className="ea"/></div><span style={{fontSize:12,color:"#666",marginLeft:4}}>{p.visitors} people visited</span></div>
-            </div>
-            <button className="event-bookmark" onClick={()=>setBookmarks(b=>({...b,[p.id]:!b[p.id]}))}>🔖</button>
-          </div>
-        ))}
-      </div>
-      <div className="add-tp-cta">
-        <div className="add-tp-title">Add a third place</div>
-        <div className="add-tp-sub">Know a great spot? Add it and help others discover amazing places.</div>
-        <button className="add-tp-btn" onClick={()=>setAddOpen(true)}>Add a place</button>
-        <div className="add-tp-steps">
-          <div className="add-tp-step"><span className="add-tp-step-icon">📷</span><span>Add photos<br/>(Up to 5)</span></div>
-          <div className="add-tp-step"><span className="add-tp-step-icon">📍</span><span>Add location<br/>(GPS)</span></div>
-          <div className="add-tp-step"><span className="add-tp-step-icon">✏️</span><span>Tell us about the place</span></div>
-        </div>
-      </div>
-      {addOpen&&(<div className="modal-bg" onClick={()=>setAddOpen(false)}><div className="modal-sheet add-sheet" onClick={e=>e.stopPropagation()}><div className="filter-header"><button className="filter-close" onClick={()=>setAddOpen(false)}>✕</button><div className="filter-title">Add a new place</div><div/></div><div className="add-photo-area"><span className="add-photo-icon">📷</span><div className="add-photo-label">Add photos<br/><span style={{fontSize:12,color:"#999"}}>(Up to 5 photos)</span></div></div>{[["Place name*","text","e.g. Your Place Name","name"],["Address*","text","e.g. Street, Area, City","address"],["Contact number","tel","e.g. 98765 43210","phone"]].map(([lbl,type,ph,key])=><div key={key} className="add-field"><label className="add-label">{lbl}</label><input className="ob-input" type={type} placeholder={ph} value={addForm[key]} onChange={e=>setAddForm({...addForm,[key]:e.target.value})}/></div>)}<button className="add-location-btn">📍 Use current location</button><div className="add-field"><label className="add-label">Share more about this place</label><input className="ob-input" placeholder="Share more about this place" value={addForm.note} onChange={e=>setAddForm({...addForm,note:e.target.value})}/></div><button className="filter-apply" onClick={()=>setAddOpen(false)}>Submit</button></div></div>)}
-    </div>
-  );
-}
-
-// ─── DISCOVERY SCREEN (unchanged structure) ───────────────────────────────────
-function DiscoveryScreen({ city, userCuisines, userBudget, userId, userName, savedPlaces, onToggleSave }) {
-  const [subTab, setSubTab] = useState("food");
-  const [detailOpen, setDetailOpen] = useState(null);
-  if (detailOpen) return <FoodDetail restaurant={detailOpen} onBack={()=>setDetailOpen(null)} userId={userId} userName={userName} isSaved={(savedPlaces||[]).includes(detailOpen.name)} onToggleSave={onToggleSave}/>;
-  return (
-    <div className="discovery-root">
-      <div className="disc-tab-row">
-        {[["food","🍽️","Food Places"],["events","🎟️","Events"],["places","🌳","Third Places"]].map(([id,icon,lbl])=>(
-          <button key={id} className={`disc-tab ${subTab===id?"active":""}`} onClick={()=>setSubTab(id)}>
-            <span className="disc-tab-icon">{icon}</span>
-            <span className="disc-tab-label">{lbl}</span>
-          </button>
-        ))}
-      </div>
-      {subTab==="food"   && <FoodScreen onOpenDetail={setDetailOpen} city={city} userCuisines={userCuisines} userBudget={userBudget} userId={userId} userName={userName}/>}
-      {subTab==="events" && <DiscoveryEventsTab city={city}/>}
-      {subTab==="places" && <ThirdPlacesScreen city={city}/>}
-    </div>
-  );
-}
-
-// ─── CONNECTION — updated with yellow shared highlights + food/city recs ──────
+// ─── CHAT VIEW ────────────────────────────────────────────────────────────────
 function ChatView({ connectionId, person, userId, onBack }) {
   const [chatInput, setChatInput] = useState("");
   const [chatMsgs, setChatMsgs] = useState([]);
   const [chatLoading, setChatLoading] = useState(true);
   const [chatError, setChatError] = useState("");
+  const [promptsExpanded, setPromptsExpanded] = useState(true);
 
   useEffect(() => {
     let active = true;
     setChatLoading(true);
     getMessages(connectionId)
       .then(msgs => { if (active) setChatMsgs(msgs || []); })
-      .catch(e => { console.error("Failed to load messages:", e); if (active) setChatError("Couldn't load this conversation."); })
+      .catch(e => { console.error(e); if (active) setChatError("Couldn't load this conversation."); })
       .finally(() => { if (active) setChatLoading(false); });
     return () => { active = false; };
   }, [connectionId]);
 
   const sendChatMessage = async () => {
     if (!chatInput.trim()) return;
-    const text = chatInput.trim();
-    setChatInput("");
-    setChatError("");
-    try {
-      const msg = await sendMessage(connectionId, userId, text);
-      setChatMsgs(prev => [...prev, msg]);
-    } catch (e) {
-      console.error("Send failed:", e);
-      setChatError("Couldn't send that — please try again.");
-    }
+    const text = chatInput.trim(); setChatInput(""); setChatError("");
+    try { const msg = await sendMessage(connectionId, userId, text); setChatMsgs(p => [...p, msg]); }
+    catch (e) { console.error(e); setChatError("Couldn't send that — please try again."); }
   };
+
+  const theirPrompts = person.prompts
+    ? Array.isArray(person.prompts) ? person.prompts.filter(p => p.a)
+      : Object.entries(person.prompts).filter(([, ans]) => ans?.trim()).map(([q, a]) => ({ q, a }))
+    : [];
 
   return (
     <div className="chat-root">
-      <div className="chat-header"><button className="chat-back" onClick={onBack}>←</button><div className="chat-avatar">{(person.name||"?").slice(0,2).toUpperCase()}</div><div><div className="chat-uname">{person.name}</div><div className="chat-ustatus">● Connected</div></div></div>
+      <div className="chat-header">
+        <button className="chat-back" onClick={onBack}>←</button>
+        <div className="chat-avatar">{(person.name || "?").slice(0, 2).toUpperCase()}</div>
+        <div><div className="chat-uname">{person.name}</div><div className="chat-ustatus">● Connected</div></div>
+      </div>
+      {theirPrompts.length > 0 && (
+        <div className="chat-prompts-banner">
+          <button className="chat-prompts-toggle" onClick={() => setPromptsExpanded(o => !o)}>
+            <span>💬 {person.name.split(" ")[0]}'s conversation starters</span>
+            <span>{promptsExpanded ? "▲" : "▼"}</span>
+          </button>
+          {promptsExpanded && (
+            <div className="chat-prompts-list">
+              {theirPrompts.map((p, i) => (
+                <div key={i} className="chat-prompt-card" onClick={() => { setChatInput(`Re: "${p.q.slice(0, 50)}…" — `); setPromptsExpanded(false); }}>
+                  <div className="chat-prompt-q">{p.q}</div>
+                  <div className="chat-prompt-a">"{p.a}"</div>
+                  <div className="chat-prompt-hint">Tap to reply →</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       <div className="chat-msgs">
         {chatLoading && <div className="chat-empty"><p>Loading conversation…</p></div>}
-        {!chatLoading && chatMsgs.length===0 && <div className="chat-empty"><div style={{fontSize:28}}>✦</div><p>Connected with {person.name}. Say hello.</p></div>}
-        {!chatLoading && chatMsgs.map((m,i)=><div key={m.id||i} className={`chat-bubble ${m.sender_id===userId?"me":""}`}>{m.text}</div>)}
+        {!chatLoading && chatMsgs.length === 0 && <div className="chat-empty"><div style={{ fontSize: 28 }}>✦</div><p>Say hello to {person.name}.</p></div>}
+        {!chatLoading && chatMsgs.map((m, i) => <div key={m.id || i} className={`chat-bubble ${m.sender_id === userId ? "me" : ""}`}>{m.text}</div>)}
       </div>
-      {chatError && <div className="profile-save-error" style={{margin:"0 16px"}}>⚠️ {chatError}</div>}
-      <div className="chat-input-row"><input className="chat-input" value={chatInput} onChange={e=>setChatInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendChatMessage()} placeholder="Say something..."/><button className="chat-send" onClick={sendChatMessage}>Send</button></div>
+      {chatError && <div className="profile-save-error" style={{ margin: "0 16px" }}>⚠️ {chatError}</div>}
+      <div className="chat-input-row">
+        <input className="chat-input" value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChatMessage()} placeholder="Say something..." />
+        <button className="chat-send" onClick={sendChatMessage}>Send</button>
+      </div>
     </div>
   );
 }
 
+// ─── MESSAGES PANEL ───────────────────────────────────────────────────────────
 function MessagesPanel({ userId, onClose }) {
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1351,55 +822,54 @@ function MessagesPanel({ userId, onClose }) {
   const [openChat, setOpenChat] = useState(null);
 
   useEffect(() => {
+    if (!userId) { setLoading(false); return; }
     let active = true;
-    setLoading(true);
-    setLoadError("");
     getConnections(userId)
       .then(data => { if (active) setConnections(data || []); })
-      .catch(e => { console.error("Failed to load connections:", e); if (active) setLoadError("Couldn't load your messages right now."); })
+      .catch(e => { console.error(e); if (active) setLoadError("Couldn't load your messages right now."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [userId]);
 
-  if (openChat) {
-    return (
-      <div className="msgs-overlay">
-        <div className="msgs-overlay-bg" onClick={onClose}/>
-        <div className="msgs-panel msgs-panel-chat">
-          <ChatView connectionId={openChat.id} person={openChat.otherPerson} userId={userId} onBack={()=>setOpenChat(null)}/>
-        </div>
+  if (openChat) return (
+    <div className="msgs-overlay">
+      <div className="msgs-overlay-bg" onClick={onClose} />
+      <div className="msgs-panel msgs-panel-chat">
+        <ChatView connectionId={openChat.id} person={openChat.otherPerson} userId={userId} onBack={() => setOpenChat(null)} />
       </div>
-    );
-  }
+    </div>
+  );
 
   const visibleConnections = connections.filter(c => {
-    const otherPerson = c.user1_id === userId ? c.user2 : c.user1;
-    return otherPerson && otherPerson.id !== userId; // defensive: never show a "conversation" with yourself
+    const other = c.user1_id === userId ? c.user2 : c.user1;
+    if (!other || other.id === userId) return false;
+    const msgCount = Array.isArray(c.messages) ? (c.messages[0]?.count ?? 0) : 0;
+    return msgCount > 0;
   });
 
   return (
     <div className="msgs-overlay">
-      <div className="msgs-overlay-bg" onClick={onClose}/>
+      <div className="msgs-overlay-bg" onClick={onClose} />
       <div className="msgs-panel">
         <div className="msgs-panel-header"><div className="msgs-panel-title">Messages</div><button className="msgs-panel-close" onClick={onClose}>×</button></div>
         <div className="msgs-list">
-          {loading && <div className="conn-empty" style={{padding:"40px 16px"}}><p>Loading messages…</p></div>}
-          {!loading && loadError && <div className="conn-empty" style={{padding:"40px 16px"}}><p>{loadError}</p></div>}
-          {!loading && !loadError && visibleConnections.length===0 && (
-            <div className="conn-empty" style={{padding:"40px 16px"}}>
-              <div style={{fontSize:36}}>💬</div>
+          {loading && <div className="conn-empty" style={{ padding: "40px 16px" }}><p>Loading messages…</p></div>}
+          {!loading && loadError && <div className="conn-empty" style={{ padding: "40px 16px" }}><p>{loadError}</p></div>}
+          {!loading && !loadError && visibleConnections.length === 0 && (
+            <div className="conn-empty" style={{ padding: "40px 16px" }}>
+              <div style={{ fontSize: 36 }}>💬</div>
               <div className="conn-empty-title">No conversations yet</div>
-              <p style={{color:"var(--text3)",fontSize:13,marginTop:6}}>Message someone from the Connection tab to start chatting.</p>
+              <p style={{ color: "var(--text3)", fontSize: 13, marginTop: 6 }}>Message someone from Connections to start chatting.</p>
             </div>
           )}
           {!loading && visibleConnections.map(c => {
-            const otherPerson = c.user1_id === userId ? c.user2 : c.user1;
-            const initials = (otherPerson.name||"?").slice(0,2).toUpperCase();
-            const photo = (otherPerson.photo_urls||[]).filter(Boolean)[0];
+            const other = c.user1_id === userId ? c.user2 : c.user1;
+            const initials = (other.name || "?").slice(0, 2).toUpperCase();
+            const photo = (other.photo_urls || []).filter(Boolean)[0];
             return (
-              <button key={c.id} className="msgs-list-row" onClick={()=>setOpenChat({ id: c.id, otherPerson })}>
-                {photo ? <img src={photo} alt="" className="msgs-list-avatar-img"/> : <div className="msgs-list-avatar">{initials}</div>}
-                <div className="msgs-list-info"><div className="msgs-list-name">{otherPerson.name}{otherPerson.age ? `, ${otherPerson.age}` : ""}</div><div className="msgs-list-sub">Tap to open conversation</div></div>
+              <button key={c.id} className="msgs-list-row" onClick={() => setOpenChat({ id: c.id, otherPerson: other })}>
+                {photo ? <img src={photo} alt="" className="msgs-list-avatar-img" /> : <div className="msgs-list-avatar">{initials}</div>}
+                <div className="msgs-list-info"><div className="msgs-list-name">{other.name}{other.age ? `, ${other.age}` : ""}</div><div className="msgs-list-sub">Tap to open conversation</div></div>
                 <span className="msgs-list-chevron">›</span>
               </button>
             );
@@ -1410,214 +880,729 @@ function MessagesPanel({ userId, onClose }) {
   );
 }
 
-function ConnectionScreen({ city, userId, me }) {
+// ─── CONNECTIONS SCREEN ───────────────────────────────────────────────────────
+function ConnectionsScreen({ city, userId, me }) {
+  const [subTab, setSubTab] = useState("foryou"); // "foryou" | "byactivity"
+
+  // For You state
   const [people, setPeople] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [idx, setIdx] = useState(0);
-  const [photoIdx, setPhotoIdx] = useState(0);
-  const [openProfile, setOpenProfile] = useState(null);
+  const [viewProfile, setViewProfile] = useState(null);
   const [chatOpen, setChatOpen] = useState(null);
-  const [connectError, setConnectError] = useState("");
   const [connecting, setConnecting] = useState(false);
+  const [connectError, setConnectError] = useState("");
   const [resetting, setResetting] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+
+  // By Activity state
+  const [selectedActivity, setSelectedActivity] = useState(null);
+  const [activityProfileView, setActivityProfileView] = useState(null);
+
   const cd = CITIES[city];
 
   useEffect(() => {
     if (!userId) { setLoading(false); return; }
     let active = true;
-    setLoading(true);
-    setLoadError("");
+    setLoading(true); setLoadError("");
     getPeople(city, userId)
       .then(data => {
         if (!active) return;
-        const ranked = (data || [])
-          .map(p => ({ ...p, _match: scoreConnection(me, p) }))
-          .sort((a,b) => b._match.score - a._match.score);
-        setPeople(ranked);
+        setPeople(data || []);
         setIdx(0);
       })
-      .catch(e => { console.error("Failed to load people:", e); if (active) setLoadError("Couldn't load people right now."); })
+      .catch(e => { console.error(e); if (active) setLoadError("Couldn't load people right now."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [city, userId, reloadKey]);
 
+  // Use local seed people when no real users exist (demo)
+  const displayPeople = people.length > 0 ? people : cd.people;
 
-  const current = people[idx];
-  const canGoBack = idx > 0;
-
-  const passProfileAndNext = async () => {
-    if (!current) return;
-    setIdx(i => i+1); setPhotoIdx(0);
-    try { await passProfile(userId, current.id); } catch (e) { console.error("Pass failed:", e); }
-  };
-
-  const goToPrevious = () => {
-    if (!canGoBack) return;
-    setIdx(i => i-1); setPhotoIdx(0);
-  };
-
-  const browseAgain = async () => {
-    setResetting(true);
-    try {
-      await resetPasses(userId);
-      setReloadKey(k => k+1);
-    } catch (e) {
-      console.error("Failed to reset passes:", e);
-      setLoadError("Couldn't reset your browsing history — please try again.");
-    } finally {
-      setResetting(false);
-    }
-  };
+  // Build By Activity groups from local seed (+ real users when available)
+  const allPeople = [...cd.people, ...people.filter(p => !cd.people.find(sp => sp.name === p.name))];
+  const activityGroups = {};
+  allPeople.forEach(person => {
+    const things = person.city_wants || person.cityWants || person.things || [];
+    things.forEach(t => {
+      if (!activityGroups[t]) activityGroups[t] = [];
+      if (!activityGroups[t].find(p => p.id === person.id)) activityGroups[t].push(person);
+    });
+  });
+  // Sort activities by count desc
+  const sortedActivities = Object.entries(activityGroups).sort((a, b) => b[1].length - a[1].length);
 
   const openChat = async (person) => {
     setConnectError(""); setConnecting(true);
     try {
-      const conn = await getOrCreateConnection(userId, person.id);
-      setChatOpen({ person, connectionId: conn.id });
+      if (userId) {
+        const conn = await getOrCreateConnection(userId, person.id);
+        setChatOpen({ person, connectionId: conn.id });
+      } else {
+        // Demo mode: fake connection
+        setChatOpen({ person, connectionId: `demo-${person.id}` });
+      }
     } catch (e) {
-      console.error("Failed to open chat:", e);
+      console.error(e);
       setConnectError("Couldn't start that conversation — please try again.");
-    } finally {
-      setConnecting(false);
-    }
+    } finally { setConnecting(false); }
   };
 
-  if (!userId) {
-    return (
-      <div className="conn-root">
-        <div className="conn-empty">
-          <div style={{fontSize:42}}>👋</div>
-          <div className="conn-empty-title">Sign in to connect with people</div>
-          <p style={{color:"var(--text3)",fontSize:13,marginTop:6}}>Connections are matched between real registered NearMet users, so this needs a real account.</p>
-        </div>
-      </div>
-    );
-  }
+  // Chat open
+  if (chatOpen) return (
+    <ChatView
+      connectionId={chatOpen.connectionId}
+      person={chatOpen.person}
+      userId={userId}
+      onBack={() => setChatOpen(null)}
+    />
+  );
 
-  // Chat screen
-  if (chatOpen) {
-    return <ChatView connectionId={chatOpen.connectionId} person={chatOpen.person} userId={userId} onBack={()=>setChatOpen(null)}/>;
-  }
+  // Full profile view (from either tab)
+  if (viewProfile) return (
+    <FullProfileView
+      person={viewProfile}
+      city={city}
+      onBack={() => setViewProfile(null)}
+      onMessage={() => openChat(viewProfile)}
+      connecting={connecting}
+    />
+  );
 
-  // Full profile view
-  if (openProfile) {
-    const p = openProfile;
-    const sharedFood = (me.saved_food_places||[]).filter(f=>(p.saved_food_places||[]).includes(f));
-    const sharedThings = (me.things||[]).filter(t=>(p.things||[]).includes(t));
-    const sharedInterests = (me.interests||[]).filter(i=>(p.interests||[]).includes(i));
-    const recommendedPlaces = (p.saved_food_places||[]).map(name=>cd.food.find(f=>f.name===name)).filter(Boolean);
-    return (
-      <div className="pv-root">
-        <div className="pv-header"><button className="pv-back" onClick={()=>setOpenProfile(null)}>←</button></div>
-        <div className="pv-photos-strip">
-          <div className="pv-photos">{(p.photo_urls&&p.photo_urls.length>0) ? p.photo_urls.filter(Boolean).map((ph,i)=><img key={i} src={ph} alt="" className="pv-photo"/>) : <div className="pv-photo pv-photo-placeholder">{(p.name||"?").slice(0,2).toUpperCase()}</div>}</div>
-        </div>
-        <div className="pv-name">{p.name}{p.age ? `, ${p.age}` : ""}</div>
-        <div className="pv-city">📍 {cd.label}</div>
+  if (activityProfileView) return (
+    <FullProfileView
+      person={activityProfileView}
+      city={city}
+      onBack={() => setActivityProfileView(null)}
+      onMessage={() => openChat(activityProfileView)}
+      connecting={connecting}
+    />
+  );
 
-        <div className="pv-section-title">Interests</div>
-        <div className="pv-interest-chips">
-          {(p.interests||[]).length===0 && <span style={{fontSize:13,color:"var(--text3)"}}>No interests added yet.</span>}
-          {(p.interests||[]).map(i=>{ const opt=INTEREST_OPTIONS.find(o=>o.id===i); return <span key={i} className={`pv-interest-chip ${sharedInterests.includes(i)?"shared":""}`}>{opt?.icon} {opt?.label||i}</span>; })}
-        </div>
+  const current = displayPeople[idx];
 
-        <div className="pv-section-title">Things I want to do</div>
-        <div className="pv-things-list">
-          {(p.things||[]).length===0 && <span style={{fontSize:13,color:"var(--text3)"}}>No selections yet.</span>}
-          {(p.things||[]).map(t=><div key={t} className={`pv-thing-row ${sharedThings.includes(t)?"shared":""}`}><span className="pv-thing-icon">📌</span><span>{t}</span></div>)}
-        </div>
-
-        <div className="pv-section-title">Food places recommendation <span className="pv-rec-count">{recommendedPlaces.length} saved</span></div>
-        {recommendedPlaces.length===0 && <p style={{fontSize:13,color:"var(--text3)",marginBottom:12}}>Hasn't saved any food places yet.</p>}
-        {recommendedPlaces.map(r=>(
-          <div key={r.id} className={`pv-rec-item ${sharedFood.includes(r.name)?"shared":""}`}><img src={r.img} alt={r.name} className="pv-rec-img"/><div><div className="pv-rec-name">{r.name}</div><div className="pv-rec-desc">{r.cuisine} · {r.hood}</div></div></div>
-        ))}
-
-        {connectError && <div className="profile-save-error">⚠️ {connectError}</div>}
-        <button className="pv-chat-btn" disabled={connecting} onClick={()=>openChat(p)}>{connecting ? "Connecting…" : `Message ${p.name} →`}</button>
-      </div>
-    );
-  }
-
-  // Main feed
   return (
-    <div className="conn-root">
-      {loading && <div className="conn-empty"><p>Finding people near you…</p></div>}
-      {!loading && loadError && <div className="conn-empty"><p>{loadError}</p></div>}
-      {!loading && !loadError && current ? (
-        <div className="conn-layout">
-          <div className="conn-card" data-tour="conn-card">
-            <div className="conn-img-wrap">
-              {(current.photo_urls&&current.photo_urls.filter(Boolean).length>0) ? (
-                <img src={current.photo_urls.filter(Boolean)[photoIdx]||current.photo_urls.filter(Boolean)[0]} alt={current.name} className="conn-img"/>
-              ) : (
-                <div className="conn-img conn-img-placeholder">{(current.name||"?").slice(0,2).toUpperCase()}</div>
-              )}
-              <div className="conn-info"><div className="conn-name">{current.name}{current.age ? `, ${current.age}` : ""}</div><div className="conn-city">{cd.label}</div></div>
+    <div style={{ paddingTop: 0 }}>
+      {/* Header */}
+      <div style={{ padding: "20px 0 8px" }}>
+        {subTab === "foryou" ? (
+          <>
+            <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.03em", marginBottom: 4, color: "var(--text)" }}>Meet interesting people</h1>
+            <p style={{ fontSize: 16, color: "var(--green2)", fontWeight: 700, margin: 0 }}>to explore your city.</p>
+          </>
+        ) : (
+          <>
+            <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.03em", marginBottom: 4, color: "var(--text)" }}>Find your people</h1>
+            <p style={{ fontSize: 14, color: "var(--text3)", margin: 0 }}>People who want to do the same things as you</p>
+          </>
+        )}
+      </div>
+
+      {/* Tab toggle */}
+      <div style={{ display: "flex", gap: 0, marginBottom: 20, border: "1.5px solid var(--border)", borderRadius: 14, overflow: "hidden", background: "var(--white)" }}>
+        {[["foryou", "👤", "For You"], ["byactivity", "👥", "By Activity"]].map(([id, icon, lbl]) => (
+          <button key={id}
+            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px 8px", fontSize: 14, fontWeight: 600, color: subTab === id ? "var(--green2)" : "var(--text3)", background: subTab === id ? "var(--green-light)" : "none", border: "none", borderRight: id === "foryou" ? "1px solid var(--border)" : "none", cursor: "pointer", transition: ".15s" }}
+            onClick={() => { setSubTab(id); setSelectedActivity(null); }}>
+            <span>{icon}</span><span>{lbl}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* FOR YOU TAB */}
+      {subTab === "foryou" && (
+        <div>
+          {loading && !userId && null}
+          {loadError && <div className="conn-empty"><p>{loadError}</p></div>}
+
+          {!userId && (
+            <div style={{ background: "var(--green-light)", border: "1.5px solid var(--green2)", borderRadius: 12, padding: "12px 16px", fontSize: 13, color: "var(--green2)", fontWeight: 600, marginBottom: 16 }}>
+              Sign in to connect with real people in {cd.label}.
             </div>
-            <button className="conn-view-profile" onClick={()=>setOpenProfile(current)}>Tap to view the profile</button>
-          </div>
-          <div className="conn-prompts">
-            {current._match.sharedFood.length>0 && (
-              <div className="conn-shared-banner"><span style={{fontSize:16}}>🍽️</span><span>You both love <strong>{current._match.sharedFood.slice(0,2).join(", ")}</strong></span></div>
-            )}
-            {current._match.sharedInterests.length>0 && (
-              <div className="conn-shared-banner"><span style={{fontSize:16}}>✨</span><span>You both like <strong>{current._match.sharedInterests.map(i=>INTEREST_OPTIONS.find(o=>o.id===i)?.label||i).join(", ")}</strong></span></div>
-            )}
-            {current._match.sharedThings.length>0 && (
-              <div className="conn-shared-things">
-                <div className="conn-shared-things-label">Also wants to</div>
-                {current._match.sharedThings.map(t=><div key={t} className="conn-shared-thing-row">✦ {t}</div>)}
+          )}
+
+          {current ? (
+            <div style={{ background: "var(--white)", borderRadius: 20, overflow: "hidden", border: "1px solid var(--border)", boxShadow: "var(--shadow2)" }}>
+              {/* Photo slideshow */}
+              <ProfileSlideshow photos={(current.photo_urls || current.photos || []).filter(Boolean)} name={current.name} onBack={null} />
+
+              {/* Name + location */}
+              <div style={{ padding: "16px 20px 0" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 6 }}>
+                  <div>
+                    <div style={{ fontSize: 22, fontWeight: 800 }}>{current.name}, {current.age}</div>
+                    <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 2 }}>📍 {cd.label}, India</div>
+                  </div>
+                </div>
+
+                {/* Interests */}
+                {(current.interests || []).length > 0 && (
+                  <>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginTop: 14, marginBottom: 8 }}>Interests</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+                      {(current.interests || []).slice(0, 7).map(i => {
+                        const opt = INTEREST_OPTIONS.find(o => o.id === i);
+                        return <span key={i} style={{ border: "1.5px solid var(--border)", borderRadius: 999, padding: "6px 12px", fontSize: 13, fontWeight: 500, color: "var(--text2)", background: "var(--white)" }}>{opt?.icon} {opt?.label || i}</span>;
+                      })}
+                    </div>
+                  </>
+                )}
+
+                {/* Things to do together */}
+                {(current.city_wants || current.cityWants || []).length > 0 && (
+                  <>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Things to do together</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginBottom: 16 }}>
+                      {(current.city_wants || current.cityWants || []).slice(0, 4).map(t => (
+                        <div key={t} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 600, color: "var(--text2)" }}>
+                          <span style={{ fontSize: 18 }}>{ACTIVITY_ICONS[t] || "📌"}</span>
+                          <span style={{ lineHeight: 1.3 }}>{t}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
-            )}
-            {current._match.score===0 && <p style={{fontSize:13,color:"var(--text3)"}}>No overlap yet — but everyone starts somewhere.</p>}
-            {connectError && <div className="profile-save-error">⚠️ {connectError}</div>}
-            <button className="conn-chat-btn" disabled={connecting} onClick={()=>openChat(current)}>{connecting ? "Connecting…" : `Message ${current.name} →`}</button>
-            <div className="conn-nav-row">
-              <button className="conn-back-btn" disabled={!canGoBack} onClick={goToPrevious}>‹ Back</button>
-              <button className="conn-pass-btn" onClick={passProfileAndNext}>Pass ›</button>
+
+              {/* View full profile + Next */}
+              <div style={{ padding: "12px 20px 20px", borderTop: "1px solid var(--border)" }}>
+                <button style={{ width: "100%", background: "var(--green2)", color: "white", borderRadius: 12, padding: "13px", fontSize: 14, fontWeight: 700, marginBottom: 10, border: "none", cursor: "pointer" }} onClick={() => openChat(current)}>
+                  Message {current.name} →
+                </button>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button style={{ flex: 1, border: "1.5px solid var(--border)", borderRadius: 12, padding: "11px", fontSize: 13, fontWeight: 600, color: "var(--text2)", background: "var(--white)", cursor: "pointer" }} onClick={() => setViewProfile(current)}>
+                    View full profile
+                  </button>
+                  <button style={{ flex: 1, border: "1.5px solid var(--border)", borderRadius: 12, padding: "11px", fontSize: 13, fontWeight: 600, color: "var(--text2)", background: "var(--white)", cursor: "pointer" }} onClick={() => { setIdx(i => Math.min(displayPeople.length - 1, i + 1)); }}>
+                    Next →
+                  </button>
+                </div>
+              </div>
             </div>
+          ) : (
+            <div className="conn-empty">
+              <div style={{ fontSize: 42 }}>🎉</div>
+              <div className="conn-empty-title">You're all caught up!</div>
+              <p style={{ color: "var(--text3)", fontSize: 13, marginTop: 6 }}>No more people to show right now.</p>
+              <button className="conn-browse-again-btn" disabled={resetting} onClick={async () => {
+                setResetting(true);
+                try { if (userId) await resetPasses(userId); setIdx(0); setReloadKey(k => k + 1); }
+                catch (e) { console.error(e); }
+                finally { setResetting(false); }
+              }}>{resetting ? "Resetting…" : "↻ Start over"}</button>
+            </div>
+          )}
+
+          {connectError && <div className="profile-save-error" style={{ marginTop: 12 }}>⚠️ {connectError}</div>}
+        </div>
+      )}
+
+      {/* BY ACTIVITY TAB */}
+      {subTab === "byactivity" && !selectedActivity && (
+        <div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
+            {sortedActivities.map(([activity, actPeople]) => (
+              <button key={activity}
+                style={{ display: "flex", alignItems: "center", gap: 14, padding: 16, background: "var(--white)", border: "1px solid var(--border)", borderRadius: 16, boxShadow: "var(--shadow)", cursor: "pointer", textAlign: "left", width: "100%" }}
+                onClick={() => setSelectedActivity(activity)}>
+                {/* Icon circle */}
+                <div style={{ width: 52, height: 52, borderRadius: 999, background: "var(--green-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, flexShrink: 0 }}>
+                  {ACTIVITY_ICONS[activity] || "📌"}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", marginBottom: 3 }}>{activity}</div>
+                  <div style={{ fontSize: 13, color: "var(--text3)", lineHeight: 1.4 }}>
+                    {actPeople.length} {actPeople.length === 1 ? "person" : "people"} want to do this in {cd.label}
+                  </div>
+                </div>
+                <div style={{ background: "var(--green-light)", color: "var(--green2)", borderRadius: 999, padding: "5px 12px", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+                  {actPeople.length}
+                </div>
+                <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Footer hint */}
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "14px 16px", background: "var(--bg2)", borderRadius: 12, marginBottom: 24 }}>
+            <span style={{ fontSize: 18 }}>✨</span>
+            <p style={{ fontSize: 13, color: "var(--text3)", margin: 0, lineHeight: 1.5 }}>
+              Adding more things under "Things I want to do" in your profile helps you find people you resonate with.
+            </p>
           </div>
         </div>
-      ) : (!loading && !loadError && (
-        <div className="conn-empty">
-          <div style={{fontSize:42}}>🎉</div>
-          <div className="conn-empty-title">You're all caught up!</div>
-          <p style={{color:"var(--text3)",fontSize:13,marginTop:6}}>No more registered people to show in {cd.label} right now.</p>
-          <button className="conn-browse-again-btn" disabled={resetting} onClick={browseAgain}>{resetting ? "Resetting…" : "↻ Browse profiles again"}</button>
+      )}
+
+      {/* BY ACTIVITY — people list for selected activity */}
+      {subTab === "byactivity" && selectedActivity && (
+        <div>
+          <button style={{ fontSize: 20, color: "var(--text2)", marginBottom: 16, background: "none", border: "none", cursor: "pointer", padding: 0 }} onClick={() => setSelectedActivity(null)}>← Back</button>
+          <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>{selectedActivity}</h2>
+          <p style={{ fontSize: 14, color: "var(--green2)", fontWeight: 600, marginBottom: 20 }}>
+            {activityGroups[selectedActivity]?.length} {activityGroups[selectedActivity]?.length === 1 ? "person wants" : "people want"} to do this
+          </p>
+
+          {/* Activity banner */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--green-light)", border: "1.5px solid rgba(45,106,45,0.2)", borderRadius: 14, padding: "14px 16px", marginBottom: 20 }}>
+            <span style={{ fontSize: 28 }}>{ACTIVITY_ICONS[selectedActivity] || "📌"}</span>
+            <p style={{ fontSize: 13, color: "var(--text2)", margin: 0, lineHeight: 1.5 }}>
+              Browse people who also want to {selectedActivity.toLowerCase()}.
+            </p>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            {(activityGroups[selectedActivity] || []).map(person => {
+              const photos = (person.photo_urls || person.photos || []).filter(Boolean);
+              const initials = (person.name || "?").slice(0, 2).toUpperCase();
+              const interests = (person.interests || []).slice(0, 4).map(i => INTEREST_OPTIONS.find(o => o.id === i)?.label || i);
+              return (
+                <button key={person.id}
+                  style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 0", borderBottom: "1px solid var(--border)", background: "none", border: "none", borderBottom: "1px solid var(--border)", cursor: "pointer", textAlign: "left", width: "100%" }}
+                  onClick={() => setActivityProfileView(person)}>
+                  {photos[0]
+                    ? <img src={photos[0]} alt={person.name} style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+                    : <div style={{ width: 48, height: 48, borderRadius: "50%", background: "var(--green-light)", color: "var(--green2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, flexShrink: 0 }}>{initials}</div>
+                  }
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>{person.name}{person.age ? `, ${person.age}` : ""}</div>
+                    <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>{interests.join(" · ")}</div>
+                  </div>
+                  <span style={{ color: "var(--text3)", fontSize: 18, flexShrink: 0 }}>›</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      ))}
+      )}
     </div>
   );
 }
 
-// ─── PROFILE SCREEN — updated with food/city recs ────────────────────────────
-function EditableField({ label, value, onSave, type="text", icon }) {
+// ─── PLACES TO EXPLORE SCREEN ─────────────────────────────────────────────────
+function PlacesToExploreScreen({ city, userId, userName }) {
+  const places = PLACES_TO_EXPLORE[city] || [];
+  const [saved, setSaved] = useState({});
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTag, setActiveTag] = useState("All");
+  const [submitOpen, setSubmitOpen] = useState(false);
+  const [submitForm, setSubmitForm] = useState({ name: "", area: "", desc: "" });
+  const [communityPlaces, setCommunityPlaces] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitDone, setSubmitDone] = useState(false);
+
+  // All tags across places
+  // Use categories as primary filters when available, fall back to tags
+  const hasCategories = places.some(p => p.category);
+  const allTags = hasCategories
+    ? ["All", ...Array.from(new Set(places.map(p => p.category).filter(Boolean)))]
+    : ["All", ...Array.from(new Set(places.flatMap(p => p.tags)))];
+
+  const filtered = places.filter(p => {
+    const matchSearch = !searchQuery.trim() || p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.area.toLowerCase().includes(searchQuery.toLowerCase()) || p.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchTag = activeTag === "All" || p.category === activeTag || p.tags.includes(activeTag);
+    return matchSearch && matchTag;
+  });
+
+  const handleSubmit = async () => {
+    if (!submitForm.name.trim() || !submitForm.area.trim()) return;
+    setSubmitting(true);
+    try {
+      if (userId) {
+        const place = await submitCommunityPlace(userId, userName || "Someone", {
+          city, name: submitForm.name.trim(), area: submitForm.area.trim(),
+          cuisine: "Place to Explore", description: submitForm.desc.trim(), photoUrl: null,
+        });
+        setCommunityPlaces(p => [place, ...p]);
+      } else {
+        setCommunityPlaces(p => [{ id: Date.now(), name: submitForm.name.trim(), area: submitForm.area.trim(), description: submitForm.desc.trim(), isCommunity: true }]);
+      }
+      setSubmitDone(true);
+      setSubmitForm({ name: "", area: "", desc: "" });
+      setTimeout(() => { setSubmitDone(false); setSubmitOpen(false); }, 1500);
+    } catch (e) { console.error(e); }
+    finally { setSubmitting(false); }
+  };
+
+  return (
+    <div style={{ paddingTop: 20, paddingBottom: 80 }}>
+      {/* Header */}
+      <div style={{ marginBottom: 16 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.03em", marginBottom: 4 }}>Places to explore</h1>
+        <p style={{ fontSize: 13, color: "var(--text3)" }}>The best of {city === "nyc" ? "New York City" : "Mumbai"}, curated by the community</p>
+      </div>
+
+      {/* Search */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, border: "1.5px solid var(--border)", borderRadius: 12, padding: "10px 14px", background: "var(--white)", marginBottom: 14 }}>
+        <span style={{ fontSize: 14, color: "var(--text3)" }}>🔍</span>
+        <input style={{ flex: 1, border: "none", outline: "none", fontSize: 14, fontFamily: "inherit", background: "none", color: "var(--text)" }} placeholder="Search places or tags" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+        {searchQuery && <button style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--bg2)", border: "none", fontSize: 14, cursor: "pointer" }} onClick={() => setSearchQuery("")}>×</button>}
+      </div>
+
+      {/* Tag filter pills */}
+      <div style={{ display: "flex", gap: 8, overflowX: "auto", scrollbarWidth: "none", paddingBottom: 14, marginBottom: 4 }}>
+        {allTags.map(tag => (
+          <button key={tag}
+            style={{ flexShrink: 0, border: "1.5px solid var(--border)", borderRadius: 999, padding: "7px 14px", fontSize: 13, fontWeight: 600, color: activeTag === tag ? "white" : "var(--text3)", background: activeTag === tag ? "var(--green2)" : "var(--white)", cursor: "pointer", transition: ".15s", borderColor: activeTag === tag ? "var(--green2)" : "var(--border)" }}
+            onClick={() => setActiveTag(tag)}>{tag}</button>
+        ))}
+      </div>
+
+      {/* Places list */}
+      {filtered.map(place => (
+        <div key={place.id} style={{ display: "flex", gap: 14, padding: "16px 0", borderBottom: "1px solid var(--border)" }}>
+          <div style={{ flexShrink: 0, width: 120, height: 90, borderRadius: 12, overflow: "hidden" }}>
+            <img src={place.img} alt={place.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>{place.name}</div>
+                <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 1 }}>📍 {place.area}</div>
+              </div>
+              <button style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", flexShrink: 0, padding: 0 }} onClick={() => setSaved(s => ({ ...s, [place.id]: !s[place.id] }))}>
+                {saved[place.id] ? "🔖" : "📑"}
+              </button>
+            </div>
+            <p style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.5, margin: "0 0 8px" }}>
+              {place.desc.length > 100 ? place.desc.slice(0, 100) + "…" : place.desc}
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {place.tags.map(t => (
+                <span key={t} style={{ background: "var(--green-bg)", color: "var(--green2)", borderRadius: 6, padding: "3px 8px", fontSize: 11, fontWeight: 700 }}>{t}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {/* Community places */}
+      {communityPlaces.map((place, i) => (
+        <div key={i} style={{ display: "flex", gap: 14, padding: "16px 0", borderBottom: "1px solid var(--border)" }}>
+          <div style={{ flexShrink: 0, width: 120, height: 90, borderRadius: 12, background: "var(--bg2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>🏙️</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>{place.name}</div>
+            <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 1 }}>📍 {place.area} · Added by community</div>
+            {place.description && <p style={{ fontSize: 13, color: "var(--text2)", marginTop: 6, lineHeight: 1.5 }}>{place.description}</p>}
+          </div>
+        </div>
+      ))}
+
+      {filtered.length === 0 && communityPlaces.length === 0 && (
+        <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text3)" }}>
+          <div style={{ fontSize: 32 }}>🔍</div>
+          <p style={{ marginTop: 10, fontSize: 14 }}>No places match "{searchQuery}"</p>
+        </div>
+      )}
+
+      {/* Submit CTA */}
+      <div style={{ marginTop: 24, background: "var(--bg2)", borderRadius: 16, padding: "18px 20px", border: "1px solid var(--border)" }}>
+        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Know a great spot?</div>
+        <div style={{ fontSize: 13, color: "var(--text3)", marginBottom: 12, lineHeight: 1.5 }}>Add it to the map and help others discover the city.</div>
+        <button style={{ background: "var(--green2)", color: "white", borderRadius: 999, padding: "10px 20px", fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer" }} onClick={() => setSubmitOpen(o => !o)}>
+          {submitOpen ? "Close" : "+ Add a place"}
+        </button>
+        {submitOpen && (
+          <div style={{ marginTop: 14 }}>
+            {submitDone ? (
+              <div style={{ textAlign: "center", padding: "12px", fontSize: 15, fontWeight: 700, color: "var(--green2)" }}>✓ Added! Thanks for sharing.</div>
+            ) : (
+              <>
+                <input className="ob-input" style={{ marginBottom: 10 }} placeholder="Place name" value={submitForm.name} onChange={e => setSubmitForm(f => ({ ...f, name: e.target.value }))} />
+                <input className="ob-input" style={{ marginBottom: 10 }} placeholder="Area / neighbourhood" value={submitForm.area} onChange={e => setSubmitForm(f => ({ ...f, area: e.target.value }))} />
+                <textarea className="ob-input" rows={3} style={{ resize: "none", marginBottom: 10 }} placeholder="What makes it special?" value={submitForm.desc} onChange={e => setSubmitForm(f => ({ ...f, desc: e.target.value }))} />
+                <button style={{ width: "100%", background: "var(--green)", color: "white", borderRadius: 12, padding: "12px", fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer" }} disabled={submitting || !submitForm.name.trim() || !submitForm.area.trim()} onClick={handleSubmit}>
+                  {submitting ? "Adding…" : "Add this place"}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div style={{ height: 20 }} />
+    </div>
+  );
+}
+
+// ─── FOOD DETAIL ──────────────────────────────────────────────────────────────
+function FoodDetail({ restaurant, onBack, userId, userName, isSaved, onToggleSave }) {
+  const [shareFeedback, setShareFeedback] = useState("");
+  const [experiences, setExperiences] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [formOpen, setFormOpen] = useState(false);
+  const [note, setNote] = useState("");
+  const [favoriteItem, setFavoriteItem] = useState("");
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
+  const SHARED_EXP_NAMES = ["Rohan", "Priya", "Arjun", "Meera", "Karan", "Aditi", "Rahul", "Kavya", "Dev", "Nikhil"];
+
+  useEffect(() => {
+    let active = true;
+    getFoodExperiences(restaurant.name)
+      .then(data => { if (active) setExperiences(data || []); })
+      .catch(e => console.error(e))
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [restaurant.name]);
+
+  const handleShare = async () => {
+    const shareUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurant.address || restaurant.name + " " + restaurant.hood)}`;
+    try {
+      if (navigator.share) await navigator.share({ title: restaurant.name, url: shareUrl });
+      else { await navigator.clipboard.writeText(shareUrl); setShareFeedback("Link copied!"); setTimeout(() => setShareFeedback(""), 2000); }
+    } catch (e) { if (e.name !== "AbortError") console.error(e); }
+  };
+
+  const handleSubmit = async () => {
+    if (!userId) { setSubmitError("Sign in to share your experience."); return; }
+    if (!photoFile && !note.trim() && !favoriteItem.trim()) { setSubmitError("Add a photo, note, or favorite item."); return; }
+    setSubmitting(true); setSubmitError("");
+    try {
+      let photoUrl = null;
+      if (photoFile) photoUrl = await uploadFoodExperiencePhoto(userId, photoFile);
+      const saved = await shareFoodExperience(userId, userName || "Someone", restaurant.name, { photoUrl, note: note.trim(), favoriteItem: favoriteItem.trim() });
+      setExperiences(p => [saved, ...p]);
+      setNote(""); setFavoriteItem(""); setPhotoFile(null); setPhotoPreview(null); setFormOpen(false);
+    } catch (e) { console.error(e); setSubmitError("Couldn't share that — please try again."); }
+    finally { setSubmitting(false); }
+  };
+
+  return (
+    <div className="detail-root">
+      <div className="detail-header">
+        <button className="detail-back" onClick={onBack}>←</button>
+        <div className="detail-header-title"><div>Spot details</div></div>
+        <div className="detail-header-actions">
+          <button className="detail-action-btn" onClick={() => onToggleSave(restaurant.name)}>{isSaved ? "🔖" : "📑"}</button>
+          <button className="detail-action-btn" onClick={handleShare}>↗</button>
+        </div>
+      </div>
+      <div className="detail-hero-img-wrap">{restaurant.img ? <img src={restaurant.img} alt={restaurant.name} className="detail-hero-img" /> : <div className="detail-hero-img detail-hero-img-placeholder">📍</div>}</div>
+      <div className="detail-body">
+        <div className="detail-name-row">
+          <div>
+            <div className="detail-name">{restaurant.name}</div>
+            {restaurant.hood && <div className="detail-place-area">📍 {restaurant.hood}</div>}
+          </div>
+        </div>
+        <div className="detail-meta">{restaurant.cuisine}</div>
+        <p className="detail-about">{restaurant.desc}</p>
+        {shareFeedback && <div className="share-feedback">✓ {shareFeedback}</div>}
+        <div className="detail-actions-row">
+          {restaurant.phone && <a className="detail-act-item" href={`tel:${restaurant.phone}`}><span className="detail-act-icon">📞</span><span className="detail-act-label">Call</span></a>}
+          <a className="detail-act-item" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurant.address || restaurant.name)}`} target="_blank" rel="noopener noreferrer"><span className="detail-act-icon">🗺️</span><span className="detail-act-label">Directions</span></a>
+          <button className="detail-act-item" onClick={handleShare}><span className="detail-act-icon">↗</span><span className="detail-act-label">Share</span></button>
+          <button className="detail-act-item" onClick={() => onToggleSave(restaurant.name)}><span className="detail-act-icon">{isSaved ? "🔖" : "📑"}</span><span className="detail-act-label">{isSaved ? "Saved" : "Save"}</span></button>
+        </div>
+        {(restaurant.address || restaurant.phone) && (
+          <div className="detail-info-card">
+            {restaurant.address && <div className="detail-info-row"><span className="detail-info-icon">📍</span><span>{restaurant.address}</span></div>}
+            {restaurant.address && restaurant.phone && <div className="detail-info-divider" />}
+            {restaurant.phone && <div className="detail-info-row"><span className="detail-info-icon">📞</span><span>{restaurant.phone}</span></div>}
+          </div>
+        )}
+        {restaurant.sharedExp && (
+          <>
+            <div className="detail-section-title" style={{ marginTop: 22 }}>Shared experience</div>
+            <div className="detail-shared-exp-card">
+              <div className="detail-shared-exp-user">
+                <div className="detail-shared-exp-avatar">{SHARED_EXP_NAMES[restaurant.id % SHARED_EXP_NAMES.length].slice(0, 2).toUpperCase()}</div>
+                <span className="detail-shared-exp-name">{SHARED_EXP_NAMES[restaurant.id % SHARED_EXP_NAMES.length]}</span>
+              </div>
+              <p className="detail-shared-exp-text">{restaurant.sharedExp}</p>
+            </div>
+          </>
+        )}
+        {restaurant.tryThis && (
+          <>
+            <div className="detail-section-title" style={{ marginTop: 22 }}>Try these</div>
+            <div className="detail-try-items">
+              {restaurant.tryThis.split(" and ").map((item, i) => (
+                <div key={i} className="detail-try-item">
+                  {(restaurant.photos || [])[i] ? <img src={(restaurant.photos || [])[i]} alt={item.trim()} className="detail-try-img" /> : <div className="detail-try-img detail-try-img-placeholder">🍽️</div>}
+                  <div className="detail-try-label">{item.trim()}</div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+        <div className="detail-divider" style={{ marginTop: 24 }} />
+        <div className="detail-photos-header">
+          <span className="detail-section-title">Community experiences</span>
+          <button className="detail-viewall" onClick={() => setFormOpen(o => !o)}>{formOpen ? "Cancel" : "Add yours"}</button>
+        </div>
+        {formOpen && (
+          <div className="experience-form">
+            {submitError && <div className="profile-save-error" style={{ marginTop: 0 }}>⚠️ {submitError}</div>}
+            <label className="experience-photo-picker">
+              {photoPreview ? <img src={photoPreview} alt="" className="experience-photo-preview" /> : <span>📷 Add a photo</span>}
+              <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; setPhotoFile(f || null); setPhotoPreview(f ? URL.createObjectURL(f) : null); }} />
+            </label>
+            <input className="ob-input" style={{ marginTop: 10 }} placeholder="Your favorite item" value={favoriteItem} onChange={e => setFavoriteItem(e.target.value)} />
+            <textarea className="ob-input experience-textarea" style={{ marginTop: 10 }} placeholder="What was it like?" value={note} onChange={e => setNote(e.target.value)} rows={3} />
+            <button className="filter-apply" style={{ marginTop: 12 }} disabled={submitting} onClick={handleSubmit}>{submitting ? "Sharing…" : "Share with the community"}</button>
+          </div>
+        )}
+        {loading && <div className="food-empty-state" style={{ padding: "20px 0" }}>Loading experiences…</div>}
+        {!loading && experiences.length === 0 && !formOpen && <div className="food-empty-state" style={{ padding: "20px 0" }}>No one's shared an experience here yet — be the first.</div>}
+        {!loading && experiences.map(exp => (
+          <div key={exp.id} className="experience-card">
+            {exp.photo_url && <img src={exp.photo_url} alt="" className="experience-card-img" />}
+            <div className="experience-card-body">
+              <div className="experience-card-row"><span className="experience-card-user">{exp.user_name}</span></div>
+              {exp.favorite_item && <div className="experience-card-fav">⭐ {exp.favorite_item}</div>}
+              {exp.note && <p className="experience-card-note">{exp.note}</p>}
+            </div>
+          </div>
+        ))}
+        <div style={{ height: 90 }} />
+      </div>
+      <div className="detail-share-cta" onClick={() => setFormOpen(o => !o)}>
+        <span className="detail-share-cta-icon">✏️</span>
+        <div><div className="detail-share-cta-title">Share your experience</div><div className="detail-share-cta-sub">Help others discover great places in the city.</div></div>
+        <span className="detail-share-cta-arrow">›</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── FOOD SCREEN ──────────────────────────────────────────────────────────────
+function FoodScreen({ city, userCuisines, userBudget, userId, userName, savedPlaces, onToggleSave }) {
+  const [detailOpen, setDetailOpen] = useState(null);
+  const [likes, setLikes] = useState({});
+  const [activeArea, setActiveArea] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [communityPlaces, setCommunityPlaces] = useState([]);
+  const [submitOpen, setSubmitOpen] = useState(false);
+  const cd = CITIES[city];
+
+  useEffect(() => {
+    let active = true;
+    getCommunityPlaces(city).then(data => { if (active) setCommunityPlaces(data || []); }).catch(e => console.error(e));
+    return () => { active = false; };
+  }, [city]);
+
+  if (detailOpen) return (
+    <FoodDetail
+      restaurant={detailOpen} onBack={() => setDetailOpen(null)}
+      userId={userId} userName={userName}
+      isSaved={(savedPlaces || []).includes(detailOpen.name)}
+      onToggleSave={onToggleSave}
+    />
+  );
+
+  const cityAreas = ["All", ...Array.from(new Set(cd.food.map(r => r.hood)))];
+  const matchesSearch = p => !searchQuery.trim() || [p.name, p.cuisine, p.hood].some(f => f?.toLowerCase().includes(searchQuery.toLowerCase()));
+  const matchesArea = p => activeArea === "All" || p.hood === activeArea;
+  const filtered = cd.food.filter(r => matchesArea(r) && matchesSearch(r));
+  const sorted = userCuisines?.length ? [...filtered].sort((a, b) => scoreFoodPlace(b, userCuisines, userBudget) - scoreFoodPlace(a, userCuisines, userBudget)) : filtered;
+  const recommended = sorted.slice(0, 10);
+  const explore = sorted.slice(10);
+
+  return (
+    <div style={{ paddingTop: 20, paddingBottom: 80 }}>
+      {/* Search + area */}
+      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 14 }}>
+        <select style={{ border: "1.5px solid var(--border)", borderRadius: 12, padding: "10px 28px 10px 12px", fontSize: 13, fontWeight: 700, color: "var(--text)", background: "var(--white)", appearance: "none", backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23666' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 10px center", cursor: "pointer", flexShrink: 0 }} value={activeArea} onChange={e => setActiveArea(e.target.value)}>
+          {cityAreas.map(a => <option key={a} value={a}>{a === "All" ? "All areas" : a}</option>)}
+        </select>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, border: "1.5px solid var(--border)", borderRadius: 12, padding: "10px 14px", background: "var(--white)" }}>
+          <span style={{ fontSize: 14, color: "var(--text3)" }}>🔍</span>
+          <input style={{ flex: 1, border: "none", outline: "none", fontSize: 14, fontFamily: "inherit", background: "none" }} placeholder="Search food places" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+          {searchQuery && <button style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--bg2)", border: "none", fontSize: 14, cursor: "pointer" }} onClick={() => setSearchQuery("")}>×</button>}
+        </div>
+      </div>
+
+      {/* Hero banner */}
+      <div style={{ background: "var(--bg2)", borderRadius: 16, padding: "22px 20px", marginBottom: 20 }}>
+        <div style={{ fontSize: 20, fontWeight: 800, color: "var(--text)", lineHeight: 1.3 }}>Discover the city's best places</div>
+        <div style={{ fontSize: 14, color: "var(--text2)", marginTop: 6 }}>Community-driven shared experiences</div>
+      </div>
+
+      {/* Recommendations */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div style={{ fontSize: 18, fontWeight: 700 }}>Recommendations for you</div>
+      </div>
+      <div className="food-hscroll">
+        {recommended.length === 0 && <div className="food-empty-state">No matches{searchQuery ? ` for "${searchQuery}"` : ""}.</div>}
+        {recommended.map(r => (
+          <div key={r.id} className="food-card" onClick={() => setDetailOpen(r)}>
+            <div className="food-card-img-wrap">
+              {r.img ? <img src={r.img} alt={r.name} className="food-card-img" /> : <div className="food-card-img food-card-img-placeholder">🍽️</div>}
+              <button className="heart-btn" onClick={e => { e.stopPropagation(); setLikes(p => ({ ...p, [r.id]: !p[r.id] })); }}>{likes[r.id] ? "❤️" : "🤍"}</button>
+              {r.tag && <div className="food-tag-pill">{r.tag}</div>}
+            </div>
+            <div className="food-card-body">
+              <div className="food-name">{r.name}</div>
+              <div className="food-card-hood">📍 {r.hood}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Explore */}
+      {explore.length > 0 && (
+        <>
+          <div style={{ fontSize: 18, fontWeight: 700, marginTop: 28, marginBottom: 14 }}>Explore experiences</div>
+          {explore.map(r => (
+            <div key={r.id} className="exp-list-row" onClick={() => setDetailOpen(r)}>
+              <div className="exp-list-img-wrap">
+                {r.img ? <img src={r.img} alt={r.name} className="exp-list-img" /> : <div className="exp-list-img exp-list-img-placeholder">🍽️</div>}
+              </div>
+              <div className="exp-list-body">
+                <div className="exp-list-top"><span className="exp-list-name">{r.name}</span><span className="exp-list-cuisine">{r.cuisine}</span></div>
+                <div className="exp-list-area">📍 {r.hood}</div>
+                {r.sharedExp && <p className="exp-list-exp">{r.sharedExp.length > 90 ? r.sharedExp.slice(0, 90) + "…" : r.sharedExp}</p>}
+                {r.tryThis && <div className="exp-list-try"><span className="exp-list-try-label">Try:</span> {r.tryThis.split(" and ").slice(0, 2).join(" and ")}</div>}
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+
+      {/* Share CTA */}
+      <div className="food-share-sticky" onClick={() => setSubmitOpen(o => !o)}>
+        <span className="food-share-sticky-icon">✏️</span>
+        <div><div className="food-share-sticky-title">Share your experience</div><div className="food-share-sticky-sub">Help others discover great places.</div></div>
+        <span className="food-share-sticky-plus">{submitOpen ? "×" : "+"}</span>
+      </div>
+      {submitOpen && (
+        <div className="share-sheet-overlay" onClick={() => setSubmitOpen(false)}>
+          <div className="share-sheet" onClick={e => e.stopPropagation()}>
+            <div className="share-sheet-handle" />
+            <div style={{ marginBottom: 12 }}>
+              <select className="ob-input" style={{ marginBottom: 10 }} defaultValue="">
+                <option value="" disabled>Select a place...</option>
+                {cd.food.map(p => <option key={p.id} value={p.name}>{p.name} — {p.hood}</option>)}
+              </select>
+              <input className="ob-input" style={{ marginBottom: 10 }} placeholder="Your favorite item" />
+              <textarea className="ob-input experience-textarea" rows={3} placeholder="What was it like?" />
+              <button className="filter-apply" style={{ marginTop: 10 }} onClick={() => setSubmitOpen(false)}>Share with the community</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── OWN PROFILE ──────────────────────────────────────────────────────────────
+function EditableField({ label, value, onSave, type = "text", icon }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
-  useEffect(()=>{ setDraft(value); }, [value]);
-  const commit = () => {
-    setEditing(false);
-    if (draft !== value && draft !== "" && draft != null) onSave(draft);
-    else setDraft(value);
-  };
+  useEffect(() => { setDraft(value); }, [value]);
+  const commit = () => { setEditing(false); if (draft !== value && draft) onSave(draft); else setDraft(value); };
   return (
     <div className="profile-field">
       <label>{label}</label>
       {editing ? (
-        <input
-          className="profile-field-input"
-          type={type}
-          value={draft}
-          autoFocus
-          onChange={e=>setDraft(type==="number" ? e.target.value : e.target.value)}
-          onBlur={commit}
-          onKeyDown={e=>{ if(e.key==="Enter") commit(); if(e.key==="Escape"){ setDraft(value); setEditing(false); } }}
-        />
+        <input className="profile-field-input" type={type} value={draft} autoFocus onChange={e => setDraft(e.target.value)} onBlur={commit} onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(value); setEditing(false); } }} />
       ) : (
-        <div className="profile-field-val profile-field-editable" onClick={()=>setEditing(true)}>{value || "—"} {icon} <span className="profile-field-edit-hint">✏️</span></div>
+        <div className="profile-field-val profile-field-editable" onClick={() => setEditing(true)}>{value || "—"} {icon} <span className="profile-field-edit-hint">✏️</span></div>
       )}
     </div>
   );
@@ -1625,92 +1610,69 @@ function EditableField({ label, value, onSave, type="text", icon }) {
 
 function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour }) {
   const cd = CITIES[user.city];
-  const p = cd.people[0]; // sample person — still used for Food/In-City recs sections below (not yet wired to real user data)
   const [cuisines, setCuisines] = useState(user.cuisines || []);
-  const [budget, setBudget] = useState(user.budget || "flexible");
   const [things, setThings] = useState(user.things || []);
-  const [cityPickerOpen, setCityPickerOpen] = useState(false);
-  const [saveError, setSaveError] = useState("");
+  const [prompts, setPrompts] = useState(user.prompts || {});
   const [photos, setPhotos] = useState(user.photo_urls || []);
   const [uploadingSlot, setUploadingSlot] = useState(null);
-  useEffect(()=>{ setCuisines(user.cuisines || []); setBudget(user.budget || "flexible"); }, [user.cuisines, user.budget]);
-  useEffect(()=>{ setPhotos(user.photo_urls || []); }, [user.photo_urls]);
-  useEffect(()=>{ setThings(user.things || []); }, [user.things]);
+  const [saveError, setSaveError] = useState("");
+  const [cityPickerOpen, setCityPickerOpen] = useState(false);
+
+  useEffect(() => { setCuisines(user.cuisines || []); }, [user.cuisines]);
+  useEffect(() => { setPhotos(user.photo_urls || []); }, [user.photo_urls]);
+  useEffect(() => { setThings(user.things || []); }, [user.things]);
+  useEffect(() => { setPrompts(user.prompts || {}); }, [user.prompts]);
 
   const save = async (updates, revert) => {
     setSaveError("");
-    try {
-      if (onUpdateProfile) await onUpdateProfile(updates);
-    } catch (e) {
-      console.error("Profile save failed:", e);
-      setSaveError("Couldn't save that change — please try again.");
-      if (revert) revert();
-    }
+    try { if (onUpdateProfile) await onUpdateProfile(updates); }
+    catch (e) { console.error(e); setSaveError("Couldn't save that change — please try again."); if (revert) revert(); }
   };
-  const addThing = (t) => { const prev = things; const next = [...things, t]; setThings(next); save({ city_wants: next }, ()=>setThings(prev)); };
-  const removeThing = (t) => { const prev = things; const next = things.filter(x=>x!==t); setThings(next); save({ city_wants: next }, ()=>setThings(prev)); };
+
+  const addThing = t => { const prev = things; const next = [...things, t]; setThings(next); save({ city_wants: next }, () => setThings(prev)); };
+  const removeThing = t => { const prev = things; const next = things.filter(x => x !== t); setThings(next); save({ city_wants: next }, () => setThings(prev)); };
+
   const handlePhotoSelect = async (slot, file) => {
     if (!file) return;
-    setSaveError("");
     setUploadingSlot(slot);
     try {
-      let url;
-      if (userId) {
-        url = await uploadProfilePhoto(userId, file, slot);
-      } else {
-        url = URL.createObjectURL(file); // local demo mode: preview-only, not persisted
-      }
+      const url = userId ? await uploadProfilePhoto(userId, file, slot) : URL.createObjectURL(file);
       const next = [...photos]; next[slot] = url; setPhotos(next);
       await save({ photo_urls: next });
-    } catch (e) {
-      console.error("Photo upload failed:", e);
-      setSaveError("Couldn't upload that photo — please try again.");
-    } finally {
-      setUploadingSlot(null);
-    }
+    } catch (e) { console.error(e); setSaveError("Couldn't upload that photo — please try again."); }
+    finally { setUploadingSlot(null); }
   };
-  const removePhoto = async (slot) => {
-    const prev = photos; const next = [...photos]; next[slot] = null;
-    setPhotos(next); await save({ photo_urls: next.filter(Boolean) }, ()=>setPhotos(prev));
-  };
+
   const moveCuisine = (id, dir) => {
-    const prev = cuisines;
-    const idx = prev.indexOf(id); const newIdx = idx + dir;
-    if (newIdx < 0 || newIdx >= prev.length) return;
-    const next = [...prev]; [next[idx], next[newIdx]] = [next[newIdx], next[idx]];
-    setCuisines(next);
-    save({ cuisines: next }, ()=>setCuisines(prev));
+    const prev = cuisines; const idx = prev.indexOf(id); const ni = idx + dir;
+    if (ni < 0 || ni >= prev.length) return;
+    const next = [...prev]; [next[idx], next[ni]] = [next[ni], next[idx]];
+    setCuisines(next); save({ cuisines: next }, () => setCuisines(prev));
   };
-  const removeCuisine = id => {
-    const prev = cuisines; const next = cuisines.filter(c=>c!==id);
-    setCuisines(next); save({ cuisines: next }, ()=>setCuisines(prev));
-  };
-  const addCuisine = id => {
-    const prev = cuisines; const next = [...cuisines, id];
-    setCuisines(next); save({ cuisines: next }, ()=>setCuisines(prev));
-  };
+  const removeCuisine = id => { const prev = cuisines; const next = cuisines.filter(c => c !== id); setCuisines(next); save({ cuisines: next }, () => setCuisines(prev)); };
+  const addCuisine = id => { const prev = cuisines; const next = [...cuisines, id]; setCuisines(next); save({ cuisines: next }, () => setCuisines(prev)); };
 
   return (
     <div className="profile-root">
-      <div className="profile-header-row"><div className="profile-title">Complete your profile</div><div className="profile-progress"><svg width="44" height="44"><circle cx="22" cy="22" r="18" fill="none" stroke="#e0e0e0" strokeWidth="3"/><circle cx="22" cy="22" r="18" fill="none" stroke="#2d6a2d" strokeWidth="3" strokeDasharray="113" strokeDashoffset="28" strokeLinecap="round" transform="rotate(-90 22 22)"/><text x="22" y="26" textAnchor="middle" fontSize="10" fontWeight="700" fill="#2d6a2d">75%</text></svg></div></div>
-      <div className="profile-header-sub">Add a few details to help others know the real you.</div>
+      <div className="profile-header-row"><div className="profile-title">Your profile</div></div>
+      <div className="profile-header-sub">The more you fill in, the better your connections.</div>
       {saveError && <div className="profile-save-error">⚠️ {saveError}</div>}
 
-      {/* 1 Basic info */}
+      {/* 1 Basic */}
       <div className="profile-section">
         <div className="profile-sec-num">1</div>
         <div className="profile-sec-body">
-          <div className="profile-sec-title">Basic info <span className="profile-sec-note">This will be visible on your profile. Tap any field to edit.</span></div>
+          <div className="profile-sec-title">Basic info</div>
           <div className="profile-basic-grid">
-            <EditableField label="Name" value={user.name} icon="👤" onSave={v=>save({name:v})}/>
-            <EditableField label="Age" value={user.age} type="number" icon="📅" onSave={v=>{ const n=parseInt(v); if(n>=18) save({age:n}); }}/>
+            <EditableField label="Name" value={user.name} icon="👤" onSave={v => save({ name: v })} />
+            <EditableField label="Age" value={user.age} type="number" icon="📅" onSave={v => { const n = parseInt(v); if (n >= 18) save({ age: n }); }} />
             <div className="profile-field">
               <label>City</label>
-              <div className="profile-field-val profile-field-editable" onClick={()=>setCityPickerOpen(o=>!o)}>{cd.label} 📍 <span className="profile-field-edit-hint">✏️</span></div>
+              <div className="profile-field-val profile-field-editable" onClick={() => setCityPickerOpen(o => !o)}>{cd.label} 📍 <span className="profile-field-edit-hint">✏️</span></div>
               {cityPickerOpen && (
                 <div className="profile-city-picker">
-                  {[{id:"nyc",name:"New York City"},{id:"mumbai",name:"Mumbai"}].map(c=>(
-                    <button key={c.id} className={`profile-city-opt ${user.city===c.id?"active":""}`} onClick={()=>{ save({city:c.id}); setCityPickerOpen(false); }}>{c.name}</button>
+                  {[{ id: "nyc", name: "New York City" }, { id: "mumbai", name: "Mumbai" }].map(c => (
+                    <button key={c.id} className={`profile-city-opt ${user.city === c.id ? "active" : ""}`} onClick={() => { save({ city: c.id }); setCityPickerOpen(false); }}>{c.name}</button>
                   ))}
                 </div>
               )}
@@ -1723,115 +1685,94 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
       <div className="profile-section">
         <div className="profile-sec-num">2</div>
         <div className="profile-sec-body">
-          <div className="profile-sec-title">Personal photos <span className="profile-sec-count">{photos.filter(Boolean).length}/3 photos added</span></div>
+          <div className="profile-sec-title">Photos <span className="profile-sec-count">{photos.filter(Boolean).length}/3 added</span></div>
           <div className="profile-sec-sub">Add 3 photos to help others recognize you.</div>
           <div className="photos-grid">
-            {[0,1,2].map(i=>(
-              <label key={i} className="photo-slot" style={{cursor:"pointer"}}>
-                <div className="photo-num">{i+1}</div>
-                {photos[i] ? (
-                  <>
-                    <img src={photos[i]} alt={`Photo ${i+1}`} className="photo-img"/>
-                    <button type="button" className="photo-remove" onClick={e=>{e.preventDefault();removePhoto(i);}}>×</button>
-                  </>
-                ) : uploadingSlot===i ? (
-                  <div className="photo-placeholder">⏳</div>
-                ) : (
-                  <div className="photo-placeholder">📷</div>
-                )}
-                <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>handlePhotoSelect(i, e.target.files?.[0])}/>
+            {[0, 1, 2].map(i => (
+              <label key={i} className="photo-slot" style={{ cursor: "pointer" }}>
+                <div className="photo-num">{i + 1}</div>
+                {photos[i] ? (<><img src={photos[i]} alt="" className="photo-img" /><button type="button" className="photo-remove" onClick={e => { e.preventDefault(); const prev = photos; const next = [...photos]; next[i] = null; setPhotos(next); save({ photo_urls: next.filter(Boolean) }, () => setPhotos(prev)); }}>×</button></>) : uploadingSlot === i ? <div className="photo-placeholder">⏳</div> : <div className="photo-placeholder">📷</div>}
+                <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => handlePhotoSelect(i, e.target.files?.[0])} />
               </label>
             ))}
           </div>
         </div>
       </div>
 
-      {/* 3 Things */}
+      {/* 3 Things to do */}
       <div className="profile-section">
         <div className="profile-sec-num">3</div>
         <div className="profile-sec-body">
-          <div className="profile-sec-title">Things I want to do in the city <span className="profile-sec-count">{things.length} added</span></div>
-          <div className="ob-tags-row">{things.map((w,i)=><span key={i} className="ob-tag">{w}<button onClick={()=>removeThing(w)}>×</button></span>)}</div>
-          {things.length===0 && <p className="profile-sec-sub" style={{marginTop:8}}>No selections yet — add a few below.</p>}
-          <div className="ob-chips-grid" style={{marginTop:14}}>
-            {THINGS_OPTIONS.filter(t=>!things.includes(t)).map(t=>(
-              <button key={t} className="ob-thing-chip" onClick={()=>addThing(t)}>{t}</button>
+          <div className="profile-sec-title">Things I want to do <span className="profile-sec-count">{things.length} added</span></div>
+          <div className="profile-sec-sub">This powers the By Activity tab — the more you add, the more people you'll match with.</div>
+          <div className="ob-tags-row">{things.map((w, i) => <span key={i} className="ob-tag">{w}<button onClick={() => removeThing(w)}>×</button></span>)}</div>
+          <div className="ob-chips-grid" style={{ marginTop: 14 }}>
+            {THINGS_OPTIONS.filter(t => !things.includes(t)).map(t => (
+              <button key={t} className="ob-thing-chip" onClick={() => addThing(t)}>{t}</button>
             ))}
           </div>
+          <input className="ob-input" style={{ marginTop: 12 }} placeholder="Add your own..." onKeyDown={e => { if (e.key === "Enter" && e.target.value.trim()) { const val = e.target.value.trim(); if (!things.includes(val)) addThing(val); e.target.value = ""; } }} />
         </div>
       </div>
 
-      {/* 4 Cuisine preferences + budget — drives food recommendations */}
-      <div className="profile-section" data-tour="profile-food-prefs">
+      {/* 4 Cuisine prefs */}
+      <div className="profile-section">
         <div className="profile-sec-num">4</div>
         <div className="profile-sec-body">
-          <div className="profile-sec-title">Food preferences <span className="profile-sec-count">{cuisines.length} cuisine{cuisines.length===1?"":"s"}</span></div>
-          <div className="profile-sec-sub">This powers your food recommendations. Reorder to update your priority.</div>
-          {cuisines.length>0 && (
-            <div className="ob-ranked-list" style={{marginTop:4}}>
-              {cuisines.map((id,i)=>{ const c=CUISINE_OPTIONS.find(o=>o.id===id); return (
+          <div className="profile-sec-title">Food preferences <span className="profile-sec-count">{cuisines.length} added</span></div>
+          <div className="profile-sec-sub">Powers your food recommendations.</div>
+          {cuisines.length > 0 && (
+            <div className="ob-ranked-list">
+              {cuisines.map((id, i) => { const c = CUISINE_OPTIONS.find(o => o.id === id); return (
                 <div key={id} className="ob-ranked-row">
-                  <span className="ob-ranked-num">{i+1}</span>
-                  <span className="ob-ranked-icon">{c?.icon}</span>
+                  <span className="ob-ranked-num">{i + 1}</span><span className="ob-ranked-icon">{c?.icon}</span>
                   <span className="ob-ranked-label-text">{c?.label}</span>
                   <div className="ob-ranked-actions">
-                    <button className="ob-ranked-btn" disabled={i===0} onClick={()=>moveCuisine(id,-1)}>↑</button>
-                    <button className="ob-ranked-btn" disabled={i===cuisines.length-1} onClick={()=>moveCuisine(id,1)}>↓</button>
-                    <button className="ob-ranked-btn ob-ranked-remove" onClick={()=>removeCuisine(id)}>×</button>
+                    <button className="ob-ranked-btn" disabled={i === 0} onClick={() => moveCuisine(id, -1)}>↑</button>
+                    <button className="ob-ranked-btn" disabled={i === cuisines.length - 1} onClick={() => moveCuisine(id, 1)}>↓</button>
+                    <button className="ob-ranked-btn ob-ranked-remove" onClick={() => removeCuisine(id)}>×</button>
                   </div>
                 </div>
-              );})}
+              ); })}
             </div>
           )}
-          <div className="ob-chips-grid" style={{marginTop:cuisines.length>0?14:4}}>
-            {CUISINE_OPTIONS.filter(c=>!cuisines.includes(c.id)).map(c=>(
-              <button key={c.id} className="ob-chip" onClick={()=>addCuisine(c.id)}>
+          <div className="ob-chips-grid" style={{ marginTop: cuisines.length > 0 ? 14 : 4 }}>
+            {CUISINE_OPTIONS.filter(c => !cuisines.includes(c.id)).map(c => (
+              <button key={c.id} className="ob-chip" onClick={() => addCuisine(c.id)}>
                 <span className="ob-chip-icon">{c.icon}</span><span className="ob-chip-label">{c.label}</span>
               </button>
             ))}
           </div>
-          <div className="profile-sec-title" style={{marginTop:20,fontSize:14}}>Your budget</div>
-          <div className="profile-budget-row">
-            {BUDGET_OPTIONS.map(b=>(
-              <button key={b.id} className={`profile-budget-chip ${budget===b.id?"active":""}`} onClick={()=>{ const prevBudget=budget; setBudget(b.id); save({budget:b.id}, ()=>setBudget(prevBudget)); }}>
-                <span>{b.icon}</span>{b.label}
-              </button>
-            ))}
-          </div>
         </div>
       </div>
 
-      {/* 5 Food recs */}
+      {/* 5 Conversation prompts */}
       <div className="profile-section">
         <div className="profile-sec-num">5</div>
         <div className="profile-sec-body">
-          <div className="profile-sec-title">Your top food matches <span className="profile-sec-count">Based on your ranking above</span></div>
-          <div className="profile-sec-sub">The same recommendation logic used on the Discovery tab — reorder your cuisines above and this updates instantly.</div>
-          {cuisines.length === 0 ? (
-            <p className="profile-sec-sub" style={{marginTop:8}}>Add a cuisine above to see matches here.</p>
-          ) : (
-            [...cd.food].sort((a,b)=>scoreFoodPlace(b,cuisines,budget)-scoreFoodPlace(a,cuisines,budget)).slice(0,3).map(r=>(
-              <div key={r.id} className="profile-rec-row"><img src={r.img} alt={r.name} className="profile-rec-img"/><div><div className="profile-rec-name">{r.name}</div><div className="profile-rec-desc">{r.cuisine} · {r.hood}</div></div></div>
-            ))
-          )}
-        </div>
-      </div>
-
-      {/* 6 City recs */}
-      <div className="profile-section">
-        <div className="profile-sec-num">6</div>
-        <div className="profile-sec-body">
-          <div className="profile-sec-title">In-City recommendations <span className="profile-sec-count">3/3 added</span></div>
-          <div className="profile-sec-sub">Share places you love in {cd.label}.</div>
-          {(p.cityRecs||[]).map((r,i)=>(
-            <div key={i} className="profile-rec-row"><img src={r.img} alt={r.name} className="profile-rec-img"/><div><div className="profile-rec-name">{r.name}</div><div className="profile-rec-desc">{r.desc}</div></div><button className="profile-rec-actions">⚙ ✏️ ×</button></div>
-          ))}
-          <button className="profile-rec-add">⊕ Add in-city place</button>
+          <div className="profile-sec-title">Conversation starters <span className="profile-sec-count">{Object.keys(prompts).length} added</span></div>
+          <div className="profile-sec-sub">Pick up to 3 prompts and answer them — they appear in chat to help people start a conversation with you.</div>
+          {CONVERSATION_PROMPTS.map(q => {
+            const answered = q in prompts;
+            return (
+              <div key={q} className="prompt-row">
+                <div className="prompt-q">{q}</div>
+                {answered ? (
+                  <div className="prompt-answered">
+                    <textarea className="ob-input experience-textarea" style={{ marginTop: 6, fontSize: 13 }} rows={2} value={prompts[q]} onChange={e => { const next = { ...prompts, [q]: e.target.value }; setPrompts(next); save({ prompts: next }, () => setPrompts(prompts)); }} />
+                    <button className="prompt-remove" onClick={() => { const next = { ...prompts }; delete next[q]; setPrompts(next); save({ prompts: next }, () => setPrompts(prompts)); }}>Remove</button>
+                  </div>
+                ) : Object.keys(prompts).length < 3 ? (
+                  <button className="prompt-add-btn" onClick={() => { const next = { ...prompts, [q]: "" }; setPrompts(next); save({ prompts: next }, () => setPrompts(prompts)); }}>+ Answer this</button>
+                ) : null}
+              </div>
+            );
+          })}
         </div>
       </div>
 
       {onReplayTour && <button className="profile-replay-tour" onClick={onReplayTour}>↻ Replay the tour</button>}
-      <button className="profile-signout" onClick={onSignOut}>Sign Out</button>
+      <button className="profile-signout" onClick={onSignOut}>Sign out</button>
     </div>
   );
 }
@@ -1840,190 +1781,160 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
 export default function App() {
   const { session, profile, loading, refreshProfile } = useAuth();
   const [localUser, setLocalUser] = useState(null);
-  const [tab, setTab] = useState("discovery");
+  const [tab, setTab] = useState("connections");
   const [messagesOpen, setMessagesOpen] = useState(false);
-  const [tourStep, setTourStep] = useState(null); // null = not running
-  const [screen, setScreen] = useState("landing"); // landing | signin | onboarding | app
+  const [tourStep, setTourStep] = useState(null);
+  const [screen, setScreen] = useState("landing");
 
   useEffect(() => {
-    // Auto-start for any completed profile that hasn't explicitly finished the tour.
-    // Catches both tour_completed=false (new users, migration ran) and tour_completed=null
-    // (migration not yet run, or users who signed up before this feature).
-    if (profile?.profile_complete && !profile?.tour_completed && tourStep === null) {
-      setTourStep(0);
-    }
-  }, [profile?.profile_complete, profile?.tour_completed]);
+    const alreadySeen = localStorage.getItem("nearmet_tour_done") === "true";
+    if (profile?.profile_complete && !alreadySeen && tourStep === null) setTourStep(0);
+  }, [profile?.profile_complete]);
 
   const finishTour = async () => {
     setTourStep(null);
+    localStorage.setItem("nearmet_tour_done", "true");
     if (session?.user?.id) {
       try { await updateProfile(session.user.id, { tour_completed: true }); await refreshProfile(); }
-      catch (e) { console.error("Failed to save tour completion:", e); }
+      catch (e) { console.error(e); }
     }
   };
 
   async function handleSignOut() {
-    try { await signOut(); } catch(e) { console.error(e); }
-    setLocalUser(null);
-    setScreen("landing");
+    try { await signOut(); } catch (e) { console.error(e); }
+    setLocalUser(null); setScreen("landing");
   }
 
-  // ── Supabase session loading ──
   if (loading) return (
-    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#f7f7f5"}}>
-      <div style={{textAlign:"center"}}>
-        <div style={{fontSize:32,fontWeight:800,letterSpacing:"-0.04em",marginBottom:12}}>
-          <span style={{color:"#1a2e1a"}}>Near</span><span style={{color:"#2d6a2d"}}>Met</span>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f7f7f5" }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: "-0.04em", marginBottom: 12 }}>
+          <span style={{ color: "#1a2e1a" }}>Near</span><span style={{ color: "#2d6a2d" }}>Met</span>
         </div>
-        <div style={{fontSize:13,color:"#999"}}>Loading…</div>
+        <div style={{ fontSize: 13, color: "#999" }}>Loading…</div>
       </div>
     </div>
   );
 
-  // ── Signed in via Supabase ──
-  if (session) {
-    // Profile complete — show main app
-    if (profile?.profile_complete) {
-      const user = {
-        city: profile.city || "mumbai",
-        name: profile.name || "User",
-        age: profile.age || null,
-        interests: profile.interests || [],
-        things: profile.city_wants || [],
-        cuisines: profile.cuisines || [],
-        budget: profile.budget || "flexible",
-        photo_urls: profile.photo_urls || [],
-        saved_food_places: profile.saved_food_places || [],
-        tour_completed: profile.tour_completed,
-      };
-      return (
-        <div className="app-root">
-          <header className="topnav">
-            <div className="topnav-inner">
-              <NearMetLogo size={26}/>
-              <div className="topnav-right">
-                <span className="city-pill">📍 {user.city==="nyc"?"NYC":"Mumbai"}</span>
-                <button data-tour="nav-messages" className="topnav-msg-btn" onClick={()=>setMessagesOpen(true)} title="Messages">💬</button>
-                <div className="user-chip">{(user.name||"U").slice(0,2).toUpperCase()}</div>
-              </div>
-            </div>
-          </header>
-          <nav className="section-tab-bar">
-            {[["connection","👥","Connections"],["discovery","🍽️","Food Places"],["events","🗓","Events"],["profile","👤","Profile"]].map(([id,icon,lbl])=>(
-              <button key={id} data-tour={`nav-${id}`} className={`section-tab ${tab===id?"active":""}`} onClick={()=>setTab(id)}>
-                <span className="section-tab-icon">{icon}</span>
-                <span className="section-tab-label">{lbl}</span>
-              </button>
-            ))}
-          </nav>
-          {messagesOpen && <MessagesPanel userId={session.user.id} onClose={()=>setMessagesOpen(false)}/>}
-          {tourStep !== null && (
-            <TourOverlay
-              stepIndex={tourStep}
-              onNext={()=>{ if (tourStep >= TOUR_STEPS.length-1) finishTour(); else setTourStep(s=>s+1); }}
-              onBack={()=>setTourStep(s=>Math.max(0,s-1))}
-              onSkip={finishTour}
-            />
-          )}
-          <main className="site-main">
-            {tab==="discovery"  && <DiscoveryScreen city={user.city} userCuisines={user.cuisines} userBudget={user.budget} userId={session.user.id} userName={user.name} savedPlaces={user.saved_food_places} onToggleSave={async(name)=>{ const cur=user.saved_food_places||[]; const next=cur.includes(name)?cur.filter(n=>n!==name):[...cur,name]; try{ await updateProfile(session.user.id,{saved_food_places:next}); await refreshProfile(); }catch(e){ console.error("Save toggle failed:",e); } }}/>}
-            {tab==="events"     && <EventsMapScreen city={user.city}/>}
-            {tab==="connection" && <ConnectionScreen city={user.city} userId={session.user.id} me={user}/>}
-            {tab==="profile"    && <ProfileScreen user={user} userId={session.user.id} onSignOut={handleSignOut} onUpdateProfile={async(updates)=>{ await updateProfile(session.user.id, updates); await refreshProfile(); }} onReplayTour={()=>setTourStep(0)}/>}
-          </main>
-        </div>
-      );
-    }
-    // Signed in but profile not complete — run onboarding (interests/things only) then save
-    return <Onboarding
-      initialCity={profile?.city}
-      initialName={profile?.name}
-      onShowSignIn={handleSignOut}
-      onBackToLanding={handleSignOut}
-      onDone={async (u) => {
-        try {
-          await updateProfile(session.user.id, {
-            city: u.city, name: u.name,
-            interests: u.interests, city_wants: u.things,
-            cuisines: u.cuisines, budget: u.budget,
-            profile_complete: true, last_active: new Date().toISOString(),
-          });
-          await refreshProfile();
-        } catch(e) {
-          console.error("Profile save error:", e);
-        }
-      }}
-    />;
-  }
-
-  // ── Not signed in ──
-
-  // Show sign in page
-  if (screen === "signin") return <AuthPage mode="signin" onBack={()=>setScreen("landing")}/>;
-
-  // Show sign up page (collects email+password, then triggers onboarding)
-  if (screen === "signup") return <AuthPage mode="signup" onBack={()=>setScreen("landing")} onSignedUp={()=>{ /* AuthContext will pick up session, profile_complete=false triggers onboarding */ }}/>;
-
-  // Local demo user — show main app
-  if (localUser) {
+  // ── Supabase signed in + profile complete ──
+  if (session && profile?.profile_complete) {
+    const user = {
+      city: profile.city || "mumbai",
+      name: profile.name || "User",
+      age: profile.age || null,
+      interests: profile.interests || [],
+      things: profile.city_wants || [],
+      cuisines: profile.cuisines || [],
+      budget: profile.budget || "flexible",
+      photo_urls: profile.photo_urls || [],
+      saved_food_places: profile.saved_food_places || [],
+      prompts: profile.prompts || {},
+    };
+    const nav = [
+      ["connections", "👥", "Connections"],
+      ["places", "📍", "Places to Explore"],
+      ["food", "🍽️", "Food Places"],
+    ];
     return (
       <div className="app-root">
         <header className="topnav">
           <div className="topnav-inner">
-            <NearMetLogo size={26}/>
+            <NearMetLogo size={26} />
             <div className="topnav-right">
-              <span className="city-pill">📍 {localUser.city==="nyc"?"NYC":"Mumbai"}</span>
-              <button data-tour="nav-messages" className="topnav-msg-btn" disabled title="Sign in to use messaging" onClick={()=>alert("Messaging needs a real account — sign up to chat with people.")}>💬</button>
-              <div className="user-chip">{(localUser.name||"U").slice(0,2).toUpperCase()}</div>
+              <span className="city-pill">📍 {user.city === "nyc" ? "NYC" : "Mumbai"}</span>
+              <button className="topnav-msg-btn" onClick={() => setMessagesOpen(true)} title="Messages">💬</button>
+              <button className="topnav-msg-btn" title="Profile" onClick={() => setTab("profile")}>👤</button>
             </div>
           </div>
         </header>
         <nav className="section-tab-bar">
-          {[["connection","👥","Connections"],["discovery","🍽️","Food Places"],["events","🗓","Events"],["profile","👤","Profile"]].map(([id,icon,lbl])=>(
-            <button key={id} data-tour={`nav-${id}`} className={`section-tab ${tab===id?"active":""}`} onClick={()=>setTab(id)}>
+          {nav.map(([id, icon, lbl]) => (
+            <button key={id} className={`section-tab ${tab === id ? "active" : ""}`} onClick={() => setTab(id)}>
               <span className="section-tab-icon">{icon}</span>
               <span className="section-tab-label">{lbl}</span>
             </button>
           ))}
         </nav>
-        {tourStep !== null && (
-          <TourOverlay
-            stepIndex={tourStep}
-            onNext={()=>{ if (tourStep >= TOUR_STEPS.length-1) setTourStep(null); else setTourStep(s=>s+1); }}
-            onBack={()=>setTourStep(s=>Math.max(0,s-1))}
-            onSkip={()=>setTourStep(null)}
-          />
-        )}
+        {messagesOpen && <MessagesPanel userId={session.user.id} onClose={() => setMessagesOpen(false)} />}
+        {tourStep !== null && <TourOverlay stepIndex={tourStep} onNext={() => { if (tourStep >= TOUR_STEPS.length - 1) finishTour(); else setTourStep(s => s + 1); }} onBack={() => setTourStep(s => Math.max(0, s - 1))} onSkip={finishTour} />}
         <main className="site-main">
-          {tab==="discovery"  && <DiscoveryScreen city={localUser.city} userCuisines={localUser.cuisines||[]} userBudget={localUser.budget||"flexible"} userId={null} userName={localUser.name} savedPlaces={localUser.saved_food_places||[]} onToggleSave={(name)=>{ setLocalUser(u=>{ const cur=u.saved_food_places||[]; const next=cur.includes(name)?cur.filter(n=>n!==name):[...cur,name]; return {...u, saved_food_places:next}; }); }}/>}
-          {tab==="events"     && <EventsMapScreen city={localUser.city}/>}
-          {tab==="connection" && <ConnectionScreen city={localUser.city} userId={null} me={localUser}/>}
-          {tab==="profile"    && <ProfileScreen user={localUser} userId={null} onSignOut={()=>{setLocalUser(null);setScreen("landing");}} onUpdateProfile={async(updates)=>{ setLocalUser(u=>({...u,...updates})); }} onReplayTour={()=>setTourStep(0)}/>}
+          {tab === "connections" && <ConnectionsScreen city={user.city} userId={session.user.id} me={user} />}
+          {tab === "places" && <PlacesToExploreScreen city={user.city} userId={session.user.id} userName={user.name} />}
+          {tab === "food" && <FoodScreen city={user.city} userCuisines={user.cuisines} userBudget={user.budget} userId={session.user.id} userName={user.name} savedPlaces={user.saved_food_places} onToggleSave={async name => { const cur = user.saved_food_places || []; const next = cur.includes(name) ? cur.filter(n => n !== name) : [...cur, name]; try { await updateProfile(session.user.id, { saved_food_places: next }); await refreshProfile(); } catch (e) { console.error(e); } }} />}
+          {tab === "profile" && <ProfileScreen user={user} userId={session.user.id} onSignOut={handleSignOut} onUpdateProfile={async updates => { await updateProfile(session.user.id, updates); await refreshProfile(); }} onReplayTour={() => setTourStep(0)} />}
         </main>
       </div>
     );
   }
 
-  // Onboarding for new local user
-  if (screen === "onboarding") return <Onboarding
-    onShowSignIn={()=>setScreen("signin")}
-    onBackToLanding={()=>setScreen("landing")}
-    onDone={u=>{ setLocalUser(u); setTab("discovery"); }}
-  />;
+  // ── Supabase signed in but onboarding not done ──
+  if (session) return (
+    <Onboarding initialCity={profile?.city} initialName={profile?.name}
+      onShowSignIn={handleSignOut} onBackToLanding={handleSignOut}
+      onDone={async u => {
+        try { await updateProfile(session.user.id, { city: u.city, name: u.name, interests: u.interests, city_wants: u.things, cuisines: u.cuisines, budget: u.budget, profile_complete: true, last_active: new Date().toISOString() }); await refreshProfile(); }
+        catch (e) { console.error(e); }
+      }} />
+  );
 
-  // Landing screen
+  // ── Auth screens ──
+  if (screen === "signin") return <AuthPage mode="signin" onBack={() => setScreen("landing")} />;
+  if (screen === "signup") return <AuthPage mode="signup" onBack={() => setScreen("landing")} />;
+
+  // ── Local demo mode ──
+  if (localUser) {
+    const nav = [
+      ["connections", "👥", "Connections"],
+      ["places", "📍", "Places to Explore"],
+      ["food", "🍽️", "Food Places"],
+    ];
+    return (
+      <div className="app-root">
+        <header className="topnav">
+          <div className="topnav-inner">
+            <NearMetLogo size={26} />
+            <div className="topnav-right">
+              <span className="city-pill">📍 {localUser.city === "nyc" ? "NYC" : "Mumbai"}</span>
+              <button className="topnav-msg-btn" disabled title="Sign in to use messaging">💬</button>
+              <button className="topnav-msg-btn" onClick={() => setTab("profile")}>👤</button>
+            </div>
+          </div>
+        </header>
+        <nav className="section-tab-bar">
+          {nav.map(([id, icon, lbl]) => (
+            <button key={id} className={`section-tab ${tab === id ? "active" : ""}`} onClick={() => setTab(id)}>
+              <span className="section-tab-icon">{icon}</span>
+              <span className="section-tab-label">{lbl}</span>
+            </button>
+          ))}
+        </nav>
+        {tourStep !== null && <TourOverlay stepIndex={tourStep} onNext={() => { if (tourStep >= TOUR_STEPS.length - 1) setTourStep(null); else setTourStep(s => s + 1); }} onBack={() => setTourStep(s => Math.max(0, s - 1))} onSkip={() => setTourStep(null)} />}
+        <main className="site-main">
+          {tab === "connections" && <ConnectionsScreen city={localUser.city} userId={null} me={localUser} />}
+          {tab === "places" && <PlacesToExploreScreen city={localUser.city} userId={null} userName={localUser.name} />}
+          {tab === "food" && <FoodScreen city={localUser.city} userCuisines={localUser.cuisines || []} userBudget={localUser.budget || "flexible"} userId={null} userName={localUser.name} savedPlaces={localUser.saved_food_places || []} onToggleSave={name => { setLocalUser(u => { const cur = u.saved_food_places || []; const next = cur.includes(name) ? cur.filter(n => n !== name) : [...cur, name]; return { ...u, saved_food_places: next }; }); }} />}
+          {tab === "profile" && <ProfileScreen user={localUser} userId={null} onSignOut={() => { setLocalUser(null); setScreen("landing"); }} onUpdateProfile={async updates => { setLocalUser(u => ({ ...u, ...updates })); }} onReplayTour={() => setTourStep(0)} />}
+        </main>
+      </div>
+    );
+  }
+
+  // ── Onboarding (local) ──
+  if (screen === "onboarding") return <Onboarding onShowSignIn={() => setScreen("signin")} onBackToLanding={() => setScreen("landing")} onDone={u => { setLocalUser(u); setTab("connections"); }} />;
+
+  // ── Landing ──
   return (
     <div className="ob-root">
       <div className="ob-hero">
-        <div className="ob-hero-img" style={{backgroundImage:`url(https://images.unsplash.com/photo-1529543544282-ea669407fca3?w=900&q=80)`}}/>
-        <div className="ob-hero-overlay"/>
+        <div className="ob-hero-img" style={{ backgroundImage: `url(https://images.unsplash.com/photo-1529543544282-ea669407fca3?w=900&q=80)` }} />
+        <div className="ob-hero-overlay" />
         <div className="ob-hero-content">
-          <NearMetLogo size={56} dark/>
-          <p className="ob-hero-tagline">Explore your city.<br/>Find genuine connections.</p>
+          <NearMetLogo size={56} dark />
+          <p className="ob-hero-tagline">Explore your city.<br />Find genuine connections.</p>
         </div>
         <div className="ob-hero-bottom">
-          <button className="ob-cta-primary" onClick={()=>setScreen("signup")}>Create an account</button>
-          <button className="ob-cta-secondary" onClick={()=>setScreen("signin")}>I have an account</button>
+          <button className="ob-cta-primary" onClick={() => setScreen("signup")}>Create an account</button>
+          <button className="ob-cta-secondary" onClick={() => setScreen("signin")}>I have an account</button>
           <p className="ob-legal">By continuing you agree to our <span className="ob-link">Terms</span> &amp; <span className="ob-link">Privacy Policy</span>.</p>
         </div>
       </div>

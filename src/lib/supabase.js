@@ -62,12 +62,43 @@ export async function updateProfile(userId, updates) {
   return data
 }
  
+// ─── IMAGE COMPRESSION ────────────────────────────────────────────────────────
+// Compresses a File/Blob using the browser Canvas API before uploading.
+// maxWidth/maxHeight: resize if larger (preserves aspect ratio)
+// quality: JPEG quality 0–1
+// Returns a Blob ready to upload, always as image/jpeg.
+async function compressImage(file, { maxWidth = 1200, maxHeight = 1200, quality = 0.82 } = {}) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      let { width, height } = img
+      const ratio = Math.min(maxWidth / width, maxHeight / height, 1)
+      width = Math.round(width * ratio)
+      height = Math.round(height * ratio)
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, 0, 0, width, height)
+      canvas.toBlob(blob => {
+        if (blob) resolve(blob)
+        else reject(new Error('Canvas compression failed'))
+      }, 'image/jpeg', quality)
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load failed')); }
+    img.src = url
+  })
+}
+ 
 export async function uploadProfilePhoto(userId, file, slot) {
-  const ext = file.name.split('.').pop()
-  const path = `${userId}/photo_${slot}.${ext}`
+  // Profile photos: max 800px, quality 0.80 — shown at small sizes, high compression fine
+  const compressed = await compressImage(file, { maxWidth: 800, maxHeight: 800, quality: 0.80 })
+  const path = `${userId}/photo_${slot}.jpg`
   const { error } = await supabase.storage
     .from('profile-photos')
-    .upload(path, file, { upsert: true })
+    .upload(path, compressed, { upsert: true, contentType: 'image/jpeg' })
   if (error) throw error
   const { data } = supabase.storage.from('profile-photos').getPublicUrl(path)
   return data.publicUrl
@@ -76,11 +107,12 @@ export async function uploadProfilePhoto(userId, file, slot) {
 // ─── FOOD EXPERIENCES (community photos/notes on food places) ────────────────
  
 export async function uploadFoodExperiencePhoto(userId, file) {
-  const ext = file.name.split('.').pop()
-  const path = `experiences/${userId}/${Date.now()}.${ext}`
+  // Experience photos: max 1200px, quality 0.82 — shown larger in detail view
+  const compressed = await compressImage(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.82 })
+  const path = `experiences/${userId}/${Date.now()}.jpg`
   const { error } = await supabase.storage
     .from('place-photos')
-    .upload(path, file, { upsert: false })
+    .upload(path, compressed, { upsert: false, contentType: 'image/jpeg' })
   if (error) throw error
   const { data } = supabase.storage.from('place-photos').getPublicUrl(path)
   return data.publicUrl
@@ -132,11 +164,12 @@ export async function getCommunityPlaces(city) {
 }
  
 export async function uploadCommunityPlacePhoto(userId, file) {
-  const ext = file.name.split('.').pop()
-  const path = `community-places/${userId}/${Date.now()}.${ext}`
+  // Community place photos: max 1200px, quality 0.82
+  const compressed = await compressImage(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.82 })
+  const path = `community-places/${userId}/${Date.now()}.jpg`
   const { error } = await supabase.storage
     .from('place-photos')
-    .upload(path, file, { upsert: false })
+    .upload(path, compressed, { upsert: false, contentType: 'image/jpeg' })
   if (error) throw error
   const { data } = supabase.storage.from('place-photos').getPublicUrl(path)
   return data.publicUrl
@@ -345,7 +378,7 @@ export async function getOrCreateConnection(userId, otherId) {
 export async function getConnections(userId) {
   const { data, error } = await supabase
     .from('connections')
-    .select(`*, user1:profiles!user1_id(id,name,age,city,photo_urls), user2:profiles!user2_id(id,name,age,city,photo_urls)`)
+    .select(`*, user1:profiles!user1_id(id,name,age,city,photo_urls,prompts), user2:profiles!user2_id(id,name,age,city,photo_urls,prompts), messages(count)`)
     .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
     .order('created_at', { ascending: false })
   if (error) throw error
