@@ -328,6 +328,49 @@ const CITIES = {
       { id: 15, name: "TÓA 66", cuisine: "Thai Restaurant", price: "Rs.3000-5000 for two", rating: 4.8, tag: "India's first Thai tasting menu", hood: "Churchgate", address: "Ground Floor, ADCB Rehman Manzil, 75, Veer Nariman Rd, Churchgate, Mumbai", phone: "9920820800", desc: "TÓA 66 brings India's first 7-course vegetarian Thai tasting menu to Mumbai. Designed by two master Thai chefs in an intimate 26-seater space.", sharedExp: "The 7-course Thai tasting menu is exceptional. The opening course and the two desserts were the absolute highlights. Highly recommended.", tryThis: "7-Course Thai Tasting Menu", img: "/places/toa-66/photo2.webp", photos: ["/places/toa-66/photo3.webp", "/places/toa-66/photo4.webp"] },
       { id: 16, name: "Trishna", cuisine: "Seafood Restaurant", price: "Rs.2000-3500 for two", rating: 4.7, tag: "Premium seafood", hood: "Kala Ghoda", address: "Birla Mansion, Sai Baba Mandir Marg, Kala Ghoda, Fort, Mumbai 400001", phone: "9206260260", desc: "Premium seafood restaurant in the heart of Mumbai.", sharedExp: "Excellent seafood restaurant with exceptional food quality. Highly recommended for seafood lovers.", tryThis: "Butter Garlic Crab", img: "/places/trishna/photo1.webp", photos: ["/places/trishna/photo2.webp"] },
       { id: 17, name: "Ekaa", cuisine: "Indian Restaurant", price: "Rs.3000-5000 for two", rating: 4.7, tag: "Open kitchen fine dining", hood: "Fort", address: "1st Floor, Kitab Mahal, D Sukhadwala Rd, Fort, Mumbai 400001", phone: "9987657989", desc: "Industrial-chic Indian spot with creative plates and an open kitchen concept — perfect for watching the culinary magic happen.", sharedExp: "Had an amazing time at Ekaa. The hospitality was wonderful and the food was absolutely great.", tryThis: "Awakening Tasting Menu", img: "/places/ekaa/photo1.webp", photos: ["/places/ekaa/photo2.webp", "/places/ekaa/photo3.webp"] },
+      { id: 18, name: "Steps Café", cuisine: "Café", price: "Rs.600-1200 for two", rating: 4.5, tag: "Terrace dining", hood: "Bandra West", address: "Steps Café, Tertulian Rd, Doctor Peter Dias Road, Mount Mary, Bandra West, Mumbai", phone: "9649646601", desc: "Relaxed eatery with a terrace and a hot menu of familiar comfort foods.", sharedExp: "Really a great place with a cozy and warm ambiance! The food was amazing, the interiors are beautiful, and the staff is so welcoming.", tryThis: "French Fries and Bruschetta and Nutella Croissant", img: "/places/steps-cafe/photo1.webp", photos: ["/places/steps-cafe/photo2.jpeg", "/places/steps-cafe/photo3.webp"] },
+      { id: 19, name: "YACHT Resto Bar", cuisine: "Resto Bar", price: "Rs.1000-1800 for two", rating: 4.4, tag: "Near Bandstand", hood: "Bandra West", address: "Shams Palace Society, 29, Hill Rd, Bandra West, Mumbai 400050", phone: "02226422718", desc: "A compact Bandra eatery doling out classic Indian plates alongside chilled beers and cocktails.", sharedExp: "Absolutely loved it. It's located within walking distance from Bandstand — the drinks were reasonably priced and the food was really good.", tryThis: "Chicken Lollipops", img: "/places/yacht-resto-bar/photo2.jpg", photos: ["/places/yacht-resto-bar/photo1.jfif"] },
+      { id: 20, name: "Janata Bar and Restaurant", cuisine: "Bar and Restaurant", price: "Rs.400-800 for two", rating: 4.3, tag: "Budget-friendly late night", hood: "Bandra West", address: "78/A, Doctor BR Ambedkar Road, Pali Mala Rd, Bandra West, Mumbai 400050", phone: "02226058403", desc: "Famous for budget-friendly drinks and some of the best late-night comfort food.", sharedExp: "Good place to hangout with friends. Perfect go-to spot if you're looking for amazing food and budget-friendly drinks.", tryThis: "Chicken Lollipop", img: "/places/janata-bar/photo1.jpeg", photos: ["/places/janata-bar/photo2.jpeg"] },
+      { id: 21, name: "Chantilly The Café", cuisine: "Dessert Cafe", price: "Rs.500-1000 for two", rating: 4.5, tag: "French-inspired desserts", hood: "Bandra West", address: "Shop no. 2, Darvesh Royale Building, Perry Road, Turner Rd, opposite Kotak Mahindra Bank Junction, Bandra West, Mumbai 400050", phone: "7370808080", desc: "Charming spot for decadent French-inspired desserts and hot chocolate.", sharedExp: "They serve one of the best strawberry chocolates. Overall a great dessert place with amazing sweet treats.", tryThis: "Strawberry Nutella Cheesecake and Nut Butter Waffle", img: "/places/chantilly-cafe/photo2.webp", photos: ["/places/chantilly-cafe/photo3.webp"] },
+      { id: 22, name: "Cafe Mondegar", cuisine: "Cafe", price: "Rs.800-1500 for two", rating: 4.3, tag: "Vintage classic", hood: "Colaba", address: "Metro House, Colaba Causeway, near Regal Cinema, Apollo Bandar, Colaba, Mumbai 400001", phone: "9833322277", desc: "A legendary South Mumbai landmark famous for its vibrant Mario Miranda murals and retro jukebox. The ultimate vintage spot for a chilled beer and classic comfort food.", sharedExp: "Incredible food, great music and good service. Highly recommended.", tryThis: "Paneer Croquettes and Spring Rolls", img: "/places/cafe-mondegar/photo1.jpg", photos: ["/places/cafe-mondegar/photo2.webp"] },
+      { id: 23, name: "Kuai Kitchen", cuisine: "Chinese Restaurant", price: "Rs.600-1200 for two", rating: 4.4, tag: "Best Oriental", hood: "Colaba", address: "Shop No. 16/A Cusrow Baug, Main Road Colaba Causeway, Shahid Bhagat Singh Rd, Colaba, Mumbai 400001", phone: "9819045664", desc: "A vibrant casual restaurant dedicated to being the ultimate destination for delicious and affordable Oriental cuisine.", sharedExp: "Top-tier food paired with flawless hospitality. Highly recommend for Asian cuisine.", tryThis: "Kuai Special Roll and Pinacolada", img: "/places/kuai-kitchen/photo1.jpg", photos: ["/places/kuai-kitchen/photo2.webp", "/places/kuai-kitchen/photo3.webp"] },
+      { id: 24, name: "Zen Cafe", cuisine: "Cafe", price: "Rs.500-900 for two", rating: 4.5, tag: "Work-friendly", hood: "Kala Ghoda", address: "Fort Foundation Building, Bake House Ln, Kala Ghoda, Fort, Mumbai 400001", phone: "9167768950", desc: "Single origin coffees brewed with precision and served with freshly baked sourdough and a global menu at this trendy work-friendly venue.", sharedExp: "Highly recommend checking this place out! The staff is super friendly and welcoming.", tryThis: "Coffee and Hummus", img: "/places/zen-cafe/photo3.png", photos: ["/places/zen-cafe/photo1.jpg", "/places/zen-cafe/photo2.jpg"] },
+      { id: 25, name: "Miya Kebabs", cuisine: "Kebab Restaurant", price: "Rs.400-800 for two", rating: 4.3, tag: "Consistent quality", hood: "Kala Ghoda", address: "Ali Chambers, Flora Fountain, 81-82, M Shetty Marg, Kala Ghoda, Fort, Mumbai 400023", phone: "8847747644", desc: "A popular eatery in Kala Ghoda known for its flavorful food and generous portions. Consistent quality, quick service and satisfying meals.", sharedExp: "Had a great experience and the food was tasty.", tryThis: "Chicken Changezi", img: "/places/miya-kebabs/photo1.jpg", photos: ["/places/miya-kebabs/photo1.jpg"] },
+      { id: 26, name: "The Nutcracker", cuisine: "Cafe", price: "Rs.700-1200 for two", rating: 4.6, tag: "All-day breakfast", hood: "Kala Ghoda", address: "One Forbes Building, Modern House, Dr. V.B. Gandhi Marg, Kala Ghoda, Fort, Mumbai", phone: "9321759393", desc: "The Nutcracker serves wholesome comfort food and all-day breakfast. Renowned for its extensive egg menu, gourmet burgers and decadent desserts.", sharedExp: "Delicious food, great coffee and excellent service. Highly recommend a visit.", tryThis: "Cream Cheese Bagel and Paprika Penne Pasta with Garlic Bread", img: "/places/the-nutcracker/photo1.jpg", photos: ["/places/the-nutcracker/photo2.webp", "/places/the-nutcracker/photo3.webp"] },
+      { id: 27, name: "HnH Salad Co.", cuisine: "Healthy Cafe", price: "Rs.500-900 for two", rating: 4.4, tag: "Healthy and delicious", hood: "Kala Ghoda", address: "Ground floor, Khattau Buildings, General Vaidya Road, 7, Shahid Bhagat Singh Rd, Kala Ghoda, Fort, Mumbai 400001", phone: "7045989242", desc: "HnH Salad Co. is redefining healthy eating by serving chef-crafted, flavor-packed nutritious dishes that prove wellness is never bland.", sharedExp: "Healthy food that actually tastes amazing. A fantastic spot for a delicious and wholesome meal.", tryThis: "Salad Bowl", img: "/places/hnh-salad/photo1.webp", photos: ["/places/hnh-salad/photo2.jpg"] },
+      { id: 28, name: "Americano", cuisine: "Italian Restaurant", price: "Rs.1200-2000 for two", rating: 4.6, tag: "Creative Italian", hood: "Kala Ghoda", address: "Radha Bhavan, 121/123, Nagindas Master Rd, Kala Ghoda, Fort, Mumbai", phone: "9321104682", desc: "Lively neighborhood spot for creative Italian share plates and handmade pastas.", sharedExp: "This place is an absolute gem. The pizzas and desserts are incredibly tasty and packed with flavor. Highly recommend.", tryThis: "Pizzas and Desserts", img: "/places/americano/photo1.webp", photos: ["/places/americano/photo2.webp", "/places/americano/photo3.webp"] },
+      { id: 29, name: "Otra", cuisine: "Mexican Restaurant", price: "Rs.1200-2000 for two", rating: 4.5, tag: "Award-winning Mexican", hood: "Kala Ghoda", address: "105, Ground Floor, Mubarak Manzil, Mumbai Samachar Marg, Kala Ghoda, Fort, Mumbai", phone: "", desc: "Modern Mexican spot with authentic flavors and award-winning dishes.", sharedExp: "Delicious food across the board and great service to match. Highly recommend.", tryThis: "Desserts", img: "/places/otra/photo2.webp", photos: ["/places/otra/photo3.webp"] },
+      { id: 30, name: "Cafe Trofima", cuisine: "Cafe", price: "Rs.600-1000 for two", rating: 4.4, tag: "Neighbourhood favorite", hood: "Dadar", address: "Raja Badhe Chowk, Opp. Raja Rani Travels, Shivaji Park Road No. 2, Lady Jamshedji Rd, Mumbai 400028", phone: "8291019988", desc: "A well-loved cafe in Shivaji Park known for its warm ambience and wide-ranging menu. Quality food, friendly service and an inviting atmosphere.", sharedExp: "This is a great place to hang out with friends. The staff is friendly and the food is absolutely delicious.", tryThis: "White Sauce Pasta", img: "/places/cafe-trofima/photo1.jpg", photos: ["/places/cafe-trofima/photo2.jpg"] },
+      { id: 31, name: "Ashok Vada Pav", cuisine: "Street Food", price: "Rs.50-150 for two", rating: 4.5, tag: "Mumbai must-try", hood: "Dadar", address: "Kashinath Dhuru Marg, Near Kirti College, Dadar West, Mumbai 400028", phone: "8591894170", desc: "A popular Dadar eatery known for its flavorful vada pav and long-standing local following. Consistent quality and fresh preparation.", sharedExp: "A must-visit spot for vada pav lovers. Enjoyed it and would recommend to everyone.", tryThis: "Vada Pav", img: "/places/ashok-vada-pav/photo1.jpg", photos: ["/places/ashok-vada-pav/photo2.jpg"] },
+      { id: 32, name: "K. Rustom and Co.", cuisine: "Ice Cream Parlour", price: "Rs.200-400 for two", rating: 4.7, tag: "Mumbai institution", hood: "Churchgate", address: "Brabourne Stadium 86, Veer Nariman Rd, Churchgate, Mumbai 400020", phone: "02222821768", desc: "Mumbai's most beloved ice cream shop, specializing in wafer-biscuit ice cream sandwiches. A Churchgate landmark for generations.", sharedExp: "Hands down one of the best ice creams I've ever tasted. The quality and flavor are outstanding.", tryThis: "Mango Ice Cream Sandwich", img: "/places/k-rustom/photo1.png", photos: ["/places/k-rustom/photo2.webp"] },
+      { id: 33, name: "Ramen Bar Wagamama", cuisine: "Japanese Restaurant", price: "Rs.1200-2000 for two", rating: 4.5, tag: "Best ramen", hood: "Churchgate", address: "42, Cambata Building, Maharshi Karve Road, Near Eros Theatre, Churchgate, Mumbai 400020", phone: "9702703111", desc: "A popular Japanese restaurant in Churchgate known for its authentic flavors and comforting dining experience.", sharedExp: "Had a truly wonderful experience here! The food was outstanding, and the service was friendly.", tryThis: "Gyozas and Bang Bang Cauliflower", img: "/places/ramen-wagamama/photo3.webp", photos: ["/places/ramen-wagamama/photo1.jpg", "/places/ramen-wagamama/photo2.jpg"] },
+      { id: 34, name: "Mezcalita Churchgate", cuisine: "Mexican Restaurant", price: "Rs.1500-2500 for two", rating: 4.7, tag: "Mexican cantina", hood: "Churchgate", address: "Nagin Mahal, 82, Veer Nariman Rd, Churchgate, Mumbai 400020", phone: "8657512648", desc: "Discover an authentic taste of Mexico at Mezcalita. From sizzling fajitas to zesty tacos and refreshing cocktails.", sharedExp: "A vibrant spot that absolutely nails the energy of a modern Mexican cantina. The tacos are consistently excellent.", tryThis: "Tacos", img: "/places/mezcalita-cg/photo2.jpg", photos: ["/places/mezcalita-cg/photo1.jpeg"] },
+      { id: 35, name: "Pizza By The Bay", cuisine: "Restaurant", price: "Rs.1200-2000 for two", rating: 4.5, tag: "Sea view dining", hood: "Churchgate", address: "Soona Mahal, 143, Marine Dr, Churchgate, Mumbai 400020", phone: "7718838749", desc: "One of Mumbai's most iconic dining institutions since 1968, famous for its prime location overlooking the Arabian Sea.", sharedExp: "Delicious food and friendly service. The spectacular sea view makes this place an absolute must-visit.", tryThis: "Pollo Arabiata Pizza", img: "/places/pizza-by-the-bay/photo1.webp", photos: ["/places/pizza-by-the-bay/photo2.webp"] },
+      { id: 36, name: "Mockingbird Cafe Bar", cuisine: "Cafe", price: "Rs.800-1500 for two", rating: 4.3, tag: "Chill vibes", hood: "Churchgate", address: "80, Veer Nariman Rd, Churchgate, Mumbai 400020", phone: "8097606010", desc: "Mockingbird Cafe Bar is a great place to chill with great ambiance, a wide range of wonderful cuisine and reasonably priced drinks.", sharedExp: "Delicious food, good service and a wonderful atmosphere. The perfect place to spend quality time with friends.", tryThis: "Peri Peri French Fries and Garden Fresh Pizza", img: "/places/mockingbird/photo1.jpg", photos: ["/places/mockingbird/photo2.webp", "/places/mockingbird/photo3.webp"] },
+      { id: 37, name: "Coffee Island", cuisine: "Cafe", price: "Rs.400-800 for two", rating: 4.4, tag: "European-style cafe", hood: "Churchgate", address: "Shop No 10/11 Ground Floor, Eros Cinema, 42, Maharshi Karve Rd, Churchgate, Mumbai 400020", phone: "9211729505", desc: "A vibrant European-style cafe popular for artisanal brews like the signature Islander Cold Coffee, fresh pastries, and late-night workspaces.", sharedExp: "It was an amazing experience with beautiful ambience and great service.", tryThis: "Flatbread — and also try the Islander Cold Coffee!", img: "/places/coffee-island/photo2.webp", photos: ["/places/coffee-island/photo1.webp"] },
+      { id: 38, name: "Gaylord Restaurant", cuisine: "Multi-cuisine Restaurant", price: "Rs.1500-2500 for two", rating: 4.4, tag: "Fine dining", hood: "Churchgate", address: "V N Rd, Churchgate, Mumbai 400020", phone: "7045556060", desc: "Buzzing spot with indoor and outdoor seating with an extensive menu of multi-cuisine fare and snacks. Elegant interiors, perfect for a fine dining experience.", sharedExp: "Elegant interiors and an excellent atmosphere make this the perfect spot for a fine dining experience.", tryThis: "Mushroom Cheese Lasagna and Creme Brulee", img: "/places/gaylord/photo1.jpeg", photos: ["/places/gaylord/photo2.webp", "/places/gaylord/photo3.webp"] },
+      { id: 39, name: "Bokka Coffee", cuisine: "Cafe", price: "Rs.500-900 for two", rating: 4.5, tag: "Coffee perfection", hood: "Bandra West", address: "Shop No. 6 and 7, Silver Croft, 16th Road, Near Khane Khas, Bandra West, Mumbai 400050", phone: "8355805500", desc: "A cozy Bandra cafe known for its excellent coffee and thoughtfully prepared breakfast offerings. Quality food, friendly service and a welcoming atmosphere.", sharedExp: "Absolutely loved this place. The coffee was brewed to perfection and all the desserts were fantastic.", tryThis: "Specialty Cake", img: "/places/bokka-coffee/photo1.webp", photos: ["/places/bokka-coffee/photo2.webp"] },
+      { id: 40, name: "Abokado", cuisine: "Japanese Cafe", price: "Rs.800-1400 for two", rating: 4.5, tag: "Must-try sushi", hood: "Bandra West", address: "Shop No. 1, Sefa House, Pali Mala Rd, Bandra West, Mumbai 400049", phone: "8369936468", desc: "A cozy Japanese inspired cafe in Bandra known for its welcoming atmosphere and consistently well-received food.", sharedExp: "Truly authentic flavors and the Japanese sushi here is absolutely amazing. A must-visit spot for all sushi lovers.", tryThis: "Sushi", img: "/places/abokado/photo1.webp", photos: ["/places/abokado/photo2.jpg"] },
+      { id: 41, name: "Veronica", cuisine: "Cafe", price: "Rs.600-1200 for two", rating: 4.6, tag: "Best sandwiches", hood: "Bandra West", address: "9, Waroda Rd, Beside Agna Square, Ranwar, Bandra West, Mumbai 400050", phone: "9372981697", desc: "Veronica's is a vibrant trend-setting Bandra deli famous for its massive, premium artisanal sandwiches and high-energy neighbourhood vibe.", sharedExp: "One of Mumbai's finest sandwich and bakery spots. The bread is exceptional and even the simplest dishes feel memorable.", tryThis: "Dirty Fries with Cheese", img: "/places/veronica/photo1.webp", photos: ["/places/veronica/photo2.webp"] },
+      { id: 42, name: "Miyo Dessert Bar", cuisine: "Bakery and Desserts", price: "Rs.600-1000 for two", rating: 4.6, tag: "Make It Your Own", hood: "Bandra West", address: "Shop 3, Silvercroft, Junction of 16th and 33rd Rd, Bandra West, Mumbai 400050", phone: "9004502803", desc: "Miyo Dessert Bar is a freestyle dessert bar operating on a unique MIYO concept — an anti-menu philosophy where you fully customize your sweet treats.", sharedExp: "Creative, elegant and consistently impressive. Beautifully plated and perfectly balanced sophisticated flavors.", tryThis: "Belgian Chocolate Gelato", img: "/places/miyo-dessert/photo1.webp", photos: ["/places/miyo-dessert/photo2.jpeg"] },
+      { id: 43, name: "GIGI Bombay", cuisine: "Japanese Restaurant", price: "Rs.2000-3500 for two", rating: 4.7, tag: "Premium fusion", hood: "Bandra West", address: "14th Rd, Bandra West, Mumbai 400050", phone: "8976943116", desc: "Gigi Bombay is a trendy Japanese-European fusion restaurant and cocktail bar in Bandra West. Every dish feels carefully executed.", sharedExp: "A near-perfect combination of ambience, service and food. Every dish feels carefully executed making it one of the city's most premium dining experiences.", tryThis: "Pumpkin Ravioli & Salmon Sushi and Chilli Garlic Edamame", img: "/places/gigi-bombay/photo1.jpg", photos: ["/places/gigi-bombay/photo2.webp", "/places/gigi-bombay/photo3.webp"] },
+      { id: 44, name: "Pomodoro", cuisine: "Italian Restaurant", price: "Rs.1000-1800 for two", rating: 4.6, tag: "Hand-rolled pasta", hood: "Bandra West", address: "Shop No. 2, 16th Rd, Bandra West, Mumbai 400050", phone: "7887886327", desc: "Your cozy neighbourhood pasta bar specializing in hand-rolled pastas and specialty coffee. Authentic Italian comfort food at its best.", sharedExp: "Authentic Italian comfort food at its best. The pasta is consistently excellent, the flavors are clean and honest.", tryThis: "Parmesan Truffle Fries and Tiramisu", img: "/places/pomodoro/photo2.webp", photos: ["/places/pomodoro/photo1.webp", "/places/pomodoro/photo3.webp"] },
+      { id: 45, name: "Mokai", cuisine: "Cafe", price: "Rs.1000-1800 for two", rating: 4.5, tag: "Pinterest-worthy", hood: "Pali Hill", address: "Pali Mala Rd, Pali Hill, Mumbai 400050", phone: "9820983607", desc: "Mokai in Bandra is known for its Pinterest-y aesthetics and delectable drinks and food. Shifting the conventions of the traditional brunch system.", sharedExp: "A great blend of chic ambience and comforting food. The flavors are approachable yet elevated making it a place you'll want to revisit.", tryThis: "Laksa Curry Wontons", img: "/places/mokai/photo1.webp", photos: ["/places/mokai/photo2.webp"] },
+      { id: 46, name: "Steam Room", cuisine: "Dimsum Restaurant", price: "Rs.800-1500 for two", rating: 4.6, tag: "Best dimsums", hood: "Pali Hill", address: "Shop no.1, Union Park Rd Number 5, opposite Petite School, Union Park, Pali Hill, Mumbai 400052", phone: "8850926682", desc: "A small dimsum place in Bandra with an actual steam room where hundreds of dimsums and wontons cook all day.", sharedExp: "The food is really good and 100% worth the price.", tryThis: "Truffle Mushroom Xiao Long Bao and Crispy Prawn Cheung Fun", img: "/places/steam-room/photo2.webp", photos: ["/places/steam-room/photo3.webp"] },
+      { id: 47, name: "Hot Momos", cuisine: "Momos and Tibetan", price: "Rs.150-400 for two", rating: 4.6, tag: "Best momos", hood: "Kharghar", address: "Shop No. 14, Swarna CHS, Plot No. 13/14, Sector 7, Kharghar, Panvel, Maharashtra 410210", phone: "8767681828", desc: "A popular Kharghar eatery known for its flavorful food and generous portions. Quick service, consistent quality and a loyal local following.", sharedExp: "Hands down the best momos in Kharghar! The momos here are absolutely delicious.", tryThis: "Chicken Kurkure Momos", img: "/places/hot-momos/photo1.jpg", photos: ["/places/hot-momos/photo2.webp"] },
+      { id: 48, name: "Luuma House", cuisine: "Continental", price: "Rs.2000-3500 for two", rating: 4.5, tag: "Fine dining", hood: "Vile Parle", address: "Plot No.47, Gulmohar Rd, JVPD Scheme, Vile Parle West, Mumbai 400049", phone: "7891991936", desc: "Experience elevated global dining at Luuma House — a premier fine dining restaurant and cocktail bar featuring Mediterranean, Pan-Asian, and Modern Indian cuisines with live music.", sharedExp: "My experience here was fantastic. The food was delicious and the staff was welcoming.", tryThis: "Dim Sum and Black Rice Sushi", img: "/places/luuma-house/photo1.jpg", photos: ["/places/luuma-house/photo2.webp", "/places/luuma-house/photo3.webp"] },
+      { id: 49, name: "Gattu Chinese", cuisine: "Chinese Restaurant", price: "Rs.400-800 for two", rating: 4.4, tag: "Street-style Chinese", hood: "Vile Parle", address: "Shop No. 3, Iria, Irla, Vile Parle West, Mumbai 400056", phone: "8655110777", desc: "Casual locale serving street-style Chinese snacks and rice dishes. Great food quality, generous portions and very reasonably priced.", sharedExp: "Great food quality, generous portion sizes and very reasonably priced.", tryThis: "Special Fried Rice Chicken and Chicken Lollipop", img: "/places/gattu-chinese/photo2.webp", photos: ["/places/gattu-chinese/photo2.webp", "/places/gattu-chinese/photo3.webp"] },
+      { id: 50, name: "Benne - Bangalore Dosa", cuisine: "South Indian", price: "Rs.200-500 for two", rating: 4.7, tag: "Best South Indian", hood: "Juhu", address: "Ground floor, Nirav apartment, 1, Gulmohar Rd, Gulmohar Colony, Juhu, Mumbai 400049", phone: "", desc: "A popular minimalist South Indian eatery in Juhu famous for authentic Bengaluru-style butter dosas. The best South Indian breakfast in Juhu.", sharedExp: "Hands down the best South Indian breakfast in Juhu. The food is incredibly tasty and the quality is excellent.", tryThis: "Benne Masala Dosa", img: "/places/benne-dosa/photo1.jpg", photos: ["/places/benne-dosa/photo2.webp"] },
+      { id: 51, name: "One8 Commune", cuisine: "Multi-cuisine Restaurant", price: "Rs.2000-3500 for two", rating: 4.6, tag: "Trendy", hood: "Juhu", address: "Kishore Kumar Bunglow, 18/B, Juhu Tara Rd, Shivaji Nagr, Juhu, Mumbai 400049", phone: "8108411818", desc: "One8 Commune is known for its vibrant ambiance with eclectic decor, experimental cocktails and signature dishes like the Mushroom Googly Dimsums.", sharedExp: "Beautiful aesthetics paired with good food. Everything was plated elegantly and the ingredients tasted wonderfully fresh.", tryThis: "Mushroom Dimsums", img: "/places/one8-commune/photo2.jpg", photos: ["/places/one8-commune/photo1.png"] },
+      { id: 52, name: "Ettarra Coffee House", cuisine: "Cafe", price: "Rs.500-900 for two", rating: 4.5, tag: "South Indian coffee", hood: "Juhu", address: "Ground Floor, boutique hotel, Juhu residency, Juhu Tara, Juhu, Mumbai 400049", phone: "8655805815", desc: "South Indian filter coffee crafted to capture flavorful notes and refreshing aromatic servings with every cup. A beautifully designed space with food that matches the aesthetic.", sharedExp: "A beautifully designed space with food that matches the aesthetic. Thoughtful flavors, great presentation and a calm atmosphere.", tryThis: "Baked Soya Keema Pav", img: "/places/ettarra-coffee/photo1.jpg", photos: ["/places/ettarra-coffee/photo2.jpeg"] },
+      { id: 53, name: "Si Nonna's", cuisine: "Italian Restaurant", price: "Rs.1500-2500 for two", rating: 4.5, tag: "Naples in Mumbai", hood: "Lower Parel", address: "B, Kamala Mills Compound, Shop 12 and 13, Trade World, Senapati Bapat Marg, Lower Parel, Mumbai 400013", phone: "9136693001", desc: "Si Nonna's is where the authentic taste of Naples meets your cravings. Mouthwatering Italian delights with multiple outlets across Mumbai.", sharedExp: "Delicious food, great options and multiple outlets.", tryThis: "Pizza Number 4 and Tiramisu", img: "/places/si-nonnas/photo3.webp", photos: ["/places/si-nonnas/photo1.jpeg", "/places/si-nonnas/photo2.jpeg"] },
+      { id: 54, name: "Queen Margherita", cuisine: "Italian Restaurant", price: "Rs.1200-2000 for two", rating: 4.5, tag: "Wood-fired pizza", hood: "Lower Parel", address: "Neeru Silk Mills, Mathuradas Mill Compound, 11/B, Gr Floor, Lower Parel, Mumbai 400013", phone: "9137537902", desc: "Pizza, pasta and Italian food served at an informal eatery with a wood-fired oven.", sharedExp: "Fantastic spot for amazing pizza.", tryThis: "Classic Chicken Queen Margherita and Tiramisu", img: "/places/queen-margherita/photo3.webp", photos: ["/places/queen-margherita/photo1.webp", "/places/queen-margherita/photo2.webp"] },
+      { id: 55, name: "Britannia and Co.", cuisine: "Parsi", price: "Rs.800-1500 for two", rating: 4.6, tag: "Parsi heritage", hood: "Fort", address: "Wakefield House, 11 16, SS Ram Gulam Marg, opp. New Indian Customs House, Ballard Estate, Fort, Mumbai 400001", phone: "02222615264", desc: "If you want a taste of Mumbai's rich culinary history, Britannia and Co. is a mandatory stop. Serving phenomenal authentic Parsi cuisine since 1923.", sharedExp: "Fantastic experience — the food is good and if you want authentic Parsi flavors then this is the place to go.", tryThis: "Mutton Berry Pulao", img: "/places/britannia/photo2.jpg", photos: ["/places/britannia/photo1.webp"] },
+      { id: 56, name: "Earth Soul Cafe", cuisine: "Cafe", price: "Rs.500-900 for two", rating: 4.7, tag: "Trending", hood: "CBD Belapur", address: "Shop No. 13, Progressive's Sea Lounge, Plot No.44, Sector 15, CBD Belapur, Navi Mumbai 400614", phone: "9619409696", desc: "Earth Soul Cafe is an all-day cafe in Navi Mumbai. Fresh cold-press juices, smoothies, salads, sandwiches and always-brewing coffee. Perfect for slowing down surrounded by plants.", sharedExp: "This is the place you go when you want to slow down for a few hours. Surrounded by plants and tucked away from the city's chaos.", tryThis: "Pink Sauce Pasta", img: "/places/earth-soul-cafe/photo2.webp", photos: ["/places/earth-soul-cafe/photo1.webp"] },
+      { id: 57, name: "The Kerala Table", cuisine: "Seafood Restaurant", price: "Rs.1000-1800 for two", rating: 4.6, tag: "South Indian fine dining", hood: "Vashi", address: "First Floor, Palm Beach Galleria Mall, 109 and 110, Plot No. 17, Sector 19D, Vashi, Navi Mumbai 400703", phone: "9090939348", desc: "Experience true South Indian fine dining with rich flavors of Kerala food and Malabar delicacies. Kerala-style fish fry and aromatic biryani.", sharedExp: "If you're craving authentic Keralite food that feels like it was made at someone's home rather than a commercial kitchen, this is the place.", tryThis: "Paal Porotta Prawns and Pepper Garlic Chicken", img: "/places/kerala-table/photo2.jpg", photos: ["/places/kerala-table/photo1.jpeg", "/places/kerala-table/photo3.webp"] },
+      { id: 58, name: "HAV Coffee", cuisine: "Specialty Coffee Cafe", price: "Rs.400-800 for two", rating: 4.5, tag: "Specialty brews", hood: "Chowpatty", address: "1, Dr N A Purandare Marg, next to Mahendra Car Showroom, Charni Road East, Chowpatty, Girgaon, Mumbai 400007", phone: "", desc: "HAV Coffee is known for premium specialty brews like the popular Spanish Latte. Artisan croissants and dedicated Jain-friendly options.", sharedExp: "I absolutely enjoyed my experience here. The food was delicious and the ambience was lovely.", tryThis: "Chilli Cheese Toast and Paneer Tikka Sandwiches", img: "/places/hav-coffee/photo1.jpg", photos: ["/places/hav-coffee/photo2.webp", "/places/hav-coffee/photo3.webp"] },
+      { id: 59, name: "Shree Thaker Bhojanalay", cuisine: "Vegetarian Thali Restaurant", price: "Rs.500-900 for two", rating: 4.7, tag: "Legendary thali", hood: "Marine Lines", address: "Building No 31, Purshottam Niwas, Dadiseth Agiyari Ln, Marine Lines East, Kalbadevi, Mumbai 400002", phone: "02222069916", desc: "Long-running Indian restaurant offering a selection of traditional Gujarati thalis. Renowned for exceptional thali.", sharedExp: "Renowned for its exceptional thali and the food lived up to the hype — absolutely delicious.", tryThis: "Vegetarian Gujarati Thali", img: "/places/shree-thaker/photo1.webp", photos: ["/places/shree-thaker/photo2.webp"] },
+      { id: 60, name: "The Croffle Guys", cuisine: "Café", price: "Rs.400-800 for two", rating: 4.5, tag: "Unique croffles", hood: "Santacruz", address: "Rupa Adarsh, Saraswati Rd, Santacruz West, Mumbai 400054", phone: "9321355455", desc: "Cozy spot for innovative croffles and signature cold foam coffees.", sharedExp: "A unique dessert spot with very friendly staff. Thoroughly enjoyed the experience.", tryThis: "Nutella Cookie Dough Croffle", img: "/places/croffle-guys/photo2.webp", photos: ["/places/croffle-guys/photo1.avif"] },
     ],
     people: [
       { id: 1, ini: "A", name: "Ananya", age: 26, city: "Mumbai", color: "#e8f0e8", tc: "#2d6a2d", photos: ["https://images.unsplash.com/photo-1494790108755-2616b612b786?w=400&q=80", "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&q=80", "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&q=80"], interests: ["Live Music", "Food & Dining", "Travel", "Books", "Photography"], sharedInterests: ["Live Music", "Food & Dining", "Photography"], prompts: [{ q: "What recent incident changed your perspective?", a: "Losing my wallet while traveling alone taught me to be more adaptable and trust that things usually work out." }, { q: "One thing I've been wanting to do in Mumbai but haven't gotten around to is...", a: "Join a proper book club — the kind that meets in a cafe and argues about endings." }], cityWants: ["Attend a live music gig", "Try new restaurants", "Join a book club", "Explore street art", "Go to a food festival"], foodRecs: [{ name: "The Bombay Canteen, Lower Parel", desc: "Modern Indian cuisine with a twist" }, { name: "Prithvi Cafe, Juhu", desc: "Literary crowd, great chai" }], cityRecs: [{ name: "Marine Drive", desc: "Perfect sunset walks" }, { name: "Bandstand Promenade", desc: "Best evening walk in Bandra" }] },
@@ -429,12 +472,13 @@ function scoreFoodPlace(place, userCuisines, userBudget) {
 }
 
 // ─── ONBOARDING ───────────────────────────────────────────────────────────────
-function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initialName }) {
+function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initialName, initialAge, initialPronouns }) {
   const skipBasics = !!(initialCity && initialName);
   const [step, setStep] = useState(skipBasics ? 3 : 1);
-  const [city, setCity] = useState(initialCity || "");
+  const [city, setCity] = useState(initialCity || "mumbai");
   const [name, setName] = useState(initialName || "");
-  const [age, setAge] = useState("");
+  const [age, setAge] = useState(initialAge ? String(initialAge) : "");
+  const [pronouns, setPronouns] = useState(initialPronouns || "");
   const [selInterests, setSelInterests] = useState([]);
   const [selThings, setSelThings] = useState([]);
   const [selCuisines, setSelCuisines] = useState([]);
@@ -472,13 +516,16 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
         <h2 className="ob-step-title">Which city are you in?</h2>
         <p className="ob-step-sub">NearMet is live in two cities right now.</p>
         <div className="ob-city-list">
-          {[{ id: "nyc", flag: "🗽", name: "New York City", sub: "All 5 boroughs · Live now" }, { id: "mumbai", flag: "🇮🇳", name: "Mumbai", sub: "All areas · Live now" }].map(c => (
-            <button key={c.id} className={`ob-city-item ${city === c.id ? "active" : ""}`} onClick={() => setCity(c.id)}>
-              <span className="ob-city-flag">{c.flag}</span>
-              <div><div className="ob-city-name">{c.name}</div><div className="ob-city-sub">{c.sub}</div></div>
-              <div className={`ob-radio ${city === c.id ? "filled" : ""}`} />
-            </button>
-          ))}
+          <button className="ob-city-item active" onClick={() => setCity("mumbai")}>
+            <span className="ob-city-flag">🇮🇳</span>
+            <div><div className="ob-city-name">Mumbai</div><div className="ob-city-sub">All areas · Live now</div></div>
+            <div className="ob-radio filled" />
+          </button>
+          <div className="ob-city-item" style={{ opacity: 0.4, cursor: "default", pointerEvents: "none" }}>
+            <span className="ob-city-flag">🌆</span>
+            <div><div className="ob-city-name">New York · LA · Dubai</div><div className="ob-city-sub">Coming soon</div></div>
+            <div className="ob-radio" />
+          </div>
         </div>
       </div>
       <div className="ob-step-nav"><button className="ob-btn-ghost" onClick={() => { if (onBackToLanding) onBackToLanding(); else onShowSignIn(); }}>Back</button><button className="ob-btn-primary" disabled={!city} onClick={() => setStep(2)}>Next →</button></div>
@@ -494,6 +541,17 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
         <div className="ob-form">
           <div className="ob-field"><label className="ob-field-label">NAME</label><input className="ob-input" type="text" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} /></div>
           <div className="ob-field"><label className="ob-field-label">AGE</label><input className="ob-input" type="number" placeholder="18+" value={age} onChange={e => setAge(e.target.value)} /></div>
+          <div className="ob-field"><label className="ob-field-label">PRONOUNS <span style={{fontWeight:400,textTransform:"none",fontSize:11,color:"var(--text3)"}}>— optional</span></label>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6, marginBottom: 8 }}>
+              {["she/her", "he/him", "they/them"].map(p => (
+                <button key={p} type="button"
+                  className={`ob-thing-chip ${pronouns === p ? "active" : ""}`}
+                  style={{ fontSize: 13, padding: "8px 14px" }}
+                  onClick={() => setPronouns(pronouns === p ? "" : p)}>{p}</button>
+              ))}
+            </div>
+            <input className="ob-input" placeholder="Or type your own (e.g. ze/zir)" value={!["she/her","he/him","they/them"].includes(pronouns) ? pronouns : ""} onChange={e => setPronouns(e.target.value)} style={{ marginTop: 4 }} />
+          </div>
         </div>
       </div>
       <div className="ob-step-nav"><button className="ob-btn-ghost" onClick={() => setStep(1)}>Back</button><button className="ob-btn-primary" disabled={!name.trim() || !age || parseInt(age) < 18} onClick={() => setStep(3)}>Next →</button></div>
@@ -533,6 +591,17 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
               {t}{selThings.includes(t) && <span className="ob-chip-check">✓</span>}
             </button>
           ))}
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <div style={{ fontSize: 12, color: "var(--text3)", marginBottom: 6, fontWeight: 600 }}>Something not listed? Add your own:</div>
+          <input className="ob-input" placeholder="e.g. Attend a poetry slam, Try paragliding…"
+            onKeyDown={e => {
+              if (e.key === "Enter" && e.target.value.trim()) {
+                const val = e.target.value.trim();
+                if (!selThings.includes(val)) togT(val);
+                e.target.value = "";
+              }
+            }} />
         </div>
       </div>
       <div className="ob-step-nav"><button className="ob-btn-ghost" onClick={() => setStep(3)}>Back</button><button className="ob-btn-primary" disabled={selThings.length === 0} onClick={() => setStep(5)}>Next →</button></div>
@@ -600,11 +669,11 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
       <div className="ob-done-screen">
         <div className="ob-done-check">✓</div>
         <h2 className="ob-done-title">You're in, {name}.</h2>
-        <p className="ob-done-sub">Your feed is ready. Find people who want to do the same things as you in {city === "nyc" ? "New York" : "Mumbai"}.</p>
+        <p className="ob-done-sub">Your feed is ready. Find people who want to do the same things as you in Mumbai.</p>
         <div className="ob-done-interests">
           {selInterests.slice(0, 6).map(id => { const i = INTEREST_OPTIONS.find(o => o.id === id); return <span key={id} className="ob-done-chip">{i?.icon} {i?.label}</span>; })}
         </div>
-        <button className="ob-btn-primary ob-btn-full" style={{ marginTop: 32 }} onClick={() => onDone({ city, name, interests: selInterests, things: selThings, cuisines: selCuisines, budget })}>Go to my feed →</button>
+        <button className="ob-btn-primary ob-btn-full" style={{ marginTop: 32 }} onClick={() => onDone({ city, name, interests: selInterests, things: selThings, cuisines: selCuisines, budget, pronouns })}>Go to my feed →</button>
       </div>
     </div>
   );
@@ -631,7 +700,7 @@ function ProfileSlideshow({ photos, name, onBack }) {
   );
   return (
     <div className="pv-hero-wrap" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-      <img src={photos[idx]} alt={name} className="pv-hero-img" />
+      <img src={photos[idx]} alt={name} className="pv-hero-img" onContextMenu={e => e.preventDefault()} draggable={false} />
       {onBack && <button className="pv-back-btn" onClick={onBack}>←</button>}
       {photos.length > 1 && (
         <>
@@ -645,7 +714,7 @@ function ProfileSlideshow({ photos, name, onBack }) {
 }
 
 // ─── FULL PROFILE VIEW (shared between For You + By Activity) ─────────────────
-function FullProfileView({ person, city, onBack, onMessage, connecting }) {
+function FullProfileView({ person, city, onBack, onMessage, connecting, me }) {
   const cd = CITIES[city];
   const allPhotos = (person.photo_urls || person.photos || []).filter(Boolean);
   const theirPrompts = person.prompts
@@ -665,31 +734,43 @@ function FullProfileView({ person, city, onBack, onMessage, connecting }) {
       <div className="pv-content">
         <div className="pv-name-row">
           <div>
-            <div className="pv-name">{person.name}{person.age ? `, ${person.age}` : ""}</div>
+            <div className="pv-name">{person.name}{person.age ? `, ${person.age}` : ""}{person.pronouns ? <span style={{fontSize:13,fontWeight:500,color:"var(--text3)",marginLeft:8}}>· {person.pronouns}</span> : ""}</div>
             <div className="pv-city">📍 {cd.label}</div>
           </div>
         </div>
 
         {theirPrompts.length > 0 && (
           <>
-            <div className="pv-section-title">💬 In their words</div>
+            <div className="pv-section-title">Thoughts</div>
             {theirPrompts.map((p, i) => (
               <div key={i} className="pv-prompt-card">
                 <div className="pv-prompt-q">{p.q}</div>
-                <div className="pv-prompt-a">"{p.a}"</div>
+                <div className="pv-prompt-a">{p.a}</div>
               </div>
             ))}
           </>
         )}
 
-        {interests.length > 0 && (
-          <>
-            <div className="pv-section-title">Interests</div>
-            <div className="pv-interest-chips">
-              {interests.map(i => { const opt = INTEREST_OPTIONS.find(o => o.id === i); return <span key={i} className="pv-interest-chip">{opt?.icon} {opt?.label || i}</span>; })}
-            </div>
-          </>
-        )}
+        {interests.length > 0 && (() => {
+          const myInterests = me?.interests || [];
+          const sharedInts = interests.filter(i => myInterests.includes(i));
+          return (
+            <>
+              <div className="pv-section-title">Interests{sharedInts.length > 0 && <span style={{fontSize:12,color:"var(--green2)",fontWeight:600,marginLeft:10}}>✦ {sharedInts.length} in common</span>}</div>
+              <div className="pv-interest-chips">
+                {interests.map(i => {
+                  const opt = INTEREST_OPTIONS.find(o => o.id === i);
+                  const isShared = myInterests.includes(i);
+                  return (
+                    <span key={i} className="pv-interest-chip" style={isShared ? { background: "var(--green-bg)", color: "var(--green2)", border: "1.5px solid var(--green2)" } : {}}>
+                      {opt?.icon} {opt?.label || i}
+                    </span>
+                  );
+                })}
+              </div>
+            </>
+          );
+        })()}
 
         {things.length > 0 && (
           <>
@@ -707,7 +788,7 @@ function FullProfileView({ person, city, onBack, onMessage, connecting }) {
 
         {foodRecs.length > 0 && (
           <>
-            <div className="pv-section-title">Food picks in {cd.label}</div>
+            <div className="pv-section-title">🍽️ Food picks in {cd.label}</div>
             {(Array.isArray(foodRecs) ? foodRecs : []).filter(r => r && (r.name || typeof r === "string")).map((r, i) => {
               const name = typeof r === "string" ? r : r.name;
               const desc = typeof r === "object" ? r.desc : null;
@@ -723,7 +804,7 @@ function FullProfileView({ person, city, onBack, onMessage, connecting }) {
 
         {cityRecs.length > 0 && (
           <>
-            <div className="pv-section-title">City favourites</div>
+            <div className="pv-section-title">📍 City favourites</div>
             {(Array.isArray(cityRecs) ? cityRecs : []).filter(r => r && (r.name || typeof r === "string")).map((r, i) => {
               const name = typeof r === "string" ? r : r.name;
               const desc = typeof r === "object" ? r.desc : null;
@@ -780,7 +861,7 @@ function ChatView({ connectionId, person, userId, onBack }) {
       <div className="chat-header">
         <button className="chat-back" onClick={onBack}>←</button>
         <div className="chat-avatar">{(person.name || "?").slice(0, 2).toUpperCase()}</div>
-        <div><div className="chat-uname">{person.name}</div><div className="chat-ustatus">● Connected</div></div>
+        <div><div className="chat-uname">{person.name}</div></div>
       </div>
       {theirPrompts.length > 0 && (
         <div className="chat-prompts-banner">
@@ -793,7 +874,7 @@ function ChatView({ connectionId, person, userId, onBack }) {
               {theirPrompts.map((p, i) => (
                 <div key={i} className="chat-prompt-card" onClick={() => { setChatInput(`Re: "${p.q.slice(0, 50)}…" — `); setPromptsExpanded(false); }}>
                   <div className="chat-prompt-q">{p.q}</div>
-                  <div className="chat-prompt-a">"{p.a}"</div>
+                  <div className="chat-prompt-a">{p.a}</div>
                   <div className="chat-prompt-hint">Tap to reply →</div>
                 </div>
               ))}
@@ -803,7 +884,28 @@ function ChatView({ connectionId, person, userId, onBack }) {
       )}
       <div className="chat-msgs">
         {chatLoading && <div className="chat-empty"><p>Loading conversation…</p></div>}
-        {!chatLoading && chatMsgs.length === 0 && <div className="chat-empty"><div style={{ fontSize: 28 }}>✦</div><p>Say hello to {person.name}.</p></div>}
+        {!chatLoading && chatMsgs.length === 0 && (
+          <div className="chat-empty">
+            <div style={{ fontSize: 28 }}>✦</div>
+            <p style={{ fontWeight: 700, marginBottom: 6 }}>Start a real conversation.</p>
+            {person.prompts && (() => {
+              const prompts = Array.isArray(person.prompts)
+                ? person.prompts.filter(p => p.a)
+                : Object.entries(person.prompts).filter(([, a]) => a?.trim()).map(([q, a]) => ({ q, a }));
+              const pick = prompts[0];
+              if (!pick) return null;
+              return (
+                <div style={{ background: "var(--bg2)", borderRadius: 12, padding: "12px 14px", marginTop: 10, textAlign: "left", cursor: "pointer" }}
+                  onClick={() => setChatInput(`I saw your answer to "${pick.q.slice(0, 40)}…" — `)}>
+                  <div style={{ fontSize: 11, color: "var(--text3)", marginBottom: 4 }}>Their answer to:</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text)", marginBottom: 4 }}>{pick.q}</div>
+                  <div style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.5 }}>{pick.a}</div>
+                  <div style={{ fontSize: 11, color: "var(--green2)", marginTop: 8, fontWeight: 600 }}>Tap to reply →</div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
         {!chatLoading && chatMsgs.map((m, i) => <div key={m.id || i} className={`chat-bubble ${m.sender_id === userId ? "me" : ""}`}>{m.text}</div>)}
       </div>
       {chatError && <div className="profile-save-error" style={{ margin: "0 16px" }}>⚠️ {chatError}</div>}
@@ -919,10 +1021,10 @@ function ConnectionsScreen({ city, userId, me }) {
   }, [city, userId, reloadKey]);
 
   // Use local seed people when no real users exist (demo)
-  const displayPeople = people.length > 0 ? people : cd.people;
+  const displayPeople = people;
 
   // Build By Activity groups from local seed (+ real users when available)
-  const allPeople = [...cd.people, ...people.filter(p => !cd.people.find(sp => sp.name === p.name))];
+  const allPeople = [...people];
   const activityGroups = {};
   allPeople.forEach(person => {
     const things = person.city_wants || person.cityWants || person.things || [];
@@ -965,6 +1067,7 @@ function ConnectionsScreen({ city, userId, me }) {
     <FullProfileView
       person={viewProfile}
       city={city}
+      me={me}
       onBack={() => setViewProfile(null)}
       onMessage={() => openChat(viewProfile)}
       connecting={connecting}
@@ -975,6 +1078,7 @@ function ConnectionsScreen({ city, userId, me }) {
     <FullProfileView
       person={activityProfileView}
       city={city}
+      me={me}
       onBack={() => setActivityProfileView(null)}
       onMessage={() => openChat(activityProfileView)}
       connecting={connecting}
@@ -989,20 +1093,18 @@ function ConnectionsScreen({ city, userId, me }) {
       <div style={{ padding: "20px 0 8px" }}>
         {subTab === "foryou" ? (
           <>
-            <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.03em", marginBottom: 4, color: "var(--text)" }}>Meet interesting people</h1>
-            <p style={{ fontSize: 16, color: "var(--green2)", fontWeight: 700, margin: 0 }}>to explore your city.</p>
+            <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.03em", marginBottom: 4, color: "var(--text)" }}>Meet people to enjoy your city together</h1>
           </>
         ) : (
           <>
-            <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.03em", marginBottom: 4, color: "var(--text)" }}>Find your people</h1>
-            <p style={{ fontSize: 14, color: "var(--text3)", margin: 0 }}>People who want to do the same things as you</p>
+            <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.03em", marginBottom: 4, color: "var(--text)" }}>Meet people to enjoy your city together</h1>
           </>
         )}
       </div>
 
       {/* Tab toggle */}
       <div style={{ display: "flex", gap: 0, marginBottom: 20, border: "1.5px solid var(--border)", borderRadius: 14, overflow: "hidden", background: "var(--white)" }}>
-        {[["foryou", "👤", "For You"], ["byactivity", "👥", "By Activity"]].map(([id, icon, lbl]) => (
+        {[["foryou", "👤", "People"], ["byactivity", "👥", "Things to do"]].map(([id, icon, lbl]) => (
           <button key={id}
             style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px 8px", fontSize: 14, fontWeight: 600, color: subTab === id ? "var(--green2)" : "var(--text3)", background: subTab === id ? "var(--green-light)" : "none", border: "none", borderRight: id === "foryou" ? "1px solid var(--border)" : "none", cursor: "pointer", transition: ".15s" }}
             onClick={() => { setSubTab(id); setSelectedActivity(null); }}>
@@ -1032,38 +1134,58 @@ function ConnectionsScreen({ city, userId, me }) {
               <div style={{ padding: "16px 20px 0" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 6 }}>
                   <div>
-                    <div style={{ fontSize: 22, fontWeight: 800 }}>{current.name}, {current.age}</div>
-                    <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 2 }}>📍 {cd.label}, India</div>
+                    <div style={{ fontSize: 22, fontWeight: 800 }}>{current.name}, {current.age}{current.pronouns ? <span style={{fontSize:13,fontWeight:500,color:"var(--text3)",marginLeft:8}}>· {current.pronouns}</span> : ""}</div>
+                    <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 2 }}>📍 {cd.label}</div>
                   </div>
                 </div>
 
-                {/* Interests */}
-                {(current.interests || []).length > 0 && (
-                  <>
-                    <div style={{ fontSize: 13, fontWeight: 700, marginTop: 14, marginBottom: 8 }}>Interests</div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-                      {(current.interests || []).slice(0, 7).map(i => {
-                        const opt = INTEREST_OPTIONS.find(o => o.id === i);
-                        return <span key={i} style={{ border: "1.5px solid var(--border)", borderRadius: 999, padding: "6px 12px", fontSize: 13, fontWeight: 500, color: "var(--text2)", background: "var(--white)" }}>{opt?.icon} {opt?.label || i}</span>;
-                      })}
-                    </div>
-                  </>
-                )}
+                {/* Interests — highlight shared ones */}
+                {(current.interests || []).length > 0 && (() => {
+                  const myInterests = me?.interests || [];
+                  const sharedInts = (current.interests || []).filter(i => myInterests.includes(i));
+                  return (
+                    <>
+                      <div style={{ fontSize: 13, fontWeight: 700, marginTop: 14, marginBottom: 4 }}>Interests</div>
+                      {sharedInts.length > 0 && <div style={{ fontSize: 11, color: "var(--green2)", fontWeight: 600, marginBottom: 8 }}>✦ {sharedInts.length} in common with you</div>}
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+                        {(current.interests || []).slice(0, 7).map(i => {
+                          const opt = INTEREST_OPTIONS.find(o => o.id === i);
+                          const isShared = myInterests.includes(i);
+                          return (
+                            <span key={i} style={{
+                              border: isShared ? "1.5px solid var(--green2)" : "1.5px solid var(--border)",
+                              borderRadius: 999, padding: "6px 12px", fontSize: 13, fontWeight: isShared ? 700 : 500,
+                              color: isShared ? "var(--green2)" : "var(--text2)",
+                              background: isShared ? "var(--green-bg)" : "var(--white)"
+                            }}>{opt?.icon} {opt?.label || i}</span>
+                          );
+                        })}
+                      </div>
+                    </>
+                  );
+                })()}
 
-                {/* Things to do together */}
-                {(current.city_wants || current.cityWants || []).length > 0 && (
-                  <>
-                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Things to do together</div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginBottom: 16 }}>
-                      {(current.city_wants || current.cityWants || []).slice(0, 4).map(t => (
-                        <div key={t} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 600, color: "var(--text2)" }}>
-                          <span style={{ fontSize: 18 }}>{ACTIVITY_ICONS[t] || "📌"}</span>
-                          <span style={{ lineHeight: 1.3 }}>{t}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
+                {/* Things to do together — highlight shared ones */}
+                {(current.city_wants || current.cityWants || []).length > 0 && (() => {
+                  const theirThings = current.city_wants || current.cityWants || [];
+                  const myThings = me?.things || [];
+                  const shared = theirThings.filter(t => myThings.includes(t));
+                  const other = theirThings.filter(t => !myThings.includes(t));
+                  const display = [...shared, ...other].slice(0, 6);
+                  return (
+                    <>
+                      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Things to do together</div>
+                      {shared.length > 0 && <div style={{ fontSize: 11, color: "var(--green2)", fontWeight: 600, marginBottom: 8 }}>✦ {shared.length} in common with you</div>}
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+                        {display.map(t => (
+                          <span key={t} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, background: shared.includes(t) ? "var(--green-bg)" : "var(--bg2)", color: shared.includes(t) ? "var(--green2)" : "var(--text2)", border: shared.includes(t) ? "1.5px solid var(--green2)" : "1px solid var(--border)", borderRadius: 8, padding: "5px 10px" }}>
+                            <span style={{ fontSize: 15 }}>{ACTIVITY_ICONS[t] || "📌"}</span>{t}
+                          </span>
+                        ))}
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
 
               {/* View full profile + Back/Next */}
@@ -1299,8 +1421,11 @@ function PlacesToExploreScreen({ city, userId, userName }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTag, setActiveTag] = useState("All");
   const [openPlace, setOpenPlace] = useState(null);
+  const [showSaved, setShowSaved] = useState(false);
   const [submitOpen, setSubmitOpen] = useState(false);
   const [submitForm, setSubmitForm] = useState({ name: "", area: "", desc: "" });
+  const [submitPhoto, setSubmitPhoto] = useState(null);
+  const [submitPhotoPreview, setSubmitPhotoPreview] = useState(null);
   const [communityPlaces, setCommunityPlaces] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitDone, setSubmitDone] = useState(false);
@@ -1320,17 +1445,20 @@ function PlacesToExploreScreen({ city, userId, userName }) {
     if (!submitForm.name.trim() || !submitForm.area.trim()) return;
     setSubmitting(true);
     try {
+      let photoUrl = null;
+      if (submitPhoto && userId) photoUrl = await uploadCommunityPlacePhoto(userId, submitPhoto);
       if (userId) {
         const place = await submitCommunityPlace(userId, userName || "Someone", {
           city, name: submitForm.name.trim(), area: submitForm.area.trim(),
-          cuisine: "Place to Explore", description: submitForm.desc.trim(), photoUrl: null,
+          cuisine: "Place to Explore", description: submitForm.desc.trim(), photoUrl,
         });
         setCommunityPlaces(p => [place, ...p]);
       } else {
-        setCommunityPlaces(p => [{ id: Date.now(), name: submitForm.name.trim(), area: submitForm.area.trim(), description: submitForm.desc.trim(), isCommunity: true }]);
+        setCommunityPlaces(p => [{ id: Date.now(), name: submitForm.name.trim(), area: submitForm.area.trim(), description: submitForm.desc.trim(), photo_url: submitPhotoPreview, isCommunity: true }]);
       }
       setSubmitDone(true);
       setSubmitForm({ name: "", area: "", desc: "" });
+      setSubmitPhoto(null); setSubmitPhotoPreview(null);
       setTimeout(() => { setSubmitDone(false); setSubmitOpen(false); }, 1500);
     } catch (e) { console.error(e); }
     finally { setSubmitting(false); }
@@ -1346,18 +1474,60 @@ function PlacesToExploreScreen({ city, userId, userName }) {
     />
   );
 
+  // Saved places view
+  if (showSaved) {
+    const savedPlaces = places.filter(p => saved[p.id]);
+    return (
+      <div style={{ paddingTop: 20, paddingBottom: 80 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          <button style={{ fontSize: 20, color: "var(--text2)", background: "none", border: "none", cursor: "pointer", padding: 0 }} onClick={() => setShowSaved(false)}>←</button>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: "var(--text)", margin: 0 }}>Saved places</h1>
+          <span style={{ fontSize: 13, color: "var(--text3)", marginLeft: "auto" }}>{savedPlaces.length} saved</span>
+        </div>
+        {savedPlaces.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text3)" }}>
+            <div style={{ fontSize: 32 }}>🔖</div>
+            <p style={{ marginTop: 10, fontSize: 14 }}>Nothing saved yet — tap 📑 on any place to save it.</p>
+          </div>
+        ) : (
+          savedPlaces.map(place => (
+            <div key={place.id} style={{ display: "flex", gap: 14, padding: "14px 0", borderBottom: "1px solid var(--border)", cursor: "pointer" }}
+              onClick={() => { setShowSaved(false); setOpenPlace(place); }}>
+              <div style={{ flexShrink: 0, width: 72, height: 72, borderRadius: 12, overflow: "hidden" }}>
+                <img src={place.img} alt={place.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>{place.name}</div>
+                <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>📍 {place.area} · {place.category}</div>
+                <p style={{ fontSize: 12, color: "var(--text2)", marginTop: 4, lineHeight: 1.4, margin: "4px 0 0" }}>{place.desc.slice(0, 70)}…</p>
+              </div>
+              <span style={{ color: "var(--text3)", fontSize: 18, alignSelf: "center" }}>›</span>
+            </div>
+          ))
+        )}
+      </div>
+    );
+  }
+
   return (
     <div style={{ paddingTop: 20, paddingBottom: 80 }}>
       {/* Header */}
       <div style={{ marginBottom: 16 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.03em", marginBottom: 4 }}>Places to explore</h1>
-        <p style={{ fontSize: 13, color: "var(--text3)" }}>The best of {city === "nyc" ? "New York City" : "Mumbai"}, curated by the community</p>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.03em" }}>Places to explore</h1>
+          {Object.values(saved).some(Boolean) && (
+            <button onClick={() => setShowSaved(true)} style={{ background: "var(--green-bg)", color: "var(--green2)", border: "1.5px solid var(--green2)", borderRadius: 10, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
+              🔖 {Object.values(saved).filter(Boolean).length} saved
+            </button>
+          )}
+        </div>
+        <p style={{ fontSize: 13, color: "var(--text3)" }}>The best of Mumbai, curated by the community</p>
       </div>
 
       {/* Search */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, border: "1.5px solid var(--border)", borderRadius: 12, padding: "10px 14px", background: "var(--white)", marginBottom: 14 }}>
         <span style={{ fontSize: 14, color: "var(--text3)" }}>🔍</span>
-        <input style={{ flex: 1, border: "none", outline: "none", fontSize: 14, fontFamily: "inherit", background: "none", color: "var(--text)" }} placeholder="Search places or tags" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+        <input style={{ flex: 1, border: "none", outline: "none", fontSize: 14, fontFamily: "inherit", background: "none", color: "var(--text)" }} placeholder="Search places" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
         {searchQuery && <button style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--bg2)", border: "none", fontSize: 14, cursor: "pointer" }} onClick={() => setSearchQuery("")}>×</button>}
       </div>
 
@@ -1434,6 +1604,10 @@ function PlacesToExploreScreen({ city, userId, userName }) {
               <div style={{ textAlign: "center", padding: "12px", fontSize: 15, fontWeight: 700, color: "var(--green2)" }}>✓ Added! Thanks for sharing.</div>
             ) : (
               <>
+                <label style={{ display: "flex", alignItems: "center", justifyContent: "center", border: "2px dashed var(--border)", borderRadius: 12, minHeight: 100, cursor: "pointer", overflow: "hidden", marginBottom: 10, background: "var(--bg2)" }}>
+                  {submitPhotoPreview ? <img src={submitPhotoPreview} alt="" style={{ width: "100%", height: 120, objectFit: "cover" }} /> : <span style={{ fontSize: 13, color: "var(--text3)" }}>📷 Add a photo</span>}
+                  <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; setSubmitPhoto(f || null); setSubmitPhotoPreview(f ? URL.createObjectURL(f) : null); }} />
+                </label>
                 <input className="ob-input" style={{ marginBottom: 10 }} placeholder="Place name" value={submitForm.name} onChange={e => setSubmitForm(f => ({ ...f, name: e.target.value }))} />
                 <input className="ob-input" style={{ marginBottom: 10 }} placeholder="Area / neighbourhood" value={submitForm.area} onChange={e => setSubmitForm(f => ({ ...f, area: e.target.value }))} />
                 <textarea className="ob-input" rows={3} style={{ resize: "none", marginBottom: 10 }} placeholder="What makes it special?" value={submitForm.desc} onChange={e => setSubmitForm(f => ({ ...f, desc: e.target.value }))} />
@@ -1605,6 +1779,7 @@ function FoodScreen({ city, userCuisines, userBudget, userId, userName, savedPla
   const [communityPlaces, setCommunityPlaces] = useState([]);
   const [submitOpen, setSubmitOpen] = useState(false);
   const [submitTab, setSubmitTab] = useState("experience"); // "experience" | "newplace"
+  const [showSaved, setShowSaved] = useState(false);
   const cd = CITIES[city];
 
   useEffect(() => {
@@ -1622,6 +1797,42 @@ function FoodScreen({ city, userCuisines, userBudget, userId, userName, savedPla
     />
   );
 
+  // Saved view — list of saved places with tap-to-open
+  if (showSaved) {
+    const saved = (savedPlaces || []).filter(Boolean);
+    const savedRestaurants = cd.food.filter(r => saved.includes(r.name));
+    return (
+      <div style={{ paddingTop: 20, paddingBottom: 80 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          <button style={{ fontSize: 20, color: "var(--text2)", background: "none", border: "none", cursor: "pointer", padding: 0 }} onClick={() => setShowSaved(false)}>←</button>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: "var(--text)", margin: 0 }}>Saved places</h1>
+          <span style={{ fontSize: 13, color: "var(--text3)", marginLeft: "auto" }}>{savedRestaurants.length} saved</span>
+        </div>
+        {savedRestaurants.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text3)" }}>
+            <div style={{ fontSize: 32 }}>🔖</div>
+            <p style={{ marginTop: 10, fontSize: 14 }}>Nothing saved yet — tap 📑 on any place to save it.</p>
+          </div>
+        ) : (
+          savedRestaurants.map(r => (
+            <div key={r.id} style={{ display: "flex", gap: 14, padding: "14px 0", borderBottom: "1px solid var(--border)", cursor: "pointer" }}
+              onClick={() => { setShowSaved(false); setDetailOpen(r); }}>
+              <div style={{ flexShrink: 0, width: 72, height: 72, borderRadius: 12, overflow: "hidden" }}>
+                {r.img ? <img src={r.img} alt={r.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", background: "var(--bg2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🍽️</div>}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>{r.name}</div>
+                <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>📍 {r.hood} · {r.cuisine}</div>
+                {r.sharedExp && <p style={{ fontSize: 12, color: "var(--text2)", marginTop: 4, lineHeight: 1.4 }}>{r.sharedExp.slice(0, 70)}…</p>}
+              </div>
+              <span style={{ color: "var(--text3)", fontSize: 18, alignSelf: "center" }}>›</span>
+            </div>
+          ))
+        )}
+      </div>
+    );
+  }
+
   const cityAreas = ["All", ...Array.from(new Set(cd.food.map(r => r.hood)))];
   const matchesSearch = p => !searchQuery.trim() || [p.name, p.cuisine, p.hood].some(f => f?.toLowerCase().includes(searchQuery.toLowerCase()));
   const matchesArea = p => activeArea === "All" || p.hood === activeArea;
@@ -1632,7 +1843,7 @@ function FoodScreen({ city, userCuisines, userBudget, userId, userName, savedPla
 
   return (
     <div style={{ paddingTop: 20, paddingBottom: 80 }}>
-      {/* Search + area */}
+      {/* Search + area + saved toggle */}
       <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 14 }}>
         <select style={{ border: "1.5px solid var(--border)", borderRadius: 12, padding: "10px 28px 10px 12px", fontSize: 13, fontWeight: 700, color: "var(--text)", background: "var(--white)", appearance: "none", backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23666' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 10px center", cursor: "pointer", flexShrink: 0 }} value={activeArea} onChange={e => setActiveArea(e.target.value)}>
           {cityAreas.map(a => <option key={a} value={a}>{a === "All" ? "All areas" : a}</option>)}
@@ -1642,6 +1853,11 @@ function FoodScreen({ city, userCuisines, userBudget, userId, userName, savedPla
           <input style={{ flex: 1, border: "none", outline: "none", fontSize: 14, fontFamily: "inherit", background: "none" }} placeholder="Search food places" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
           {searchQuery && <button style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--bg2)", border: "none", fontSize: 14, cursor: "pointer" }} onClick={() => setSearchQuery("")}>×</button>}
         </div>
+        {(savedPlaces || []).length > 0 && (
+          <button onClick={() => setShowSaved(true)} style={{ flexShrink: 0, background: "var(--green-bg)", color: "var(--green2)", border: "1.5px solid var(--green2)", borderRadius: 12, padding: "10px 12px", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
+            🔖 {(savedPlaces || []).length}
+          </button>
+        )}
       </div>
 
       {/* Hero banner */}
@@ -1991,23 +2207,7 @@ function CreateEventForm({ city, userId, userName, onDone }) {
   );
 }
 
-// Sample event shown when no real events exist yet, so the flow is visible immediately.
-// This is local-only (not in Supabase) — toggling interest on it just updates local state
-// and won't persist, since it has no real event_id in the database.
-const SAMPLE_EVENT = {
-  id: "sample-1",
-  isSample: true,
-  name: "Saturday Rooftop Hangout",
-  category: "House Party",
-  location: "Bandra West, Mumbai",
-  event_date: "Sat 5 Jul, 7:00 PM",
-  description: "Casual rooftop get-together — bring a drink, meet some new people, good music playing all night. No pressure, just good vibes and good company.",
-  entry_fee: "",
-  contact_info: "Message on the app or ping +91 98765 43210",
-  payment_info: "",
-  photo_url: "https://images.unsplash.com/photo-1529543544282-ea669407fca3?w=700&q=80",
-  submitter_name: "Priya",
-};
+
 
 function EventsScreen({ city, userId, userName }) {
   const [events, setEvents] = useState([]);
@@ -2016,8 +2216,9 @@ function EventsScreen({ city, userId, userName }) {
   const [openEvent, setOpenEvent] = useState(null);
   const [activeCat, setActiveCat] = useState("All");
   const [createOpen, setCreateOpen] = useState(false);
+  const [showInterested, setShowInterested] = useState(false);
   const [interested, setInterested] = useState({}); // local optimistic state: eventId -> bool
-  const [interestCounts, setInterestCounts] = useState({ "sample-1": 7 }); // eventId -> count, sample event starts with 7
+  const [interestCounts, setInterestCounts] = useState({});
 
   useEffect(() => {
     let active = true;
@@ -2038,14 +2239,12 @@ function EventsScreen({ city, userId, userName }) {
     return () => { active = false; };
   }, [city]);
 
-  // Show the sample event whenever there are no real events yet, so the flow is visible.
-  const displayEvents = events.length > 0 ? events : [SAMPLE_EVENT];
+  const displayEvents = events;
 
   const toggleInterest = async (eventId) => {
     const wasInterested = !!interested[eventId];
     setInterested(p => ({ ...p, [eventId]: !wasInterested }));
     setInterestCounts(p => ({ ...p, [eventId]: (p[eventId] || 0) + (wasInterested ? -1 : 1) }));
-    if (eventId === "sample-1") return; // local-only, nothing to persist
     if (!userId) return;
     try { await toggleCommunityEventInterest(userId, eventId); }
     catch (e) {
@@ -2057,23 +2256,62 @@ function EventsScreen({ city, userId, userName }) {
   };
 
   const filtered = activeCat === "All" ? displayEvents : displayEvents.filter(e => e.category === activeCat);
+  const interestedEvents = displayEvents.filter(e => interested[e.id]);
 
   if (openEvent) return (
     <EventDetailView
-      event={openEvent} onBack={() => setOpenEvent(null)} userId={openEvent.isSample ? "sample" : userId}
+      event={openEvent} onBack={() => setOpenEvent(null)} userId={userId}
       isInterested={!!interested[openEvent.id]}
       interestCount={interestCounts[openEvent.id] ?? 0}
       onToggleInterest={() => toggleInterest(openEvent.id)}
     />
   );
 
+  // Saved/interested events view
+  if (showInterested) return (
+    <div style={{ paddingTop: 20, paddingBottom: 80 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+        <button style={{ fontSize: 20, color: "var(--text2)", background: "none", border: "none", cursor: "pointer", padding: 0 }} onClick={() => setShowInterested(false)}>←</button>
+        <h1 style={{ fontSize: 20, fontWeight: 800, color: "var(--text)", margin: 0 }}>Events you're interested in</h1>
+      </div>
+      {interestedEvents.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text3)" }}>
+          <div style={{ fontSize: 32 }}>🎉</div>
+          <p style={{ marginTop: 10, fontSize: 14 }}>Tap "I'm interested" on any event and it'll appear here.</p>
+        </div>
+      ) : (
+        interestedEvents.map(e => (
+          <div key={e.id} style={{ display: "flex", gap: 12, padding: "14px 0", borderBottom: "1px solid var(--border)", cursor: "pointer" }}
+            onClick={() => { setShowInterested(false); setOpenEvent(e); }}>
+            <div style={{ flexShrink: 0, width: 70, height: 60, borderRadius: 10, overflow: "hidden", background: "var(--bg2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {e.photo_url ? <img src={e.photo_url} alt={e.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: 22 }}>🎉</span>}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>{e.name}</div>
+              <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>📅 {e.event_date}</div>
+              <div style={{ fontSize: 11, color: "var(--text3)" }}>📍 {e.location}</div>
+            </div>
+            <span style={{ color: "var(--text3)", fontSize: 18, alignSelf: "center" }}>›</span>
+          </div>
+        ))
+      )}
+    </div>
+  );
+
   return (
     <div style={{ paddingTop: 20, paddingBottom: 100 }}>
       {/* Headline / explainer */}
       <div style={{ marginBottom: 16 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.03em", marginBottom: 4 }}>What's happening</h1>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.03em" }}>What's happening</h1>
+          {interestedEvents.length > 0 && (
+            <button onClick={() => setShowInterested(true)} style={{ background: "var(--green-bg)", color: "var(--green2)", border: "1.5px solid var(--green2)", borderRadius: 10, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
+              🎉 {interestedEvents.length} saved
+            </button>
+          )}
+        </div>
         <p style={{ fontSize: 13, color: "var(--text3)", lineHeight: 1.5 }}>
-          A space for the community to advertise house parties, city meetups, and other gatherings in {city === "nyc" ? "New York" : "Mumbai"}. Found something you like? Show your interest or reach out directly to the organiser.
+          A space for the community to advertise house parties, city meetups, and other gatherings in Mumbai. Found something you like? Show your interest or reach out directly to the organiser.
         </p>
       </div>
 
@@ -2130,7 +2368,10 @@ function EventsScreen({ city, userId, userName }) {
         <div className="share-sheet-overlay" onClick={() => setCreateOpen(false)}>
           <div className="share-sheet" onClick={e => e.stopPropagation()}>
             <div className="share-sheet-handle" />
-            <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 14 }}>Post an event</div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <div style={{ fontSize: 17, fontWeight: 800 }}>Post an event</div>
+              <button style={{ background: "none", border: "none", fontSize: 22, color: "var(--text3)", cursor: "pointer", padding: 0, lineHeight: 1 }} onClick={() => setCreateOpen(false)}>×</button>
+            </div>
             <CreateEventForm city={city} userId={userId} userName={userName} onDone={() => setCreateOpen(false)} />
           </div>
         </div>
@@ -2163,6 +2404,8 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
   const [things, setThings] = useState(user.things || []);
   const [prompts, setPrompts] = useState(user.prompts || {});
   const [photos, setPhotos] = useState(user.photo_urls || []);
+  const [foodRecs, setFoodRecs] = useState(user.food_recs?.length ? user.food_recs : ["", "", ""]);
+  const [cityRecs, setCityRecs] = useState(user.city_recs?.length ? user.city_recs : ["", "", ""]);
   const [uploadingSlot, setUploadingSlot] = useState(null);
   const [saveError, setSaveError] = useState("");
   const [cityPickerOpen, setCityPickerOpen] = useState(false);
@@ -2171,6 +2414,8 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
   useEffect(() => { setPhotos(user.photo_urls || []); }, [user.photo_urls]);
   useEffect(() => { setThings(user.things || []); }, [user.things]);
   useEffect(() => { setPrompts(user.prompts || {}); }, [user.prompts]);
+  useEffect(() => { setFoodRecs(user.food_recs?.length ? user.food_recs : ["", "", ""]); }, [user.food_recs]);
+  useEffect(() => { setCityRecs(user.city_recs?.length ? user.city_recs : ["", "", ""]); }, [user.city_recs]);
 
   const save = async (updates, revert) => {
     setSaveError("");
@@ -2220,10 +2465,27 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
               <div className="profile-field-val profile-field-editable" onClick={() => setCityPickerOpen(o => !o)}>{cd.label} 📍 <span className="profile-field-edit-hint">✏️</span></div>
               {cityPickerOpen && (
                 <div className="profile-city-picker">
-                  {[{ id: "nyc", name: "New York City" }, { id: "mumbai", name: "Mumbai" }].map(c => (
+                  {[{ id: "mumbai", name: "Mumbai" }].map(c => (
                     <button key={c.id} className={`profile-city-opt ${user.city === c.id ? "active" : ""}`} onClick={() => { save({ city: c.id }); setCityPickerOpen(false); }}>{c.name}</button>
                   ))}
                 </div>
+              )}
+            </div>
+            <div className="profile-field">
+              <label>Pronouns</label>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                {["she/her", "he/him", "they/them"].map(p => (
+                  <button key={p} type="button"
+                    style={{ border: `1.5px solid ${user.pronouns === p ? "var(--green2)" : "var(--border)"}`, borderRadius: 8, padding: "5px 11px", fontSize: 12, fontWeight: 600, color: user.pronouns === p ? "white" : "var(--text2)", background: user.pronouns === p ? "var(--green2)" : "var(--white)", cursor: "pointer" }}
+                    onClick={() => save({ pronouns: user.pronouns === p ? "" : p })}>{p}</button>
+                ))}
+              </div>
+              {/* Only show free-text input when no preset is active */}
+              {!["she/her", "he/him", "they/them"].includes(user.pronouns || "") && (
+                <input className="ob-input" style={{ marginTop: 8, fontSize: 13 }}
+                  placeholder="Type your pronouns (e.g. ze/zir)"
+                  defaultValue={user.pronouns || ""}
+                  onBlur={e => { if (e.target.value.trim() !== (user.pronouns || "")) save({ pronouns: e.target.value.trim() }); }} />
               )}
             </div>
           </div>
@@ -2253,7 +2515,7 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
         <div className="profile-sec-num">3</div>
         <div className="profile-sec-body">
           <div className="profile-sec-title">Things I want to do <span className="profile-sec-count">{things.length} added</span></div>
-          <div className="profile-sec-sub">This powers the By Activity tab — the more you add, the more people you'll match with.</div>
+          <div className="profile-sec-sub">This powers the Things to do tab — the more you add, the more people you'll match with.</div>
           <div className="ob-tags-row">{things.map((w, i) => <span key={i} className="ob-tag">{w}<button onClick={() => removeThing(w)}>×</button></span>)}</div>
           <div className="ob-chips-grid" style={{ marginTop: 14 }}>
             {THINGS_OPTIONS.filter(t => !things.includes(t)).map(t => (
@@ -2295,9 +2557,47 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
         </div>
       </div>
 
-      {/* 5 Conversation prompts */}
+      {/* 5 Food recs */}
       <div className="profile-section">
         <div className="profile-sec-num">5</div>
+        <div className="profile-sec-body">
+          <div className="profile-sec-title">My top food recommendations <span className="profile-sec-count">{foodRecs.filter(Boolean).length}/3 added</span></div>
+          <div className="profile-sec-sub">Add up to 3 places you personally recommend. These show on your profile so others know where you love to eat.</div>
+          {[0, 1, 2].map(i => (
+            <input key={i} className="ob-input" style={{ marginTop: 10 }}
+              placeholder={`Place ${i + 1} (e.g. Nandan Coffee, Kala Ghoda)`}
+              value={foodRecs[i] || ""}
+              onChange={e => {
+                const next = [...foodRecs]; next[i] = e.target.value;
+                setFoodRecs(next); save({ food_recs: next }, () => setFoodRecs(foodRecs));
+              }}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* 6 City recs */}
+      <div className="profile-section">
+        <div className="profile-sec-num">6</div>
+        <div className="profile-sec-body">
+          <div className="profile-sec-title">In-city recommendations <span className="profile-sec-count">{cityRecs.filter(Boolean).length}/3 added</span></div>
+          <div className="profile-sec-sub">Share up to 3 places or spots you love in the city — beaches, parks, neighbourhoods, anything.</div>
+          {[0, 1, 2].map(i => (
+            <input key={i} className="ob-input" style={{ marginTop: 10 }}
+              placeholder={`Place ${i + 1} (e.g. Marine Drive at sunset)`}
+              value={cityRecs[i] || ""}
+              onChange={e => {
+                const next = [...cityRecs]; next[i] = e.target.value;
+                setCityRecs(next); save({ city_recs: next }, () => setCityRecs(cityRecs));
+              }}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* 7 Conversation starters */}
+      <div className="profile-section">
+        <div className="profile-sec-num">7</div>
         <div className="profile-sec-body">
           <div className="profile-sec-title">Conversation starters <span className="profile-sec-count">{Object.keys(prompts).length} added</span></div>
           <div className="profile-sec-sub">Pick up to 3 prompts and answer them — they appear in chat to help people start a conversation with you.</div>
@@ -2321,6 +2621,23 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
       </div>
 
       <button className="profile-signout" onClick={onSignOut}>Sign out</button>
+
+      {/* 8 Saved places */}
+      {((user.saved_food_places || []).filter(Boolean).length > 0) && (
+        <div className="profile-section" style={{ marginTop: 8 }}>
+          <div className="profile-sec-num">★</div>
+          <div className="profile-sec-body">
+            <div className="profile-sec-title">Saved food places <span className="profile-sec-count">{(user.saved_food_places || []).filter(Boolean).length} saved</span></div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+              {(user.saved_food_places || []).filter(Boolean).map((name, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg2)", borderRadius: 10, padding: "10px 14px" }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>🍽️ {name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2377,6 +2694,9 @@ export default function App() {
       photo_urls: profile.photo_urls || [],
       saved_food_places: profile.saved_food_places || [],
       prompts: profile.prompts || {},
+      food_recs: profile.food_recs || ["", "", ""],
+      city_recs: profile.city_recs || ["", "", ""],
+      pronouns: profile.pronouns || "",
     };
     const nav = [
       ["connections", "👥", "Connections"],
@@ -2390,7 +2710,7 @@ export default function App() {
           <div className="topnav-inner">
             <NearMetLogo size={26} />
             <div className="topnav-right">
-              <span className="city-pill">📍 {user.city === "nyc" ? "NYC" : "Mumbai"}</span>
+              <span className="city-pill">📍 Mumbai</span>
               <button className="topnav-msg-btn" onClick={() => setMessagesOpen(true)} title="Messages">💬</button>
               <button className="topnav-msg-btn" title="Profile" onClick={() => setTab("profile")}>👤</button>
             </div>
@@ -2419,10 +2739,10 @@ export default function App() {
 
   // ── Supabase signed in but onboarding not done ──
   if (session) return (
-    <Onboarding initialCity={profile?.city} initialName={profile?.name}
+    <Onboarding initialCity={profile?.city} initialName={profile?.name} initialAge={profile?.age} initialPronouns={profile?.pronouns}
       onShowSignIn={handleSignOut} onBackToLanding={handleSignOut}
       onDone={async u => {
-        try { await updateProfile(session.user.id, { city: u.city, name: u.name, interests: u.interests, city_wants: u.things, cuisines: u.cuisines, budget: u.budget, profile_complete: true, last_active: new Date().toISOString() }); await refreshProfile(); }
+        try { await updateProfile(session.user.id, { city: u.city, name: u.name, interests: u.interests, city_wants: u.things, cuisines: u.cuisines, budget: u.budget, pronouns: u.pronouns || "", profile_complete: true, last_active: new Date().toISOString() }); await refreshProfile(); }
         catch (e) { console.error(e); }
       }} />
   );
@@ -2445,7 +2765,7 @@ export default function App() {
           <div className="topnav-inner">
             <NearMetLogo size={26} />
             <div className="topnav-right">
-              <span className="city-pill">📍 {localUser.city === "nyc" ? "NYC" : "Mumbai"}</span>
+              <span className="city-pill">📍 Mumbai</span>
               <button className="topnav-msg-btn" disabled title="Sign in to use messaging">💬</button>
               <button className="topnav-msg-btn" onClick={() => setTab("profile")}>👤</button>
             </div>
