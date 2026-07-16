@@ -3,18 +3,32 @@
 button{cursor:pointer;border:none;background:none;font-family:inherit}
 input,textarea,select{font-family:inherit}
 :root{
-  --green:#1a4a1a;--green2:#2d6a2d;--green-bg:#e8f5e9;--green-light:#f0f7f0;
-  --text:#111;--text2:#444;--text3:#888;--white:#fff;--bg:#f7f7f5;--bg2:#f0f0ee;
-  --border:#e0e0de;--radius:14px;--radius-sm:10px;
-  --shadow:0 2px 12px rgba(0,0,0,0.07);--shadow2:0 6px 24px rgba(0,0,0,0.12);
+  --purple:#581073;         /* Primary Purple */
+  --purple-lt:#F5E8F9;      /* pale purple tint */
+  --purple-mid:#7D2A9E;     /* medium purple */
+  --coral:#FF9A8B;          /* Accent Coral */
+  --coral-lt:#FFF0EE;       /* pale coral */
+  --coral-dk:#C94E3A;       /* dark coral text */
+  --navy:#2F2F33;           /* Charcoal */
+  --text:#2F2F33;
+  --text2:#4A4A6A;
+  --text3:#9090B0;
+  --white:#fff;
+  --bg:#FAF8F4;             /* Warm Ivory */
+  --bg2:#F5E8F9;            /* pale purple */
+  --border:#E8D5F0;
+  --radius:14px;--radius-sm:10px;
+  --shadow:0 2px 12px rgba(88,16,115,0.08);--shadow2:0 6px 24px rgba(88,16,115,0.15);
+  --green:#581073;--green2:#581073;--green-bg:#F5E8F9;--green-light:#F5E8F9;
+  --sage:#FF9A8B;--sage-bg:#FFF0EE;--sage-dk:#C94E3A;
 }
 html,body{font-family:'Outfit',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px}
 .nm-logo{font-weight:800;letter-spacing:-0.04em;font-family:'Outfit',sans-serif}
 
 /* ── APP SHELL ── */
 .app-root{min-height:100vh;display:flex;flex-direction:column}
-.topnav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.96);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);height:56px}
-.topnav-inner{max-width:1280px;margin:0 auto;height:100%;padding:0 32px;display:flex;align-items:center;gap:24px}
+.topnav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.96);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);height:64px}
+.topnav-inner{max-width:1280px;margin:0 auto;height:100%;padding:0 24px;display:flex;align-items:center;gap:16px}
 .topnav-links{display:flex;gap:2px;flex:1}
 .tnav-link{padding:7px 14px;border-radius:999px;font-size:14px;font-weight:600;color:var(--text3);transition:.15s}
 .tnav-link:hover{background:var(--bg2);color:var(--text)}
@@ -99,7 +113,7 @@ html,body{font-family:'Outfit',system-ui,sans-serif;background:var(--bg);color:v
 .ob-cta-primary{width:100%;max-width:360px;background:var(--green2);color:white;border-radius:999px;padding:16px;font-size:16px;font-weight:700}
 .ob-cta-secondary{width:100%;max-width:360px;background:transparent;color:white;border:2px solid rgba(255,255,255,0.6);border-radius:999px;padding:15px;font-size:16px;font-weight:600}
 .ob-legal{font-size:12px;color:rgba(255,255,255,0.55);text-align:center;line-height:1.6}
-.ob-link{color:#8aad6e}
+.ob-link{color:#F47B6B}
 
 /* ── ONBOARDING STEPS ── */
 .ob-step-wrap{min-height:100vh;display:flex;flex-direction:column;background:var(--white);max-width:600px;margin:0 auto;width:100%}
@@ -194,7 +208,7 @@ html,body{font-family:'Outfit',system-ui,sans-serif;background:var(--bg);color:v
 .exp-list-try{font-size:12px;color:var(--text3);margin-top:2px}
 .exp-list-try-label{font-weight:700;color:var(--text3)}
 /* Sticky Share CTA */
-.food-share-sticky{position:fixed;bottom:0;left:0;right:0;background:#1a3a1a;color:white;display:flex;align-items:center;gap:14px;padding:14px 20px;cursor:pointer;z-index:60}
+.food-share-sticky{position:fixed;bottom:0;left:0;right:0;background:#581073;color:white;display:flex;align-items:center;gap:14px;padding:14px 20px;cursor:pointer;z-index:60}
 .food-share-sticky-icon{font-size:20px;flex-shrink:0}
 .food-share-sticky-title{font-size:14px;font-weight:700}
 .food-share-sticky-sub{font-size:12px;opacity:.75;margin-top:1px}
@@ -256,7 +270,7 @@ html,body{font-family:'Outfit',system-ui,sans-serif;background:var(--bg);color:v
 .food-card-img-wrap{position:relative;height:150px}
 .food-card-img{width:100%;height:100%;object-fit:cover;display:block}
 .heart-btn{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.85);display:flex;align-items:center;justify-content:center;font-size:14px}
-.food-tag-pill{position:absolute;bottom:8px;left:8px;background:rgba(26,74,26,0.9);color:white;font-size:10px;font-weight:700;padding:4px 9px;border-radius:999px}
+.food-tag-pill{position:absolute;bottom:8px;left:8px;background:rgba(107,92,231,0.9);color:white;font-size:10px;font-weight:700;padding:4px 9px;border-radius:999px}
 .food-card-body{padding:11px 13px 13px}
 .food-name{font-size:13px;font-weight:700;margin-bottom:3px}
 .food-price{font-size:11px;color:var(--text3);margin-bottom:4px}
@@ -278,7 +292,7 @@ html,body{font-family:'Outfit',system-ui,sans-serif;background:var(--bg);color:v
 .offer-card:hover{transform:translateY(-2px)}
 .offer-img{width:100%;height:160px;object-fit:cover;display:block;border-radius:var(--radius)}
 .offer-heart{top:8px;right:8px;background:rgba(255,255,255,0.85)}
-.discount-pill{position:absolute;top:10px;left:10px;background:rgba(26,74,26,0.9);color:white;font-size:10px;font-weight:800;padding:5px 9px;border-radius:8px}
+.discount-pill{position:absolute;top:10px;left:10px;background:rgba(107,92,231,0.9);color:white;font-size:10px;font-weight:800;padding:5px 9px;border-radius:8px}
 
 /* ── SPOT DETAIL ── */
 .detail-root{max-width:700px;background:var(--white);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
@@ -320,7 +334,7 @@ html,body{font-family:'Outfit',system-ui,sans-serif;background:var(--bg);color:v
 .detail-try-img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:12px}
 .detail-try-img-placeholder{display:flex;align-items:center;justify-content:center;background:var(--bg2);font-size:28px}
 .detail-try-label{font-size:13px;font-weight:600;color:var(--text)}
-.detail-share-cta{position:sticky;bottom:0;background:#1a3a1a;color:white;display:flex;align-items:center;gap:14px;padding:16px 20px;cursor:pointer;margin:0 -20px}
+.detail-share-cta{position:sticky;bottom:0;background:#581073;color:white;display:flex;align-items:center;gap:14px;padding:16px 20px;cursor:pointer;margin:0 -20px}
 .detail-share-cta-icon{font-size:20px;flex-shrink:0}
 .detail-share-cta-title{font-size:15px;font-weight:700}
 .detail-share-cta-sub{font-size:12px;opacity:.8;margin-top:2px}

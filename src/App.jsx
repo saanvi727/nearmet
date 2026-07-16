@@ -18,59 +18,29 @@ import {
   signOut, updateProfile, uploadProfilePhoto,
   uploadFoodExperiencePhoto, getFoodExperiences, shareFoodExperience,
   deleteFoodExperience, getPeople, passProfile, resetPasses,
-  getOrCreateConnection, getConnections, getMessages, sendMessage,
+  getOrCreateConnection, getConnections, getPendingRequests,
+  acceptRequest, rejectRequest, blockUser, getBlockedIds,
+  getMessages, sendMessage, subscribeToMessages,
   getCommunityPlaces, uploadCommunityPlacePhoto, submitCommunityPlace,
   getCommunityEvents, submitCommunityEvent, uploadEventPhoto,
   toggleCommunityEventInterest, getCommunityEventInterestCount,
 } from "./lib/supabase.js";
+import { supabase } from "./lib/supabase.js";
 
 // ─── LOGO ────────────────────────────────────────────────────────────────────
 function NearMetLogo({ size = 28, dark = false }) {
+  const height = Math.round(size * 1.8);
+  const src = dark ? "/logo-dark.png" : "/logo-light.png";
   return (
-    <span className="nm-logo" style={{ fontSize: size }}>
-      <span style={{ color: dark ? "#f5f5f0" : "#1a2e1a" }}>Near</span>
-      <span style={{ color: dark ? "#8aad6e" : "#2d6a2d" }}>Met</span>
-    </span>
+    <img
+      src={src}
+      alt="NearMet"
+      style={{ height, width: "auto", objectFit: "contain", display: "block", maxWidth: size * 7 }}
+    />
   );
 }
 
-// ─── TOUR ────────────────────────────────────────────────────────────────────
-const TOUR_STEPS = [
-  { icon: "👋", title: "Welcome to NearMet", body: "Quick tour — find people who want to do the same things as you, discover food spots worth trying, and explore the best of your city." },
-  { icon: "👥", title: "Connections — For You", body: "Browse one person at a time. Scroll through their full profile — interests, things they want to do, food and city picks. Message anyone you resonate with." },
-  { icon: "🎯", title: "Connections — By Activity", body: "Instead of creating events, we group people by what they already want to do. Want to go trekking? Open By Activity and instantly see everyone who's already up for it." },
-  { icon: "🏙️", title: "Places to Explore", body: "A curated guide to the best spots in your city — beaches, parks, neighbourhoods, art lanes, and hidden gems. Users add their own picks too." },
-  { icon: "🍽️", title: "Food Places", body: "Community-driven food recommendations with real shared experiences, photos, and tips on what to order." },
-  { icon: "✅", title: "You're set!", body: "The more you fill in your profile — especially Things I Want To Do — the better your matches get. You can replay this tour from your profile any time." },
-];
-
-function TourOverlay({ stepIndex, onNext, onBack, onSkip }) {
-  const step = TOUR_STEPS[stepIndex];
-  const isLast = stepIndex === TOUR_STEPS.length - 1;
-  const progress = ((stepIndex + 1) / TOUR_STEPS.length) * 100;
-  return (
-    <div className="tour-modal-bg">
-      <div className="tour-modal">
-        <div className="tour-progress-bar"><div className="tour-progress-fill" style={{ width: `${progress}%` }} /></div>
-        <div className="tour-step-icon">{step.icon}</div>
-        <div className="tour-card-step">{stepIndex + 1} / {TOUR_STEPS.length}</div>
-        <div className="tour-card-title">{step.title}</div>
-        <p className="tour-card-body">{step.body}</p>
-        <div className="tour-card-footer">
-          <button className="tour-skip-btn" onClick={onSkip}>Skip tour</button>
-          <div className="tour-nav-btns">
-            {stepIndex > 0 && <button className="tour-back-btn" onClick={onBack}>Back</button>}
-            <button className="tour-next-btn" onClick={onNext}>{isLast ? "Start exploring →" : "Next →"}</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── DATA ─────────────────────────────────────────────────────────────────────
-
-// ── Places to Explore data ───────────────────────────────────────────────────
+// ─── PLACES DATA ─────────────────────────────────────────────────────────────
 const PLACES_TO_EXPLORE = {
   mumbai: [
 
@@ -261,6 +231,112 @@ const PLACES_TO_EXPLORE = {
 };
 
 // Activity grouping for By Activity tab
+
+// ─── TOUR ─────────────────────────────────────────────────────────────────────
+const TOUR_STEPS = [
+  { selector: null, title: "Welcome to NearMet 👋", body: "A 30-second tour of everything. Tap Next to walk through each section.", center: true },
+  { selector: "[data-tour='home-tab']", title: "Home", body: "Your personal dashboard — top matches, upcoming events, and how complete your profile is." },
+  { selector: "[data-tour='connections-tab']", title: "Connections", body: "Browse people matched to your interests and Things to do. Message anyone who feels like a good fit." },
+  { selector: "[data-tour='places-tab']", title: "Places to Explore", body: "A curated guide to Mumbai's best spots — beaches, parks, caves, museums. Tap any place for photos and directions." },
+  { selector: "[data-tour='food-tab']", title: "Food Places", body: "60+ handpicked Mumbai restaurants with real community experiences. Save your favourites." },
+  { selector: "[data-tour='events-tab']", title: "What's Happening", body: "Community-posted events — house parties, meetups, gigs. Post your own or show interest in others." },
+  { selector: "[data-tour='profile-btn']", title: "Your profile", body: "Fill in Things I want to do for the best matches. Add photos, conversation prompts, and your favourite places." },
+  { selector: null, title: "You're all set ✅", body: "Start on Home to see who matches with you. Tap any person to view their profile and message them.", center: true },
+];
+
+function TourOverlay({ stepIndex, onNext, onBack, onSkip }) {
+  const step = TOUR_STEPS[stepIndex];
+  const isLast = stepIndex === TOUR_STEPS.length - 1;
+  const [rect, setRect] = useState(null);
+  const [tooltipStyle, setTooltipStyle] = useState({});
+  const [arrowDir, setArrowDir] = useState(null);
+  const pad = 10;
+
+  useEffect(() => {
+    if (!step.selector) { setRect(null); return; }
+    const measure = () => {
+      const el = document.querySelector(step.selector);
+      if (!el) { setRect(null); return; }
+      const r = el.getBoundingClientRect();
+      setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+    };
+    measure();
+    // retry after a tick in case elements aren't painted yet
+    const t = setTimeout(measure, 80);
+    return () => clearTimeout(t);
+  }, [stepIndex]);
+
+  useEffect(() => {
+    if (!rect) { setTooltipStyle({ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "min(320px,90vw)" }); setArrowDir(null); return; }
+    const tw = Math.min(320, window.innerWidth * 0.88);
+    const th = 200;
+    const spaceBelow = window.innerHeight - rect.top - rect.height - pad;
+    const spaceAbove = rect.top - pad;
+    let top, arrow;
+    if (spaceBelow >= th + 20) { top = rect.top + rect.height + pad + 12; arrow = "up"; }
+    else if (spaceAbove >= th + 20) { top = rect.top - pad - th - 12; arrow = "down"; }
+    else { top = window.innerHeight / 2 - th / 2; arrow = null; }
+    const left = Math.max(12, Math.min(window.innerWidth - tw - 12, window.innerWidth / 2 - tw / 2));
+    setTooltipStyle({ position: "fixed", top, left, width: tw });
+    setArrowDir(arrow);
+  }, [rect]);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 9999 }}>
+      {/* Backdrop with cutout */}
+      {rect ? (
+        <svg style={{ position: "fixed", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 9999 }}>
+          <defs>
+            <mask id="tm">
+              <rect width="100%" height="100%" fill="white"/>
+              <rect x={rect.left - pad} y={rect.top - pad} width={rect.width + pad*2} height={rect.height + pad*2} rx={12} fill="black"/>
+            </mask>
+          </defs>
+          <rect width="100%" height="100%" fill="rgba(0,0,0,0.72)" mask="url(#tm)"/>
+          {/* Sage highlight ring */}
+          <rect x={rect.left - pad} y={rect.top - pad} width={rect.width + pad*2} height={rect.height + pad*2} rx={12} fill="none" stroke="#FF9A8B" strokeWidth={2.5}/>
+          {/* Pulse ring */}
+          <rect x={rect.left - pad - 4} y={rect.top - pad - 4} width={rect.width + pad*2 + 8} height={rect.height + pad*2 + 8} rx={15} fill="none" stroke="#FF9A8B" strokeWidth={1} opacity={0.35}/>
+        </svg>
+      ) : (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.72)", zIndex: 9999 }}/>
+      )}
+
+      {/* Click blocker */}
+      <div style={{ position: "fixed", inset: 0, zIndex: 9999 }} onClick={e => e.stopPropagation()}/>
+
+      {/* Tooltip */}
+      <div style={{ ...tooltipStyle, zIndex: 10000, background: "white", borderRadius: 18, padding: "20px 18px 16px", boxShadow: "0 16px 48px rgba(0,0,0,0.28)", pointerEvents: "all" }}>
+        {arrowDir === "up" && <div style={{ position: "absolute", top: -9, left: "50%", transform: "translateX(-50%)", width: 0, height: 0, borderLeft: "9px solid transparent", borderRight: "9px solid transparent", borderBottom: "9px solid white" }}/>}
+        {arrowDir === "down" && <div style={{ position: "absolute", bottom: -9, left: "50%", transform: "translateX(-50%)", width: 0, height: 0, borderLeft: "9px solid transparent", borderRight: "9px solid transparent", borderTop: "9px solid white" }}/>}
+
+        {/* Progress dots */}
+        <div style={{ display: "flex", gap: 5, justifyContent: "center", marginBottom: 14 }}>
+          {TOUR_STEPS.map((_, i) => (
+            <div key={i} style={{ width: i === stepIndex ? 22 : 7, height: 7, borderRadius: 4, background: i === stepIndex ? "#581073" : i < stepIndex ? "#FF9A8B" : "#E8D5F0", transition: "all .2s" }}/>
+          ))}
+        </div>
+
+        <div style={{ fontSize: 16, fontWeight: 800, color: "#2F2F33", textAlign: "center", marginBottom: 8, letterSpacing: "-0.02em" }}>{step.title}</div>
+        <p style={{ fontSize: 13, color: "#4A4A6A", lineHeight: 1.65, textAlign: "center", marginBottom: 18 }}>{step.body}</p>
+
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <button onClick={onSkip} style={{ fontSize: 12, color: "#C0B8D8", background: "none", border: "none", cursor: "pointer" }}>Skip</button>
+          <div style={{ display: "flex", gap: 8 }}>
+            {stepIndex > 0 && <button onClick={onBack} style={{ fontSize: 13, color: "#4A4A6A", background: "#F0EEF8", border: "none", borderRadius: 9, padding: "8px 14px", fontWeight: 600, cursor: "pointer" }}>←</button>}
+            <button onClick={onNext} style={{ fontSize: 13, color: "white", background: "#581073", border: "none", borderRadius: 9, padding: "8px 20px", fontWeight: 700, cursor: "pointer" }}>
+              {isLast ? "Let's go →" : "Next →"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── DATA CONSTANTS ─────────────────────────────────────────────────────────────
+
+
 const ACTIVITY_ICONS = {
   "Attend a live music gig": "🎵",
   "Explore hidden bookstores": "📚",
@@ -325,24 +401,23 @@ const CITIES = {
       { id: 13, name: "Britannia and Co.", cuisine: "Parsi", price: "Rs.800-1500 for two", rating: 4.6, tag: "Parsi heritage", hood: "Fort", address: "Wakefield House, 11 16, SS Ram Gulam Marg, Ballard Estate, Fort, Mumbai 400001", phone: "02222615264", desc: "If you want a taste of Mumbai's rich culinary history, Britannia and Co. is a mandatory stop. Serving phenomenal authentic Parsi cuisine since 1923.", sharedExp: "Fantastic experience — the food is good and if you want authentic Parsi flavors then this is the place to go.", tryThis: "Mutton Berry Pulao", img: "/places/britannia/photo2.jpg", photos: ["/places/britannia/photo1.webp"] },
       // New places (IDs 14–25 — add all your new ones here)
       { id: 14, name: "Mary Lodge by Subko", cuisine: "Bakery Cafe", price: "Rs.600-1200 for two", rating: 4.6, tag: "Bungalow cafe", hood: "Bandra West", address: "Ground Floor, Mary Lodge, 21A, Chapel Rd, Ranwar, Bandra West, Mumbai", phone: "8591745691", desc: "Fusion of old and new in a charming bungalow. Unique coffee options, savory treats and indulgent bakery items. Perfect for work sessions or casual dates.", sharedExp: "Great food, beautiful interiors and welcoming staff. I had a truly delightful experience here.", tryThis: "Espresso Cream Croissant and Harissa Sandwich", img: "/places/mary-lodge-subko/photo1.jpg", photos: ["/places/mary-lodge-subko/photo2.webp", "/places/mary-lodge-subko/photo3.webp"] },
-      { id: 15, name: "TÓA 66", cuisine: "Thai Restaurant", price: "Rs.3000-5000 for two", rating: 4.8, tag: "India's first Thai tasting menu", hood: "Churchgate", address: "Ground Floor, ADCB Rehman Manzil, 75, Veer Nariman Rd, Churchgate, Mumbai", phone: "9920820800", desc: "TÓA 66 brings India's first 7-course vegetarian Thai tasting menu to Mumbai. Designed by two master Thai chefs in an intimate 26-seater space.", sharedExp: "The 7-course Thai tasting menu is exceptional. The opening course and the two desserts were the absolute highlights. Highly recommended.", tryThis: "7-Course Thai Tasting Menu", img: "/places/toa-66/photo2.webp", photos: ["/places/toa-66/photo3.webp", "/places/toa-66/photo4.webp"] },
+      { id: 15, name: "TÓA 66", cuisine: "Thai Restaurant", price: "Rs.3000-5000 for two", rating: 4.8, tag: "India's first Thai tasting menu", hood: "Churchgate", address: "Ground Floor, ADCB Rehman Manzil, 75, Veer Nariman Rd, Churchgate, Mumbai", phone: "9920820800", desc: "TÓA 66 brings India's first 7-course vegetarian Thai tasting menu to Mumbai. Designed by two master Thai chefs in an intimate 26-seater space.", sharedExp: "The 7-course Thai tasting menu is exceptional. The opening course and the two desserts were the absolute highlights. Highly recommended.", tryThis: "7-Course Thai Tasting Menu", img: "/places/toa-66/photo1.jfif", photos: ["/places/toa-66/photo2.webp","/places/toa-66/photo3.webp", "/places/toa-66/photo4.webp", "/places/toa-66/photo5.webp"] },
       { id: 16, name: "Trishna", cuisine: "Seafood Restaurant", price: "Rs.2000-3500 for two", rating: 4.7, tag: "Premium seafood", hood: "Kala Ghoda", address: "Birla Mansion, Sai Baba Mandir Marg, Kala Ghoda, Fort, Mumbai 400001", phone: "9206260260", desc: "Premium seafood restaurant in the heart of Mumbai.", sharedExp: "Excellent seafood restaurant with exceptional food quality. Highly recommended for seafood lovers.", tryThis: "Butter Garlic Crab", img: "/places/trishna/photo1.webp", photos: ["/places/trishna/photo2.webp"] },
       { id: 17, name: "Ekaa", cuisine: "Indian Restaurant", price: "Rs.3000-5000 for two", rating: 4.7, tag: "Open kitchen fine dining", hood: "Fort", address: "1st Floor, Kitab Mahal, D Sukhadwala Rd, Fort, Mumbai 400001", phone: "9987657989", desc: "Industrial-chic Indian spot with creative plates and an open kitchen concept — perfect for watching the culinary magic happen.", sharedExp: "Had an amazing time at Ekaa. The hospitality was wonderful and the food was absolutely great.", tryThis: "Awakening Tasting Menu", img: "/places/ekaa/photo1.webp", photos: ["/places/ekaa/photo2.webp", "/places/ekaa/photo3.webp"] },
-      { id: 18, name: "Steps Café", cuisine: "Café", price: "Rs.600-1200 for two", rating: 4.5, tag: "Terrace dining", hood: "Bandra West", address: "Steps Café, Tertulian Rd, Doctor Peter Dias Road, Mount Mary, Bandra West, Mumbai", phone: "9649646601", desc: "Relaxed eatery with a terrace and a hot menu of familiar comfort foods.", sharedExp: "Really a great place with a cozy and warm ambiance! The food was amazing, the interiors are beautiful, and the staff is so welcoming.", tryThis: "French Fries and Bruschetta and Nutella Croissant", img: "/places/steps-cafe/photo1.webp", photos: ["/places/steps-cafe/photo2.jpeg", "/places/steps-cafe/photo3.webp"] },
-      { id: 19, name: "YACHT Resto Bar", cuisine: "Resto Bar", price: "Rs.1000-1800 for two", rating: 4.4, tag: "Near Bandstand", hood: "Bandra West", address: "Shams Palace Society, 29, Hill Rd, Bandra West, Mumbai 400050", phone: "02226422718", desc: "A compact Bandra eatery doling out classic Indian plates alongside chilled beers and cocktails.", sharedExp: "Absolutely loved it. It's located within walking distance from Bandstand — the drinks were reasonably priced and the food was really good.", tryThis: "Chicken Lollipops", img: "/places/yacht-resto-bar/photo2.jpg", photos: ["/places/yacht-resto-bar/photo1.jfif"] },
-      { id: 20, name: "Janata Bar and Restaurant", cuisine: "Bar and Restaurant", price: "Rs.400-800 for two", rating: 4.3, tag: "Budget-friendly late night", hood: "Bandra West", address: "78/A, Doctor BR Ambedkar Road, Pali Mala Rd, Bandra West, Mumbai 400050", phone: "02226058403", desc: "Famous for budget-friendly drinks and some of the best late-night comfort food.", sharedExp: "Good place to hangout with friends. Perfect go-to spot if you're looking for amazing food and budget-friendly drinks.", tryThis: "Chicken Lollipop", img: "/places/janata-bar/photo1.jpeg", photos: ["/places/janata-bar/photo2.jpeg"] },
-      { id: 21, name: "Chantilly The Café", cuisine: "Dessert Cafe", price: "Rs.500-1000 for two", rating: 4.5, tag: "French-inspired desserts", hood: "Bandra West", address: "Shop no. 2, Darvesh Royale Building, Perry Road, Turner Rd, opposite Kotak Mahindra Bank Junction, Bandra West, Mumbai 400050", phone: "7370808080", desc: "Charming spot for decadent French-inspired desserts and hot chocolate.", sharedExp: "They serve one of the best strawberry chocolates. Overall a great dessert place with amazing sweet treats.", tryThis: "Strawberry Nutella Cheesecake and Nut Butter Waffle", img: "/places/chantilly-cafe/photo2.webp", photos: ["/places/chantilly-cafe/photo3.webp"] },
+      { id: 18, name: "Steps Café", cuisine: "Café", price: "Rs.600-1200 for two", rating: 4.5, tag: "Terrace dining", hood: "Bandra West", address: "Steps Café, Tertulian Rd, Doctor Peter Dias Road, Mount Mary, Bandra West, Mumbai", phone: "9649646601", desc: "Relaxed eatery with a terrace and a hot menu of familiar comfort foods.", sharedExp: "Really a great place with a cozy and warm ambiance! The food was amazing, the interiors are beautiful, and the staff is so welcoming.", tryThis: "French Fries and Bruschetta and Nutella Croissant", img: "/places/steps-cafe/photo1.jpeg", photos: ["/places/steps-cafe/photo2.jpeg", "/places/steps-cafe/photo1.webp", "/places/steps-cafe/photo3.webp"] },
+      { id: 19, name: "YACHT Resto Bar", cuisine: "Resto Bar", price: "Rs.1000-1800 for two", rating: 4.4, tag: "Near Bandstand", hood: "Bandra West", address: "Shams Palace Society, 29, Hill Rd, Bandra West, Mumbai 400050", phone: "02226422718", desc: "A compact Bandra eatery doling out classic Indian plates alongside chilled beers and cocktails.", sharedExp: "Absolutely loved it. It's located within walking distance from Bandstand — the drinks were reasonably priced and the food was really good.", tryThis: "Chicken Lollipops", img: "/places/yacht-resto-bar/photo1.jfif", photos: ["/places/yacht-resto-bar/photo2.jpg"] },
+      { id: 20, name: "Janata Bar and Restaurant", cuisine: "Bar and Restaurant", price: "Rs.400-800 for two", rating: 4.3, tag: "Budget-friendly late night", hood: "Bandra West", address: "78/A, Doctor BR Ambedkar Road, Pali Mala Rd, Bandra West, Mumbai 400050", phone: "02226058403", desc: "Famous for budget-friendly drinks and some of the best late-night comfort food.", sharedExp: "Good place to hangout with friends. Perfect go-to spot if you're looking for amazing food and budget-friendly drinks.", tryThis: "Chicken Lollipop", img: "/places/janata-bar/photo2.jpeg", photos: ["/places/janata-bar/photo1.jpeg"] },
+      { id: 21, name: "Chantilly The Café", cuisine: "Dessert Cafe", price: "Rs.500-1000 for two", rating: 4.5, tag: "French-inspired desserts", hood: "Bandra West", address: "Shop no. 2, Darvesh Royale Building, Perry Road, Turner Rd, opposite Kotak Mahindra Bank Junction, Bandra West, Mumbai 400050", phone: "7370808080", desc: "Charming spot for decadent French-inspired desserts and hot chocolate.", sharedExp: "They serve one of the best strawberry chocolates. Overall a great dessert place with amazing sweet treats.", tryThis: "Strawberry Nutella Cheesecake and Nut Butter Waffle", img: "/places/chantilly-cafe/photo1.jfif", photos: ["/places/chantilly-cafe/photo2.webp", "/places/chantilly-cafe/photo3.webp"] },
       { id: 22, name: "Cafe Mondegar", cuisine: "Cafe", price: "Rs.800-1500 for two", rating: 4.3, tag: "Vintage classic", hood: "Colaba", address: "Metro House, Colaba Causeway, near Regal Cinema, Apollo Bandar, Colaba, Mumbai 400001", phone: "9833322277", desc: "A legendary South Mumbai landmark famous for its vibrant Mario Miranda murals and retro jukebox. The ultimate vintage spot for a chilled beer and classic comfort food.", sharedExp: "Incredible food, great music and good service. Highly recommended.", tryThis: "Paneer Croquettes and Spring Rolls", img: "/places/cafe-mondegar/photo1.jpg", photos: ["/places/cafe-mondegar/photo2.webp"] },
       { id: 23, name: "Kuai Kitchen", cuisine: "Chinese Restaurant", price: "Rs.600-1200 for two", rating: 4.4, tag: "Best Oriental", hood: "Colaba", address: "Shop No. 16/A Cusrow Baug, Main Road Colaba Causeway, Shahid Bhagat Singh Rd, Colaba, Mumbai 400001", phone: "9819045664", desc: "A vibrant casual restaurant dedicated to being the ultimate destination for delicious and affordable Oriental cuisine.", sharedExp: "Top-tier food paired with flawless hospitality. Highly recommend for Asian cuisine.", tryThis: "Kuai Special Roll and Pinacolada", img: "/places/kuai-kitchen/photo1.jpg", photos: ["/places/kuai-kitchen/photo2.webp", "/places/kuai-kitchen/photo3.webp"] },
       { id: 24, name: "Zen Cafe", cuisine: "Cafe", price: "Rs.500-900 for two", rating: 4.5, tag: "Work-friendly", hood: "Kala Ghoda", address: "Fort Foundation Building, Bake House Ln, Kala Ghoda, Fort, Mumbai 400001", phone: "9167768950", desc: "Single origin coffees brewed with precision and served with freshly baked sourdough and a global menu at this trendy work-friendly venue.", sharedExp: "Highly recommend checking this place out! The staff is super friendly and welcoming.", tryThis: "Coffee and Hummus", img: "/places/zen-cafe/photo3.png", photos: ["/places/zen-cafe/photo1.jpg", "/places/zen-cafe/photo2.jpg"] },
-      { id: 25, name: "Miya Kebabs", cuisine: "Kebab Restaurant", price: "Rs.400-800 for two", rating: 4.3, tag: "Consistent quality", hood: "Kala Ghoda", address: "Ali Chambers, Flora Fountain, 81-82, M Shetty Marg, Kala Ghoda, Fort, Mumbai 400023", phone: "8847747644", desc: "A popular eatery in Kala Ghoda known for its flavorful food and generous portions. Consistent quality, quick service and satisfying meals.", sharedExp: "Had a great experience and the food was tasty.", tryThis: "Chicken Changezi", img: "/places/miya-kebabs/photo1.jpg", photos: ["/places/miya-kebabs/photo1.jpg"] },
+      { id: 25, name: "Miya Kebabs", cuisine: "Kebab Restaurant", price: "Rs.400-800 for two", rating: 4.3, tag: "Consistent quality", hood: "Kala Ghoda", address: "Ali Chambers, Flora Fountain, 81-82, M Shetty Marg, Kala Ghoda, Fort, Mumbai 400023", phone: "8847747644", desc: "A popular eatery in Kala Ghoda known for its flavorful food and generous portions. Consistent quality, quick service and satisfying meals.", sharedExp: "Had a great experience and the food was tasty.", tryThis: "Chicken Changezi", img: "/places/miya-kebabs/photo2.jpg", photos: ["/places/miya-kebabs/photo1.jpg"] },
       { id: 26, name: "The Nutcracker", cuisine: "Cafe", price: "Rs.700-1200 for two", rating: 4.6, tag: "All-day breakfast", hood: "Kala Ghoda", address: "One Forbes Building, Modern House, Dr. V.B. Gandhi Marg, Kala Ghoda, Fort, Mumbai", phone: "9321759393", desc: "The Nutcracker serves wholesome comfort food and all-day breakfast. Renowned for its extensive egg menu, gourmet burgers and decadent desserts.", sharedExp: "Delicious food, great coffee and excellent service. Highly recommend a visit.", tryThis: "Cream Cheese Bagel and Paprika Penne Pasta with Garlic Bread", img: "/places/the-nutcracker/photo1.jpg", photos: ["/places/the-nutcracker/photo2.webp", "/places/the-nutcracker/photo3.webp"] },
       { id: 27, name: "HnH Salad Co.", cuisine: "Healthy Cafe", price: "Rs.500-900 for two", rating: 4.4, tag: "Healthy and delicious", hood: "Kala Ghoda", address: "Ground floor, Khattau Buildings, General Vaidya Road, 7, Shahid Bhagat Singh Rd, Kala Ghoda, Fort, Mumbai 400001", phone: "7045989242", desc: "HnH Salad Co. is redefining healthy eating by serving chef-crafted, flavor-packed nutritious dishes that prove wellness is never bland.", sharedExp: "Healthy food that actually tastes amazing. A fantastic spot for a delicious and wholesome meal.", tryThis: "Salad Bowl", img: "/places/hnh-salad/photo1.webp", photos: ["/places/hnh-salad/photo2.jpg"] },
-      { id: 28, name: "Americano", cuisine: "Italian Restaurant", price: "Rs.1200-2000 for two", rating: 4.6, tag: "Creative Italian", hood: "Kala Ghoda", address: "Radha Bhavan, 121/123, Nagindas Master Rd, Kala Ghoda, Fort, Mumbai", phone: "9321104682", desc: "Lively neighborhood spot for creative Italian share plates and handmade pastas.", sharedExp: "This place is an absolute gem. The pizzas and desserts are incredibly tasty and packed with flavor. Highly recommend.", tryThis: "Pizzas and Desserts", img: "/places/americano/photo1.webp", photos: ["/places/americano/photo2.webp", "/places/americano/photo3.webp"] },
-      { id: 29, name: "Otra", cuisine: "Mexican Restaurant", price: "Rs.1200-2000 for two", rating: 4.5, tag: "Award-winning Mexican", hood: "Kala Ghoda", address: "105, Ground Floor, Mubarak Manzil, Mumbai Samachar Marg, Kala Ghoda, Fort, Mumbai", phone: "", desc: "Modern Mexican spot with authentic flavors and award-winning dishes.", sharedExp: "Delicious food across the board and great service to match. Highly recommend.", tryThis: "Desserts", img: "/places/otra/photo2.webp", photos: ["/places/otra/photo3.webp"] },
+      { id: 28, name: "Americano", cuisine: "Italian Restaurant", price: "Rs.1200-2000 for two", rating: 4.6, tag: "Creative Italian", hood: "Kala Ghoda", address: "Radha Bhavan, 121/123, Nagindas Master Rd, Kala Ghoda, Fort, Mumbai", phone: "9321104682", desc: "Lively neighborhood spot for creative Italian share plates and handmade pastas.", sharedExp: "This place is an absolute gem. The pizzas and desserts are incredibly tasty and packed with flavor. Highly recommend.", tryThis: "Pizzas and Desserts", img: "/places/americano/photo2.webp", photos: ["/places/americano/photo3.webp", "/places/americano/photo1.webp"] },
+      { id: 29, name: "Otra", cuisine: "Mexican Restaurant", price: "Rs.1200-2000 for two", rating: 4.5, tag: "Award-winning Mexican", hood: "Kala Ghoda", address: "105, Ground Floor, Mubarak Manzil, Mumbai Samachar Marg, Kala Ghoda, Fort, Mumbai", phone: "", desc: "Modern Mexican spot with authentic flavors and award-winning dishes.", sharedExp: "Delicious food across the board and great service to match. Highly recommend.", tryThis: "Desserts", img: "/places/otra/photo1.jpeg", photos: ["/places/otra/photo2.webp", "/places/otra/photo3.webp"] },
       { id: 30, name: "Cafe Trofima", cuisine: "Cafe", price: "Rs.600-1000 for two", rating: 4.4, tag: "Neighbourhood favorite", hood: "Dadar", address: "Raja Badhe Chowk, Opp. Raja Rani Travels, Shivaji Park Road No. 2, Lady Jamshedji Rd, Mumbai 400028", phone: "8291019988", desc: "A well-loved cafe in Shivaji Park known for its warm ambience and wide-ranging menu. Quality food, friendly service and an inviting atmosphere.", sharedExp: "This is a great place to hang out with friends. The staff is friendly and the food is absolutely delicious.", tryThis: "White Sauce Pasta", img: "/places/cafe-trofima/photo1.jpg", photos: ["/places/cafe-trofima/photo2.jpg"] },
       { id: 31, name: "Ashok Vada Pav", cuisine: "Street Food", price: "Rs.50-150 for two", rating: 4.5, tag: "Mumbai must-try", hood: "Dadar", address: "Kashinath Dhuru Marg, Near Kirti College, Dadar West, Mumbai 400028", phone: "8591894170", desc: "A popular Dadar eatery known for its flavorful vada pav and long-standing local following. Consistent quality and fresh preparation.", sharedExp: "A must-visit spot for vada pav lovers. Enjoyed it and would recommend to everyone.", tryThis: "Vada Pav", img: "/places/ashok-vada-pav/photo1.jpg", photos: ["/places/ashok-vada-pav/photo2.jpg"] },
-      { id: 32, name: "K. Rustom and Co.", cuisine: "Ice Cream Parlour", price: "Rs.200-400 for two", rating: 4.7, tag: "Mumbai institution", hood: "Churchgate", address: "Brabourne Stadium 86, Veer Nariman Rd, Churchgate, Mumbai 400020", phone: "02222821768", desc: "Mumbai's most beloved ice cream shop, specializing in wafer-biscuit ice cream sandwiches. A Churchgate landmark for generations.", sharedExp: "Hands down one of the best ice creams I've ever tasted. The quality and flavor are outstanding.", tryThis: "Mango Ice Cream Sandwich", img: "/places/k-rustom/photo1.png", photos: ["/places/k-rustom/photo2.webp"] },
       { id: 33, name: "Ramen Bar Wagamama", cuisine: "Japanese Restaurant", price: "Rs.1200-2000 for two", rating: 4.5, tag: "Best ramen", hood: "Churchgate", address: "42, Cambata Building, Maharshi Karve Road, Near Eros Theatre, Churchgate, Mumbai 400020", phone: "9702703111", desc: "A popular Japanese restaurant in Churchgate known for its authentic flavors and comforting dining experience.", sharedExp: "Had a truly wonderful experience here! The food was outstanding, and the service was friendly.", tryThis: "Gyozas and Bang Bang Cauliflower", img: "/places/ramen-wagamama/photo3.webp", photos: ["/places/ramen-wagamama/photo1.jpg", "/places/ramen-wagamama/photo2.jpg"] },
       { id: 34, name: "Mezcalita Churchgate", cuisine: "Mexican Restaurant", price: "Rs.1500-2500 for two", rating: 4.7, tag: "Mexican cantina", hood: "Churchgate", address: "Nagin Mahal, 82, Veer Nariman Rd, Churchgate, Mumbai 400020", phone: "8657512648", desc: "Discover an authentic taste of Mexico at Mezcalita. From sizzling fajitas to zesty tacos and refreshing cocktails.", sharedExp: "A vibrant spot that absolutely nails the energy of a modern Mexican cantina. The tacos are consistently excellent.", tryThis: "Tacos", img: "/places/mezcalita-cg/photo2.jpg", photos: ["/places/mezcalita-cg/photo1.jpeg"] },
       { id: 35, name: "Pizza By The Bay", cuisine: "Restaurant", price: "Rs.1200-2000 for two", rating: 4.5, tag: "Sea view dining", hood: "Churchgate", address: "Soona Mahal, 143, Marine Dr, Churchgate, Mumbai 400020", phone: "7718838749", desc: "One of Mumbai's most iconic dining institutions since 1968, famous for its prime location overlooking the Arabian Sea.", sharedExp: "Delicious food and friendly service. The spectacular sea view makes this place an absolute must-visit.", tryThis: "Pollo Arabiata Pizza", img: "/places/pizza-by-the-bay/photo1.webp", photos: ["/places/pizza-by-the-bay/photo2.webp"] },
@@ -356,10 +431,10 @@ const CITIES = {
       { id: 43, name: "GIGI Bombay", cuisine: "Japanese Restaurant", price: "Rs.2000-3500 for two", rating: 4.7, tag: "Premium fusion", hood: "Bandra West", address: "14th Rd, Bandra West, Mumbai 400050", phone: "8976943116", desc: "Gigi Bombay is a trendy Japanese-European fusion restaurant and cocktail bar in Bandra West. Every dish feels carefully executed.", sharedExp: "A near-perfect combination of ambience, service and food. Every dish feels carefully executed making it one of the city's most premium dining experiences.", tryThis: "Pumpkin Ravioli & Salmon Sushi and Chilli Garlic Edamame", img: "/places/gigi-bombay/photo1.jpg", photos: ["/places/gigi-bombay/photo2.webp", "/places/gigi-bombay/photo3.webp"] },
       { id: 44, name: "Pomodoro", cuisine: "Italian Restaurant", price: "Rs.1000-1800 for two", rating: 4.6, tag: "Hand-rolled pasta", hood: "Bandra West", address: "Shop No. 2, 16th Rd, Bandra West, Mumbai 400050", phone: "7887886327", desc: "Your cozy neighbourhood pasta bar specializing in hand-rolled pastas and specialty coffee. Authentic Italian comfort food at its best.", sharedExp: "Authentic Italian comfort food at its best. The pasta is consistently excellent, the flavors are clean and honest.", tryThis: "Parmesan Truffle Fries and Tiramisu", img: "/places/pomodoro/photo2.webp", photos: ["/places/pomodoro/photo1.webp", "/places/pomodoro/photo3.webp"] },
       { id: 45, name: "Mokai", cuisine: "Cafe", price: "Rs.1000-1800 for two", rating: 4.5, tag: "Pinterest-worthy", hood: "Pali Hill", address: "Pali Mala Rd, Pali Hill, Mumbai 400050", phone: "9820983607", desc: "Mokai in Bandra is known for its Pinterest-y aesthetics and delectable drinks and food. Shifting the conventions of the traditional brunch system.", sharedExp: "A great blend of chic ambience and comforting food. The flavors are approachable yet elevated making it a place you'll want to revisit.", tryThis: "Laksa Curry Wontons", img: "/places/mokai/photo1.webp", photos: ["/places/mokai/photo2.webp"] },
-      { id: 46, name: "Steam Room", cuisine: "Dimsum Restaurant", price: "Rs.800-1500 for two", rating: 4.6, tag: "Best dimsums", hood: "Pali Hill", address: "Shop no.1, Union Park Rd Number 5, opposite Petite School, Union Park, Pali Hill, Mumbai 400052", phone: "8850926682", desc: "A small dimsum place in Bandra with an actual steam room where hundreds of dimsums and wontons cook all day.", sharedExp: "The food is really good and 100% worth the price.", tryThis: "Truffle Mushroom Xiao Long Bao and Crispy Prawn Cheung Fun", img: "/places/steam-room/photo2.webp", photos: ["/places/steam-room/photo3.webp"] },
+      { id: 46, name: "Steam Room", cuisine: "Dimsum Restaurant", price: "Rs.800-1500 for two", rating: 4.6, tag: "Best dimsums", hood: "Pali Hill", address: "Shop no.1, Union Park Rd Number 5, opposite Petite School, Union Park, Pali Hill, Mumbai 400052", phone: "8850926682", desc: "A small dimsum place in Bandra with an actual steam room where hundreds of dimsums and wontons cook all day.", sharedExp: "The food is really good and 100% worth the price.", tryThis: "Truffle Mushroom Xiao Long Bao and Crispy Prawn Cheung Fun", img: "/places/steam-room/photo1.jpg", photos: ["/places/steam-room/photo2.webp", "/places/steam-room/photo3.webp"] },
       { id: 47, name: "Hot Momos", cuisine: "Momos and Tibetan", price: "Rs.150-400 for two", rating: 4.6, tag: "Best momos", hood: "Kharghar", address: "Shop No. 14, Swarna CHS, Plot No. 13/14, Sector 7, Kharghar, Panvel, Maharashtra 410210", phone: "8767681828", desc: "A popular Kharghar eatery known for its flavorful food and generous portions. Quick service, consistent quality and a loyal local following.", sharedExp: "Hands down the best momos in Kharghar! The momos here are absolutely delicious.", tryThis: "Chicken Kurkure Momos", img: "/places/hot-momos/photo1.jpg", photos: ["/places/hot-momos/photo2.webp"] },
       { id: 48, name: "Luuma House", cuisine: "Continental", price: "Rs.2000-3500 for two", rating: 4.5, tag: "Fine dining", hood: "Vile Parle", address: "Plot No.47, Gulmohar Rd, JVPD Scheme, Vile Parle West, Mumbai 400049", phone: "7891991936", desc: "Experience elevated global dining at Luuma House — a premier fine dining restaurant and cocktail bar featuring Mediterranean, Pan-Asian, and Modern Indian cuisines with live music.", sharedExp: "My experience here was fantastic. The food was delicious and the staff was welcoming.", tryThis: "Dim Sum and Black Rice Sushi", img: "/places/luuma-house/photo1.jpg", photos: ["/places/luuma-house/photo2.webp", "/places/luuma-house/photo3.webp"] },
-      { id: 49, name: "Gattu Chinese", cuisine: "Chinese Restaurant", price: "Rs.400-800 for two", rating: 4.4, tag: "Street-style Chinese", hood: "Vile Parle", address: "Shop No. 3, Iria, Irla, Vile Parle West, Mumbai 400056", phone: "8655110777", desc: "Casual locale serving street-style Chinese snacks and rice dishes. Great food quality, generous portions and very reasonably priced.", sharedExp: "Great food quality, generous portion sizes and very reasonably priced.", tryThis: "Special Fried Rice Chicken and Chicken Lollipop", img: "/places/gattu-chinese/photo2.webp", photos: ["/places/gattu-chinese/photo2.webp", "/places/gattu-chinese/photo3.webp"] },
+      { id: 49, name: "Gattu Chinese", cuisine: "Chinese Restaurant", price: "Rs.400-800 for two", rating: 4.4, tag: "Street-style Chinese", hood: "Vile Parle", address: "Shop No. 3, Iria, Irla, Vile Parle West, Mumbai 400056", phone: "8655110777", desc: "Casual locale serving street-style Chinese snacks and rice dishes. Great food quality, generous portions and very reasonably priced.", sharedExp: "Great food quality, generous portion sizes and very reasonably priced.", tryThis: "Special Fried Rice Chicken and Chicken Lollipop", img: "/places/gattu-chinese/photo1.jpg", photos: ["/places/gattu-chinese/photo2.webp", "/places/gattu-chinese/photo3.webp"] },
       { id: 50, name: "Benne - Bangalore Dosa", cuisine: "South Indian", price: "Rs.200-500 for two", rating: 4.7, tag: "Best South Indian", hood: "Juhu", address: "Ground floor, Nirav apartment, 1, Gulmohar Rd, Gulmohar Colony, Juhu, Mumbai 400049", phone: "", desc: "A popular minimalist South Indian eatery in Juhu famous for authentic Bengaluru-style butter dosas. The best South Indian breakfast in Juhu.", sharedExp: "Hands down the best South Indian breakfast in Juhu. The food is incredibly tasty and the quality is excellent.", tryThis: "Benne Masala Dosa", img: "/places/benne-dosa/photo1.jpg", photos: ["/places/benne-dosa/photo2.webp"] },
       { id: 51, name: "One8 Commune", cuisine: "Multi-cuisine Restaurant", price: "Rs.2000-3500 for two", rating: 4.6, tag: "Trendy", hood: "Juhu", address: "Kishore Kumar Bunglow, 18/B, Juhu Tara Rd, Shivaji Nagr, Juhu, Mumbai 400049", phone: "8108411818", desc: "One8 Commune is known for its vibrant ambiance with eclectic decor, experimental cocktails and signature dishes like the Mushroom Googly Dimsums.", sharedExp: "Beautiful aesthetics paired with good food. Everything was plated elegantly and the ingredients tasted wonderfully fresh.", tryThis: "Mushroom Dimsums", img: "/places/one8-commune/photo2.jpg", photos: ["/places/one8-commune/photo1.png"] },
       { id: 52, name: "Ettarra Coffee House", cuisine: "Cafe", price: "Rs.500-900 for two", rating: 4.5, tag: "South Indian coffee", hood: "Juhu", address: "Ground Floor, boutique hotel, Juhu residency, Juhu Tara, Juhu, Mumbai 400049", phone: "8655805815", desc: "South Indian filter coffee crafted to capture flavorful notes and refreshing aromatic servings with every cup. A beautifully designed space with food that matches the aesthetic.", sharedExp: "A beautifully designed space with food that matches the aesthetic. Thoughtful flavors, great presentation and a calm atmosphere.", tryThis: "Baked Soya Keema Pav", img: "/places/ettarra-coffee/photo1.jpg", photos: ["/places/ettarra-coffee/photo2.jpeg"] },
@@ -370,7 +445,7 @@ const CITIES = {
       { id: 57, name: "The Kerala Table", cuisine: "Seafood Restaurant", price: "Rs.1000-1800 for two", rating: 4.6, tag: "South Indian fine dining", hood: "Vashi", address: "First Floor, Palm Beach Galleria Mall, 109 and 110, Plot No. 17, Sector 19D, Vashi, Navi Mumbai 400703", phone: "9090939348", desc: "Experience true South Indian fine dining with rich flavors of Kerala food and Malabar delicacies. Kerala-style fish fry and aromatic biryani.", sharedExp: "If you're craving authentic Keralite food that feels like it was made at someone's home rather than a commercial kitchen, this is the place.", tryThis: "Paal Porotta Prawns and Pepper Garlic Chicken", img: "/places/kerala-table/photo2.jpg", photos: ["/places/kerala-table/photo1.jpeg", "/places/kerala-table/photo3.webp"] },
       { id: 58, name: "HAV Coffee", cuisine: "Specialty Coffee Cafe", price: "Rs.400-800 for two", rating: 4.5, tag: "Specialty brews", hood: "Chowpatty", address: "1, Dr N A Purandare Marg, next to Mahendra Car Showroom, Charni Road East, Chowpatty, Girgaon, Mumbai 400007", phone: "", desc: "HAV Coffee is known for premium specialty brews like the popular Spanish Latte. Artisan croissants and dedicated Jain-friendly options.", sharedExp: "I absolutely enjoyed my experience here. The food was delicious and the ambience was lovely.", tryThis: "Chilli Cheese Toast and Paneer Tikka Sandwiches", img: "/places/hav-coffee/photo1.jpg", photos: ["/places/hav-coffee/photo2.webp", "/places/hav-coffee/photo3.webp"] },
       { id: 59, name: "Shree Thaker Bhojanalay", cuisine: "Vegetarian Thali Restaurant", price: "Rs.500-900 for two", rating: 4.7, tag: "Legendary thali", hood: "Marine Lines", address: "Building No 31, Purshottam Niwas, Dadiseth Agiyari Ln, Marine Lines East, Kalbadevi, Mumbai 400002", phone: "02222069916", desc: "Long-running Indian restaurant offering a selection of traditional Gujarati thalis. Renowned for exceptional thali.", sharedExp: "Renowned for its exceptional thali and the food lived up to the hype — absolutely delicious.", tryThis: "Vegetarian Gujarati Thali", img: "/places/shree-thaker/photo1.webp", photos: ["/places/shree-thaker/photo2.webp"] },
-      { id: 60, name: "The Croffle Guys", cuisine: "Café", price: "Rs.400-800 for two", rating: 4.5, tag: "Unique croffles", hood: "Santacruz", address: "Rupa Adarsh, Saraswati Rd, Santacruz West, Mumbai 400054", phone: "9321355455", desc: "Cozy spot for innovative croffles and signature cold foam coffees.", sharedExp: "A unique dessert spot with very friendly staff. Thoroughly enjoyed the experience.", tryThis: "Nutella Cookie Dough Croffle", img: "/places/croffle-guys/photo2.webp", photos: ["/places/croffle-guys/photo1.avif"] },
+      { id: 60, name: "The Croffle Guys", cuisine: "Café", price: "Rs.400-800 for two", rating: 4.5, tag: "Unique croffles", hood: "Santacruz", address: "Rupa Adarsh, Saraswati Rd, Santacruz West, Mumbai 400054", phone: "9321355455", desc: "Cozy spot for innovative croffles and signature cold foam coffees.", sharedExp: "A unique dessert spot with very friendly staff. Thoroughly enjoyed the experience.", tryThis: "Nutella Cookie Dough Croffle", img: "/places/croffle-guys/photo1.avif", photos: ["/places/croffle-guys/photo2.webp"] },
     ],
     people: [
       { id: 1, ini: "A", name: "Ananya", age: 26, city: "Mumbai", color: "#e8f0e8", tc: "#2d6a2d", photos: ["https://images.unsplash.com/photo-1494790108755-2616b612b786?w=400&q=80", "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&q=80", "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&q=80"], interests: ["Live Music", "Food & Dining", "Travel", "Books", "Photography"], sharedInterests: ["Live Music", "Food & Dining", "Photography"], prompts: [{ q: "What recent incident changed your perspective?", a: "Losing my wallet while traveling alone taught me to be more adaptable and trust that things usually work out." }, { q: "One thing I've been wanting to do in Mumbai but haven't gotten around to is...", a: "Join a proper book club — the kind that meets in a cafe and argues about endings." }], cityWants: ["Attend a live music gig", "Try new restaurants", "Join a book club", "Explore street art", "Go to a food festival"], foodRecs: [{ name: "The Bombay Canteen, Lower Parel", desc: "Modern Indian cuisine with a twist" }, { name: "Prithvi Cafe, Juhu", desc: "Literary crowd, great chai" }], cityRecs: [{ name: "Marine Drive", desc: "Perfect sunset walks" }, { name: "Bandstand Promenade", desc: "Best evening walk in Bandra" }] },
@@ -431,16 +506,8 @@ const CUISINE_TAG_MAP = {
   "Irani & Parsi Cafe": ["irani", "parsi"],
 };
 
-const CONVERSATION_PROMPTS = [
-  "If I could get a group of people together to do one thing, it would be...",
-  "A place in Mumbai, or something I love doing here, that makes me feel at home is...",
-  "Lately, I've found myself really curious about...",
-  "One thing I've been wanting to do in Mumbai but still haven't gotten around to is...",
-  "One of my favorite things to do in Mumbai that doesn't cost a thing is...",
-  "Something I watched, read, or listened to recently that has stuck with me is...",
-  "A topic I could spend hours hearing different opinions on is...",
-  "When I need to slow down and reset, I usually...",
-];
+
+// ─── ONBOARDING ───────────────────────────────────────────────────────────────
 
 function priceLevelFromString(priceStr) {
   if (!priceStr) return 2;
@@ -471,368 +538,581 @@ function scoreFoodPlace(place, userCuisines, userBudget) {
   return score;
 }
 
-// ─── ONBOARDING ───────────────────────────────────────────────────────────────
-function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initialName, initialAge, initialPronouns }) {
-  const skipBasics = !!(initialCity && initialName);
-  const [step, setStep] = useState(skipBasics ? 3 : 1);
-  const [city, setCity] = useState(initialCity || "mumbai");
-  const [name, setName] = useState(initialName || "");
-  const [age, setAge] = useState(initialAge ? String(initialAge) : "");
-  const [pronouns, setPronouns] = useState(initialPronouns || "");
-  const [selInterests, setSelInterests] = useState([]);
-  const [selThings, setSelThings] = useState([]);
-  const [selCuisines, setSelCuisines] = useState([]);
-  const [budget, setBudget] = useState("");
+// New hierarchical interest structure
+const ENJOY_OPTIONS = {
+  "Reading": ["Fiction", "Non-fiction"],
+  "Entertainment": ["Podcast", "Documentaries", "Movies & TV Series", "Anime", "Reality TV", "Stand-up Comedy"],
+  "Sports & Fitness": ["Sports", "Gym", "Running", "Yoga", "Cycling", "Calisthenics", "Martial Arts"],
+  "Creativity": ["Photography", "Music", "Dance", "Singing", "Painting", "Digital Art", "Poetry", "Journaling"],
+  "Gaming": [],
+};
 
-  const togI = id => setSelInterests(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
-  const togT = t => setSelThings(p => p.includes(t) ? p.filter(x => x !== t) : [...p, t]);
-  const togC = id => setSelCuisines(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
-  const moveCuisine = (id, dir) => setSelCuisines(p => {
-    const idx = p.indexOf(id); const ni = idx + dir;
-    if (ni < 0 || ni >= p.length) return p;
-    const n = [...p]; [n[idx], n[ni]] = [n[ni], n[idx]]; return n;
+const THINGS_EXAMPLES = [
+  "Explore hidden street food spots",
+  "Learn salsa dance",
+  "Watch the latest movie in theatres",
+  "Trek to a viewpoint at sunrise",
+  "Visit a flea market on the weekend",
+  "Try a pottery or craft class",
+];
+
+const THOUGHT_PROMPTS = [
+  "If I could get people together for one thing it would be...",
+  "One thing I've always wanted to do in Mumbai is...",
+  "Recently I've been fascinated by...",
+  "A topic I could spend hours hearing different perspectives on is...",
+  "Something I watched, read or experienced recently that has stayed with me is...",
+  "I'm hoping to meet people who...",
+];
+
+const GENDER_OPTIONS = ["Man", "Woman", "Non-binary", "Prefer not to say", "Other"];
+
+// Shared nav dot indicator at bottom
+function StepDots({ total, current }) {
+  return (
+    <div style={{ display: "flex", gap: 6, justifyContent: "center", paddingBottom: 16, paddingTop: 8 }}>
+      {Array.from({ length: total }).map((_, i) => (
+        <div key={i} style={{
+          width: i === current ? 20 : 7, height: 7, borderRadius: 4,
+          background: i === current ? "#581073" : i < current ? "#FF9A8B" : "#E8D5F0",
+          transition: "all .2s"
+        }} />
+      ))}
+    </div>
+  );
+}
+
+function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initialName, initialAge, initialPronouns, session, onSignUp }) {
+  const skipBasics = !!initialName;
+  // Step 1: account (email/pw) — skipped if session exists
+  // Step 2: name/age/college — required
+  // Step 3: photos + enjoy + things + thoughts — skippable
+  // Step 4: place recs — skippable
+  // Step 5: done screen
+  const [step, setStep] = useState(
+    skipBasics ? 3 :  // returning user with name → skip to interests
+    session ? 2 :     // has session but no name → start at name/age
+    0                 // fresh signup → start at city
+  );
+  const [signupEmail, setSignupEmail] = useState(""); // for confirm screen
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [city, setCity] = useState(initialCity || "mumbai");
+
+  // Step 1
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [phone, setPhone] = useState("");
+  const [signupLoading, setSignupLoading] = useState(false);
+  const [signupError, setSignupError] = useState("");
+
+  // Step 2
+  const [name, setName] = useState(initialName || "");
+  const [college, setCollege] = useState("");
+  const [age, setAge] = useState(initialAge ? String(initialAge) : "");
+  const [gender, setGender] = useState(initialPronouns || "");
+  const [genderOther, setGenderOther] = useState("");
+
+  // Step 3
+  const [photos, setPhotos] = useState([null, null, null]);
+  const [selEnjoy, setSelEnjoy] = useState([]);
+  const [things, setThings] = useState([]);  // max 5
+  const [selectedPrompts, setSelectedPrompts] = useState([0, 1, 2]);
+  const [thoughts, setThoughts] = useState({});
+
+  // Step 4
+  const [foodRecs, setFoodRecs] = useState([
+    { name: "", location: "", because: "" },
+    { name: "", location: "", because: "" },
+    { name: "", location: "", because: "" },
+  ]);
+  const [placeRecs, setPlaceRecs] = useState([
+    { name: "", location: "", because: "" },
+    { name: "", location: "", because: "" },
+    { name: "", location: "", because: "" },
+  ]);
+  const STEP_4B = 41; // using 41 as "4b"
+
+  const toggleEnjoy = (item) => setSelEnjoy(p =>
+    p.includes(item) ? p.filter(x => x !== item) : p.length < 5 ? [...p, item] : p
+  );
+  const finalGender = gender === "Other" ? genderOther : gender;
+
+  const buildDonePayload = () => ({
+    city,
+    name,
+    age,
+    college,
+    pronouns: finalGender,
+    interests: selEnjoy.map(e => e.toLowerCase().replace(/ /g, "_")),
+    things: things.filter(t => t && t.trim()),
+    cuisines: [],
+    budget: "flexible",
+    prompts: [0,1,2].reduce((acc, i) => {
+      if (thoughts[i]?.trim()) acc[THOUGHT_PROMPTS[selectedPrompts[i]]] = thoughts[i].trim();
+      return acc;
+    }, {}),
+    phone,
+    food_recs: foodRecs.filter(r => r.name.trim()),
+    city_recs: placeRecs.filter(r => r.name.trim()),
   });
 
-  if (step === 0) return (
-    <div className="ob-root">
-      <div className="ob-hero">
-        <div className="ob-hero-img" style={{ backgroundImage: `url(https://images.unsplash.com/photo-1529543544282-ea669407fca3?w=800&q=80)` }} />
-        <div className="ob-hero-overlay" />
-        <div className="ob-hero-content"><div className="ob-logo-hero"><NearMetLogo size={52} dark /></div><p className="ob-hero-tagline">Explore your city.<br />Find genuine connections.</p></div>
-        <div className="ob-hero-bottom">
-          <button className="ob-cta-primary" onClick={() => setStep(1)}>Create an account</button>
-          <button className="ob-cta-secondary" onClick={onShowSignIn}>I have an account</button>
-          <p className="ob-legal">By signing up, you agree to our <span className="ob-link">Terms</span> and <span className="ob-link">Privacy Policy</span>.</p>
-        </div>
-      </div>
-    </div>
-  );
-
-  if (step === 1) return (
-    <div className="ob-step-wrap">
-      <div className="ob-step-progress"><div className="ob-progress-bar" style={{ width: "15%" }} /></div>
-      <div className="ob-step-body">
-        <div className="ob-step-label">STEP 1 OF 6 — YOUR CITY</div>
-        <h2 className="ob-step-title">Which city are you in?</h2>
-        <p className="ob-step-sub">NearMet is live in two cities right now.</p>
-        <div className="ob-city-list">
-          <button className="ob-city-item active" onClick={() => setCity("mumbai")}>
-            <span className="ob-city-flag">🇮🇳</span>
-            <div><div className="ob-city-name">Mumbai</div><div className="ob-city-sub">All areas · Live now</div></div>
-            <div className="ob-radio filled" />
-          </button>
-          <div className="ob-city-item" style={{ opacity: 0.4, cursor: "default", pointerEvents: "none" }}>
-            <span className="ob-city-flag">🌆</span>
-            <div><div className="ob-city-name">New York · LA · Dubai</div><div className="ob-city-sub">Coming soon</div></div>
-            <div className="ob-radio" />
-          </div>
-        </div>
-      </div>
-      <div className="ob-step-nav"><button className="ob-btn-ghost" onClick={() => { if (onBackToLanding) onBackToLanding(); else onShowSignIn(); }}>Back</button><button className="ob-btn-primary" disabled={!city} onClick={() => setStep(2)}>Next →</button></div>
-    </div>
-  );
-
-  if (step === 2) return (
-    <div className="ob-step-wrap">
-      <div className="ob-step-progress"><div className="ob-progress-bar" style={{ width: "30%" }} /></div>
-      <div className="ob-step-body">
-        <div className="ob-step-label">STEP 2 OF 6 — ABOUT YOU</div>
-        <h2 className="ob-step-title">What should we call you?</h2>
-        <div className="ob-form">
-          <div className="ob-field"><label className="ob-field-label">NAME</label><input className="ob-input" type="text" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} /></div>
-          <div className="ob-field"><label className="ob-field-label">AGE</label><input className="ob-input" type="number" placeholder="18+" value={age} onChange={e => setAge(e.target.value)} /></div>
-          <div className="ob-field"><label className="ob-field-label">PRONOUNS <span style={{fontWeight:400,textTransform:"none",fontSize:11,color:"var(--text3)"}}>— optional</span></label>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6, marginBottom: 8 }}>
-              {["she/her", "he/him", "they/them"].map(p => (
-                <button key={p} type="button"
-                  className={`ob-thing-chip ${pronouns === p ? "active" : ""}`}
-                  style={{ fontSize: 13, padding: "8px 14px" }}
-                  onClick={() => setPronouns(pronouns === p ? "" : p)}>{p}</button>
-              ))}
-            </div>
-            <input className="ob-input" placeholder="Or type your own (e.g. ze/zir)" value={!["she/her","he/him","they/them"].includes(pronouns) ? pronouns : ""} onChange={e => setPronouns(e.target.value)} style={{ marginTop: 4 }} />
-          </div>
-        </div>
-      </div>
-      <div className="ob-step-nav"><button className="ob-btn-ghost" onClick={() => setStep(1)}>Back</button><button className="ob-btn-primary" disabled={!name.trim() || !age || parseInt(age) < 18} onClick={() => setStep(3)}>Next →</button></div>
-    </div>
-  );
-
-  if (step === 3) return (
-    <div className="ob-step-wrap">
-      <div className="ob-step-progress"><div className="ob-progress-bar" style={{ width: skipBasics ? "25%" : "45%" }} /></div>
-      <div className="ob-step-body" style={{ overflowY: "auto" }}>
-        <div className="ob-step-label">{skipBasics ? "STEP 1 OF 4" : "STEP 3 OF 6"} — YOUR INTERESTS</div>
-        <h2 className="ob-step-title">What are you into?</h2>
-        <p className="ob-step-sub">This builds your feed and helps us find your people.</p>
-        <div className="ob-chips-grid">
-          {INTEREST_OPTIONS.map(i => (
-            <button key={i.id} className={`ob-chip ${selInterests.includes(i.id) ? "active" : ""}`} onClick={() => togI(i.id)}>
-              <span className="ob-chip-icon">{i.icon}</span><span className="ob-chip-label">{i.label}</span>
-              {selInterests.includes(i.id) && <span className="ob-chip-check">✓</span>}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="ob-step-nav"><button className="ob-btn-ghost" onClick={() => { if (skipBasics) { if (onBackToLanding) onBackToLanding(); else onShowSignIn(); } else setStep(2); }}>Back</button><button className="ob-btn-primary" disabled={selInterests.length === 0} onClick={() => setStep(4)}>Next →</button></div>
-    </div>
-  );
-
-  if (step === 4) return (
-    <div className="ob-step-wrap">
-      <div className="ob-step-progress"><div className="ob-progress-bar" style={{ width: skipBasics ? "50%" : "67%" }} /></div>
-      <div className="ob-step-body" style={{ overflowY: "auto" }}>
-        <div className="ob-step-label">{skipBasics ? "STEP 2 OF 4" : "STEP 4 OF 6"} — THINGS TO DO</div>
-        <h2 className="ob-step-title">What do you want to do?</h2>
-        <p className="ob-step-sub">This is how we match you with the right people in By Activity.</p>
-        <div className="ob-things-grid">
-          {THINGS_OPTIONS.map(t => (
-            <button key={t} className={`ob-thing-chip ${selThings.includes(t) ? "active" : ""}`} onClick={() => togT(t)}>
-              {t}{selThings.includes(t) && <span className="ob-chip-check">✓</span>}
-            </button>
-          ))}
-        </div>
-        <div style={{ marginTop: 14 }}>
-          <div style={{ fontSize: 12, color: "var(--text3)", marginBottom: 6, fontWeight: 600 }}>Something not listed? Add your own:</div>
-          <input className="ob-input" placeholder="e.g. Attend a poetry slam, Try paragliding…"
-            onKeyDown={e => {
-              if (e.key === "Enter" && e.target.value.trim()) {
-                const val = e.target.value.trim();
-                if (!selThings.includes(val)) togT(val);
-                e.target.value = "";
-              }
-            }} />
-        </div>
-      </div>
-      <div className="ob-step-nav"><button className="ob-btn-ghost" onClick={() => setStep(3)}>Back</button><button className="ob-btn-primary" disabled={selThings.length === 0} onClick={() => setStep(5)}>Next →</button></div>
-    </div>
-  );
-
-  if (step === 5) return (
-    <div className="ob-step-wrap">
-      <div className="ob-step-progress"><div className="ob-progress-bar" style={{ width: skipBasics ? "75%" : "83%" }} /></div>
-      <div className="ob-step-body" style={{ overflowY: "auto" }}>
-        <div className="ob-step-label">{skipBasics ? "STEP 3 OF 4" : "STEP 5 OF 6"} — FOOD PREFERENCES</div>
-        <h2 className="ob-step-title">What do you love to eat?</h2>
-        <p className="ob-step-sub">Tap to add. We'll use this to recommend food places you'll actually like.</p>
-        <div className="ob-chips-grid">
-          {CUISINE_OPTIONS.filter(c => !selCuisines.includes(c.id)).map(c => (
-            <button key={c.id} className="ob-chip" onClick={() => togC(c.id)}>
-              <span className="ob-chip-icon">{c.icon}</span><span className="ob-chip-label">{c.label}</span>
-            </button>
-          ))}
-        </div>
-        {selCuisines.length > 0 && (
-          <div className="ob-ranked-list">
-            <div className="ob-ranked-label">Your ranking (top = most preferred)</div>
-            {selCuisines.map((id, i) => { const c = CUISINE_OPTIONS.find(o => o.id === id); return (
-              <div key={id} className="ob-ranked-row">
-                <span className="ob-ranked-num">{i + 1}</span><span className="ob-ranked-icon">{c?.icon}</span>
-                <span className="ob-ranked-label-text">{c?.label}</span>
-                <div className="ob-ranked-actions">
-                  <button className="ob-ranked-btn" disabled={i === 0} onClick={() => moveCuisine(id, -1)}>↑</button>
-                  <button className="ob-ranked-btn" disabled={i === selCuisines.length - 1} onClick={() => moveCuisine(id, 1)}>↓</button>
-                  <button className="ob-ranked-btn ob-ranked-remove" onClick={() => togC(id)}>×</button>
-                </div>
-              </div>
-            ); })}
-          </div>
-        )}
-      </div>
-      <div className="ob-step-nav"><button className="ob-btn-ghost" onClick={() => setStep(4)}>Back</button><button className="ob-btn-primary" disabled={selCuisines.length === 0} onClick={() => setStep(6)}>Next →</button></div>
-    </div>
-  );
-
-  if (step === 6) return (
-    <div className="ob-step-wrap">
-      <div className="ob-step-progress"><div className="ob-progress-bar" style={{ width: "95%" }} /></div>
-      <div className="ob-step-body" style={{ overflowY: "auto" }}>
-        <div className="ob-step-label">{skipBasics ? "STEP 4 OF 4" : "STEP 6 OF 6"} — YOUR BUDGET</div>
-        <h2 className="ob-step-title">What's your usual budget for two?</h2>
-        <div className="ob-city-list">
-          {BUDGET_OPTIONS.map(b => (
-            <button key={b.id} className={`ob-city-item ${budget === b.id ? "active" : ""}`} onClick={() => setBudget(b.id)}>
-              <span className="ob-city-flag">{b.icon}</span>
-              <div><div className="ob-city-name">{b.label}</div><div className="ob-city-sub">{b.sub}</div></div>
-              <div className={`ob-radio ${budget === b.id ? "filled" : ""}`} />
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="ob-step-nav"><button className="ob-btn-ghost" onClick={() => setStep(5)}>Back</button><button className="ob-btn-primary" disabled={!budget} onClick={() => setStep(7)}>Next →</button></div>
-    </div>
-  );
-
-  return (
-    <div className="ob-step-wrap">
-      <div className="ob-step-progress"><div className="ob-progress-bar" style={{ width: "100%" }} /></div>
-      <div className="ob-done-screen">
-        <div className="ob-done-check">✓</div>
-        <h2 className="ob-done-title">You're in, {name}.</h2>
-        <p className="ob-done-sub">Your feed is ready. Find people who want to do the same things as you in Mumbai.</p>
-        <div className="ob-done-interests">
-          {selInterests.slice(0, 6).map(id => { const i = INTEREST_OPTIONS.find(o => o.id === id); return <span key={id} className="ob-done-chip">{i?.icon} {i?.label}</span>; })}
-        </div>
-        <button className="ob-btn-primary ob-btn-full" style={{ marginTop: 32 }} onClick={() => onDone({ city, name, interests: selInterests, things: selThings, cuisines: selCuisines, budget, pronouns })}>Go to my feed →</button>
-      </div>
-    </div>
-  );
-}
-
-// ─── PROFILE SLIDESHOW ────────────────────────────────────────────────────────
-function ProfileSlideshow({ photos, name, onBack }) {
-  const [idx, setIdx] = useState(0);
-  const touchStart = useRef(null);
-  const prev = () => setIdx(i => Math.max(0, i - 1));
-  const next = () => setIdx(i => Math.min((photos.length || 1) - 1, i + 1));
-  const onTouchStart = e => { touchStart.current = e.touches[0].clientX; };
-  const onTouchEnd = e => {
-    if (!touchStart.current) return;
-    const diff = touchStart.current - e.changedTouches[0].clientX;
-    if (diff > 50) next(); else if (diff < -50) prev();
-    touchStart.current = null;
+  const ENJOY_CATEGORIES = {
+    "Reading": { icon: "📚", subs: ["Fiction", "Non-fiction"] },
+    "Entertainment": { icon: "🎬", subs: ["Podcast", "Documentaries", "Movies & TV Series", "Anime", "Reality TV", "Stand-up Comedy"] },
+    "Sports & Fitness": { icon: "🏃", subs: ["Sports", "Gym", "Running", "Yoga", "Cycling", "Calisthenics", "Martial Arts"] },
+    "Creativity": { icon: "🎨", subs: ["Photography", "Music", "Dance", "Singing", "Painting", "Digital Art", "Poetry", "Journaling"] },
+    "Gaming": { icon: "🎮", subs: [] },
   };
-  if (!photos.length) return (
-    <div className="pv-hero-wrap">
-      <div className="pv-hero-placeholder">{(name || "?").slice(0, 2).toUpperCase()}</div>
-      {onBack && <button className="pv-back-btn" onClick={onBack}>←</button>}
-    </div>
-  );
-  return (
-    <div className="pv-hero-wrap" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-      <img src={photos[idx]} alt={name} className="pv-hero-img" onContextMenu={e => e.preventDefault()} draggable={false} />
-      {onBack && <button className="pv-back-btn" onClick={onBack}>←</button>}
-      {photos.length > 1 && (
-        <>
-          {idx > 0 && <button className="pv-slide-btn pv-slide-prev" onClick={prev}>‹</button>}
-          {idx < photos.length - 1 && <button className="pv-slide-btn pv-slide-next" onClick={next}>›</button>}
-          <div className="pv-dots">{photos.map((_, i) => <div key={i} className={`pv-dot ${i === idx ? "active" : ""}`} />)}</div>
-        </>
-      )}
-    </div>
-  );
-}
 
-// ─── FULL PROFILE VIEW (shared between For You + By Activity) ─────────────────
-function FullProfileView({ person, city, onBack, onMessage, connecting, me }) {
-  const cd = CITIES[city];
-  const allPhotos = (person.photo_urls || person.photos || []).filter(Boolean);
-  const theirPrompts = person.prompts
-    ? Array.isArray(person.prompts)
-      ? person.prompts.filter(p => p.a)
-      : Object.entries(person.prompts).filter(([, ans]) => ans?.trim()).map(([q, a]) => ({ q, a }))
-    : [];
-  const things = person.city_wants || person.cityWants || person.things || [];
-  const interests = person.interests || [];
-  const foodRecs = person.food_recs || person.foodRecs || [];
-  const cityRecs = person.city_recs || person.cityRecs || [];
+  const headerStyle = { display: "flex", alignItems: "center", padding: "16px 20px 12px", borderBottom: "1px solid #F5E8F9" };
 
-  return (
-    <div className="pv-fullscreen">
-      <ProfileSlideshow photos={allPhotos} name={person.name} onBack={onBack} />
-
-      <div className="pv-content">
-        <div className="pv-name-row">
-          <div>
-            <div className="pv-name">{person.name}{person.age ? `, ${person.age}` : ""}{person.pronouns ? <span style={{fontSize:13,fontWeight:500,color:"var(--text3)",marginLeft:8}}>· {person.pronouns}</span> : ""}</div>
-            <div className="pv-city">📍 {cd.label}</div>
-          </div>
+  // ── Confirm email screen ───────────────────────────────────────────────────
+  if (showConfirm) return (
+    <div style={{ minHeight: "100vh", background: "#fff", display: "flex", flexDirection: "column", padding: "48px 24px" }}>
+      <div style={{ maxWidth: 480, width: "100%", margin: "0 auto", textAlign: "center" }}>
+        <NearMetLogo size={40} />
+        <div style={{ fontSize: 56, margin: "32px 0 16px" }}>📬</div>
+        <h2 style={{ fontSize: 24, fontWeight: 800, color: "#2F2F33", marginBottom: 8 }}>Check your email</h2>
+        <p style={{ fontSize: 14, color: "#9090B0", lineHeight: 1.7, marginBottom: 8 }}>
+          We sent a confirmation link to<br />
+          <strong style={{ color: "#2F2F33" }}>{signupEmail}</strong>
+        </p>
+        <p style={{ fontSize: 13, color: "#9090B0", lineHeight: 1.6, marginBottom: 24 }}>
+          Click the link in the email to verify your account, then come back and sign in.
+        </p>
+        <div style={{ background: "#F5E8F9", border: "1px solid #F5E8F9", borderRadius: 12, padding: "14px 16px", fontSize: 13, color: "#581073", textAlign: "left", marginBottom: 24 }}>
+          <strong>Didn't get it?</strong> Check your spam folder. The email comes from your Supabase project.
         </div>
-
-        {theirPrompts.length > 0 && (
-          <>
-            <div className="pv-section-title">Thoughts</div>
-            {theirPrompts.map((p, i) => (
-              <div key={i} className="pv-prompt-card">
-                <div className="pv-prompt-q">{p.q}</div>
-                <div className="pv-prompt-a">{p.a}</div>
-              </div>
-            ))}
-          </>
-        )}
-
-        {interests.length > 0 && (() => {
-          const myInterests = me?.interests || [];
-          const sharedInts = interests.filter(i => myInterests.includes(i));
-          return (
-            <>
-              <div className="pv-section-title">Interests{sharedInts.length > 0 && <span style={{fontSize:12,color:"var(--green2)",fontWeight:600,marginLeft:10}}>✦ {sharedInts.length} in common</span>}</div>
-              <div className="pv-interest-chips">
-                {interests.map(i => {
-                  const opt = INTEREST_OPTIONS.find(o => o.id === i);
-                  const isShared = myInterests.includes(i);
-                  return (
-                    <span key={i} className="pv-interest-chip" style={isShared ? { background: "var(--green-bg)", color: "var(--green2)", border: "1.5px solid var(--green2)" } : {}}>
-                      {opt?.icon} {opt?.label || i}
-                    </span>
-                  );
-                })}
-              </div>
-            </>
-          );
-        })()}
-
-        {things.length > 0 && (
-          <>
-            <div className="pv-section-title">Things I want to do</div>
-            <div className="pv-things-list">
-              {things.map(t => (
-                <div key={t} className="pv-thing-row">
-                  <span className="pv-thing-icon">{ACTIVITY_ICONS[t] || "📌"}</span>
-                  <span>{t}</span>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {foodRecs.length > 0 && (
-          <>
-            <div className="pv-section-title">🍽️ Food picks in {cd.label}</div>
-            {(Array.isArray(foodRecs) ? foodRecs : []).filter(r => r && (r.name || typeof r === "string")).map((r, i) => {
-              const name = typeof r === "string" ? r : r.name;
-              const desc = typeof r === "object" ? r.desc : null;
-              if (!name) return null;
-              return (
-                <div key={i} className="pv-rec-item">
-                  <div><div className="pv-rec-name">{name}</div>{desc && <div className="pv-rec-desc">{desc}</div>}</div>
-                </div>
-              );
-            })}
-          </>
-        )}
-
-        {cityRecs.length > 0 && (
-          <>
-            <div className="pv-section-title">📍 City favourites</div>
-            {(Array.isArray(cityRecs) ? cityRecs : []).filter(r => r && (r.name || typeof r === "string")).map((r, i) => {
-              const name = typeof r === "string" ? r : r.name;
-              const desc = typeof r === "object" ? r.desc : null;
-              if (!name) return null;
-              return (
-                <div key={i} className="pv-rec-item">
-                  <div><div className="pv-rec-name">{name}</div>{desc && <div className="pv-rec-desc">{desc}</div>}</div>
-                </div>
-              );
-            })}
-          </>
-        )}
-
-        <button className="pv-chat-btn" style={{ marginTop: 24, marginBottom: 40 }} disabled={connecting} onClick={onMessage}>
-          {connecting ? "Connecting…" : `Message ${person.name} →`}
+        <button className="ob-btn-primary ob-btn-full" onClick={onShowSignIn}>
+          Go to sign in →
         </button>
       </div>
     </div>
   );
+
+  // ── Step 0: City picker ───────────────────────────────────────────────────────
+  if (step === 0) return (
+    <div style={{ minHeight: "100vh", background: "#F8F8FC", display: "flex", flexDirection: "column" }}>
+      <div style={headerStyle}>
+        <button onClick={() => { if (onBackToLanding) onBackToLanding(); }} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", marginRight: 12, color: "#4A4A6A" }}>←</button>
+        <NearMetLogo size={32} />
+      </div>
+      <div style={{ flex: 1, padding: "32px 24px 24px", maxWidth: 480, width: "100%", margin: "0 auto" }}>
+        <h2 style={{ fontSize: 28, fontWeight: 800, color: "#2F2F33", letterSpacing: "-0.03em", marginBottom: 6 }}>Which city are you in?</h2>
+        <p style={{ fontSize: 14, color: "#9090B0", marginBottom: 28 }}>NearMet is launching in Mumbai first, with more cities coming soon.</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {[
+            { id: "mumbai", flag: "🇮🇳", name: "Mumbai", sub: "All areas · Live now", live: true },
+            { id: "nyc", flag: "🗽", name: "New York City", sub: "Coming soon", live: false },
+            { id: "la", flag: "🌴", name: "Los Angeles", sub: "Coming soon", live: false },
+            { id: "dubai", flag: "🌆", name: "Dubai", sub: "Coming soon", live: false },
+          ].map(ct => (
+            <div key={ct.id}
+              onClick={() => ct.live && setCity(ct.id)}
+              style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px", background: city === ct.id ? "#F5E8F9" : "#fff", border: "1.5px solid " + (city === ct.id ? "#581073" : "#E8D5F0"), borderRadius: 16, opacity: ct.live ? 1 : 0.4, cursor: ct.live ? "pointer" : "not-allowed" }}>
+              <span style={{ fontSize: 28 }}>{ct.flag}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#2F2F33" }}>{ct.name}</div>
+                <div style={{ fontSize: 12, color: city === ct.id ? "#581073" : "#9090B0", marginTop: 2 }}>{ct.sub}</div>
+              </div>
+              {ct.live && (
+                <div style={{ width: 20, height: 20, borderRadius: "50%", background: city === ct.id ? "#581073" : "transparent", border: "2px solid " + (city === ct.id ? "#581073" : "#C8C0E0"), display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {city === ct.id && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "white" }} />}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{ padding: "12px 24px 28px", maxWidth: 480, width: "100%", margin: "0 auto" }}>
+        <button className="ob-btn-primary ob-btn-full" disabled={!city} onClick={() => setStep(session ? 2 : 1)}>
+          Get started →
+        </button>
+        <button onClick={onShowSignIn} style={{ width: "100%", marginTop: 12, textAlign: "center", fontSize: 14, color: "#9090B0", background: "none", border: "none", cursor: "pointer" }}>
+          Already have an account? <span style={{ color: "#581073", fontWeight: 700 }}>Sign in</span>
+        </button>
+      </div>
+    </div>
+  );
+
+  // ── Step 1: Create account ────────────────────────────────────────────────────
+  if (step === 1) return (
+    <div style={{ minHeight: "100vh", background: "#fff", display: "flex", flexDirection: "column" }}>
+      <div style={headerStyle}>
+        <button onClick={() => setStep(0)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", marginRight: 12, color: "#4A4A6A" }}>←</button>
+        <NearMetLogo size={32} />
+      </div>
+      <div style={{ flex: 1, padding: "28px 24px", maxWidth: 480, width: "100%", margin: "0 auto" }}>
+        <h2 style={{ fontSize: 28, fontWeight: 800, color: "#2F2F33", marginBottom: 6 }}>Create your account</h2>
+        <p style={{ fontSize: 14, color: "#9090B0", marginBottom: 28 }}>You'll set up your profile right after.</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9090B0", letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>EMAIL</label>
+            <input className="ob-input" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9090B0", letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>PASSWORD</label>
+            <input className="ob-input" type="password" placeholder="At least 8 characters" value={password} onChange={e => setPassword(e.target.value)} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9090B0", letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>CONFIRM PASSWORD</label>
+            <input className="ob-input" type="password" placeholder="Repeat your password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9090B0", letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>MOBILE NUMBER</label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ background: "var(--bg)", border: "1.5px solid var(--border)", borderRadius: 10, padding: "12px 14px", fontSize: 14, fontWeight: 600, color: "var(--text2)", flexShrink: 0 }}>🇮🇳 +91</div>
+              <input className="ob-input" type="tel" placeholder="10-digit mobile number" value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))} style={{ flex: 1 }} />
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 5 }}>Used to help people connect. Never shown publicly.</div>
+          </div>
+        </div>
+        {signupError && <div style={{ marginTop: 12, background: "#FFF0EE", border: "1px solid #FF9A8B", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#C94E3A" }}>{signupError}</div>}
+        <button className="ob-btn-primary ob-btn-full" style={{ marginTop: 24 }}
+          disabled={signupLoading || !email || !password}
+          onClick={async () => {
+            if (password !== confirmPw) { setSignupError("Passwords do not match."); return; }
+            if (password.length < 8) { setSignupError("Password must be at least 8 characters."); return; }
+            setSignupLoading(true); setSignupError("");
+            try {
+              const result = await onSignUp(email, password, phone);
+              setSignupEmail(email);
+              // If session returned immediately, email confirmation is OFF — skip confirm screen
+              // AuthContext will pick up the session and move to onboarding step 2
+              if (result?.session) {
+                setStep(2);
+              } else {
+                setShowConfirm(true);
+              }
+            } catch (e) { setSignupError(e.message || "Sign up failed."); }
+            finally { setSignupLoading(false); }
+          }}>
+          {signupLoading ? "Creating account…" : "Create account →"}
+        </button>
+        <button className="auth-switch" onClick={onShowSignIn} style={{ width: "100%", marginTop: 16, textAlign: "center", fontSize: 14 }}>
+          Already have an account? <span style={{ color: "#581073", fontWeight: 700 }}>Sign in</span>
+        </button>
+      </div>
+    </div>
+  );
+
+  // ── Step 2: Basics (required) ─────────────────────────────────────────────────
+  if (step === 2) return (
+    <div style={{ minHeight: "100vh", background: "#fff", display: "flex", flexDirection: "column" }}>
+      <div style={headerStyle}>
+        <button onClick={() => setStep(1)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", marginRight: 12, color: "#4A4A6A" }}>←</button>
+        <NearMetLogo size={32} />
+      </div>
+      <div style={{ flex: 1, padding: "28px 24px", maxWidth: 480, width: "100%", margin: "0 auto" }}>
+        <h2 style={{ fontSize: 28, fontWeight: 800, color: "#2F2F33", marginBottom: 6 }}>Welcome to NearMet</h2>
+        <p style={{ fontSize: 14, color: "#9090B0", marginBottom: 28 }}>Tell us a little about yourself.</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9090B0", letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>NAME</label>
+            <input className="ob-input" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#9090B0", letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>AGE</label>
+              <input className="ob-input" type="number" placeholder="18+" value={age} onChange={e => setAge(e.target.value)} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#9090B0", letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>COLLEGE / WORK</label>
+              <input className="ob-input" placeholder="Where you study or work" value={college} onChange={e => setCollege(e.target.value)} />
+            </div>
+          </div>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9090B0", letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 8 }}>GENDER</label>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {["Man", "Woman", "Non-binary", "Prefer not to say", "Other"].map(g => (
+                <button key={g} type="button"
+                  style={{ border: "1.5px solid " + (gender === g ? "#581073" : "#E8D5F0"), borderRadius: 999, padding: "7px 14px", fontSize: 13, fontWeight: 600, color: gender === g ? "white" : "#4A4A6A", background: gender === g ? "#581073" : "#fff", cursor: "pointer" }}
+                  onClick={() => setGender(g)}>{g}</button>
+              ))}
+            </div>
+            {gender === "Other" && <input className="ob-input" style={{ marginTop: 10 }} placeholder="Your gender" value={genderOther} onChange={e => setGenderOther(e.target.value)} />}
+          </div>
+        </div>
+        <button className="ob-btn-primary ob-btn-full" style={{ marginTop: 28 }}
+          disabled={!name.trim()}
+          onClick={() => setStep(3)}>
+          Continue →
+        </button>
+      </div>
+      <StepDots total={3} current={0} />
+    </div>
+  );
+
+  // ── Step 3: Photos + Enjoy + Things + Thoughts (skippable) ────────────────────
+  if (step === 3) return (
+    <div style={{ minHeight: "100vh", background: "#fff", display: "flex", flexDirection: "column" }}>
+      <div style={headerStyle}>
+        <button onClick={() => setStep(2)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", marginRight: 12, color: "#4A4A6A" }}>←</button>
+        <NearMetLogo size={32} />
+        <button onClick={() => setStep(5)} style={{ marginLeft: "auto", fontSize: 14, fontWeight: 600, color: "#9090B0", background: "none", border: "none", cursor: "pointer" }}>Skip</button>
+      </div>
+      <div style={{ flex: 1, padding: "28px 24px", maxWidth: 480, width: "100%", margin: "0 auto", overflowY: "auto" }}>
+        <h2 style={{ fontSize: 28, fontWeight: 800, color: "#2F2F33", marginBottom: 4 }}>Let's Get to Know You</h2>
+        <p style={{ fontSize: 14, color: "#9090B0", marginBottom: 28 }}>You can always come back to fill these in later.</p>
+
+        {/* Photos */}
+        <div style={{ fontSize: 16, fontWeight: 700, color: "#2F2F33", marginBottom: 6 }}>Photos</div>
+        <p style={{ fontSize: 13, color: "#9090B0", marginBottom: 12 }}>Add up to 3 recent photos of yourself.</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 28 }}>
+          {[0, 1, 2].map(i => (
+            <label key={i} style={{ aspectRatio: "1", borderRadius: 12, border: "2px dashed " + (photos[i] ? "#581073" : "#E8D5F0"), cursor: "pointer", overflow: "hidden", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: photos[i] ? "none" : "#F8F8FC", gap: 8 }}>
+              {photos[i] ? <img src={URL.createObjectURL(photos[i])} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> :
+                <><div style={{ width: 36, height: 36, borderRadius: "50%", background: "#F5E8F9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#581073" }}>+</div><span style={{ fontSize: 12, color: "#9090B0" }}>Add Photo</span></>}
+              <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) setPhotos(p => { const n = [...p]; n[i] = f; return n; }); }} />
+            </label>
+          ))}
+        </div>
+
+        {/* What I Enjoy */}
+        <div style={{ fontSize: 16, fontWeight: 700, color: "#2F2F33", marginBottom: 4 }}>What I Enjoy</div>
+        <p style={{ fontSize: 13, color: "#9090B0", marginBottom: 4 }}>Think about what genuinely occupies your free time.</p>
+        <p style={{ fontSize: 13, color: "#9090B0", marginBottom: 16 }}>Choose five and rank them by what you enjoy the most.</p>
+        {Object.entries(ENJOY_CATEGORIES).map(([cat, { icon, subs }]) => (
+          <div key={cat} style={{ background: "#fff", border: "1px solid #F5E8F9", borderRadius: 14, padding: 14, marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: subs.length ? 10 : 0 }}>
+              <span style={{ fontSize: 20 }}>{icon}</span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: "#2F2F33" }}>{cat}</span>
+            </div>
+            {subs.length === 0 ? (
+              <button type="button" onClick={() => toggleEnjoy(cat)}
+                style={{ border: "1.5px solid " + (selEnjoy.includes(cat) ? "#581073" : "#E8D5F0"), borderRadius: 999, padding: "6px 14px", fontSize: 13, fontWeight: 600, color: selEnjoy.includes(cat) ? "white" : "#4A4A6A", background: selEnjoy.includes(cat) ? "#581073" : "#F8F8FC", cursor: "pointer" }}>
+                {cat}{selEnjoy.includes(cat) ? " · #" + (selEnjoy.indexOf(cat) + 1) : ""}
+              </button>
+            ) : (
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {subs.map(sub => {
+                  const rank = selEnjoy.indexOf(sub); const sel = rank !== -1;
+                  return (
+                    <button key={sub} type="button" onClick={() => toggleEnjoy(sub)}
+                      style={{ border: "1.5px solid " + (sel ? "#581073" : "#E8D5F0"), borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 600, color: sel ? "white" : "#4A4A6A", background: sel ? "#581073" : "#F8F8FC", cursor: selEnjoy.length >= 5 && !sel ? "not-allowed" : "pointer", opacity: selEnjoy.length >= 5 && !sel ? 0.4 : 1 }}>
+                      {sub}{sel ? " · #" + (rank + 1) : ""}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ))}
+
+        {/* Things I Want to Experience */}
+        <div style={{ fontSize: 16, fontWeight: 700, color: "#2F2F33", marginBottom: 4, marginTop: 8 }}>Things I Want to Experience</div>
+        <p style={{ fontSize: 13, color: "#9090B0", marginBottom: 4 }}>Write up to 3 things you've genuinely been wanting to do.</p>
+        <p style={{ fontSize: 13, color: "#9090B0", marginBottom: 14 }}>Choose from the list or add your own.</p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+          {THINGS_OPTIONS.map(t => {
+            const sel = things.includes(t);
+            return (
+              <button key={t} type="button"
+                onClick={() => setThings(p =>
+                  p.includes(t) ? p.filter(x => x !== t) :
+                  p.length < 5 ? [...p, t] : p
+                )}
+                style={{ border: "1.5px solid " + (sel ? "#581073" : "#E8D5F0"), borderRadius: 999, padding: "7px 14px", fontSize: 12, fontWeight: 600, color: sel ? "white" : "#4A4A6A", background: sel ? "#581073" : "#F8F8FC", cursor: things.length >= 3 && !sel ? "not-allowed" : "pointer", opacity: things.length >= 3 && !sel ? 0.4 : 1 }}>
+                {t}
+              </button>
+            );
+          })}
+        </div>
+        <input className="ob-input" style={{ marginTop: 6 }}
+          placeholder="Or type your own (press Enter to add)..."
+          onKeyDown={e => {
+            if (e.key === "Enter" && e.target.value.trim() && things.length < 3) {
+              const val = e.target.value.trim();
+              if (!things.includes(val)) setThings(p => [...p, val]);
+              e.target.value = "";
+              e.preventDefault();
+            }
+          }} />
+        {things.filter(Boolean).length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+            {things.filter(Boolean).map(t => (
+              <span key={t} style={{ background: "#F5E8F9", color: "#581073", borderRadius: 999, padding: "5px 12px", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                {t}
+                <button type="button" onClick={() => setThings(p => p.filter(x => x !== t))} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "#581073", padding: 0, lineHeight: 1 }}>×</button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* More About You (prompts) */}
+        <div style={{ fontSize: 16, fontWeight: 700, color: "#2F2F33", marginBottom: 4, marginTop: 16 }}>More About You</div>
+        <p style={{ fontSize: 13, color: "#9090B0", marginBottom: 14 }}>Help others get to know you better through three prompts.</p>
+        {[0, 1, 2].map(i => (
+          <div key={i} style={{ marginBottom: 14 }}>
+            <select className="ob-input" style={{ marginBottom: 8, appearance: "auto" }}
+              value={selectedPrompts[i]}
+              onChange={e => { const v = parseInt(e.target.value); setSelectedPrompts(p => { const n = [...p]; n[i] = v; return n; }); }}>
+              {THOUGHT_PROMPTS.map((p, idx) => <option key={idx} value={idx}>{p}</option>)}
+            </select>
+            <textarea className="ob-input" rows={2} style={{ resize: "none" }}
+              placeholder="Write your answer..."
+              value={thoughts[i] || ""}
+              onChange={e => setThoughts(p => ({ ...p, [i]: e.target.value }))} />
+          </div>
+        ))}
+      </div>
+      <div style={{ padding: "12px 24px 20px", background: "#fff", borderTop: "1px solid #F5E8F9" }}>
+        <StepDots total={3} current={1} />
+        <button className="ob-btn-primary ob-btn-full" onClick={() => setStep(4)}>Continue →</button>
+      </div>
+    </div>
+  );
+
+  // ── Step 4: Place recommendations (skippable) ──────────────────────────────────
+  const FOOD_TAGS = ["Worth the Meal", "Budget Friendly", "Better with company", "Solo Friendly", "Photo Worthy", "Hidden Gem"];
+  const PLACE_TAGS = ["Beautiful Views", "Photo Worthy", "Hidden Gem", "Peaceful Escape", "Better with company", "Solo Friendly", "Sunset Spot", "Rich History", "Nature Escape"];
+
+  const RecForm = ({ rec, idx, setter, tags, placeholder, exampleText }) => {
+    const toggle = (tag) => setter(p => {
+      const n = [...p]; const cur = n[idx].tags || [];
+      n[idx] = { ...n[idx], tags: cur.includes(tag) ? cur.filter(t => t !== tag) : [...cur, tag] };
+      return n;
+    });
+    return (
+      <div style={{ background: "#fff", border: "1px solid #E8D5F0", borderRadius: 16, padding: 16, marginBottom: 12 }}>
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#2F2F33", marginBottom: 6 }}>Name</div>
+          <input className="ob-input" placeholder={placeholder} value={rec.name}
+            onChange={e => setter(p => { const n = [...p]; n[idx] = { ...n[idx], name: e.target.value }; return n; })} />
+        </div>
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#2F2F33", marginBottom: 6 }}>Location</div>
+          <input className="ob-input" placeholder="Enter location" value={rec.location}
+            onChange={e => setter(p => { const n = [...p]; n[idx] = { ...n[idx], location: e.target.value }; return n; })} />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#2F2F33", marginBottom: 6 }}>This place is worth visiting because...</div>
+          <textarea className="ob-input" rows={2} style={{ resize: "none" }} placeholder={exampleText} value={rec.because}
+            onChange={e => setter(p => { const n = [...p]; n[idx] = { ...n[idx], because: e.target.value }; return n; })} />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#2F2F33", marginBottom: 4 }}>What makes this place special?</div>
+          <div style={{ fontSize: 12, color: "#9090B0", marginBottom: 10 }}>Select the options that best describe this place.</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+            {tags.map(tag => {
+              const sel = (rec.tags || []).includes(tag);
+              return (
+                <button key={tag} type="button" onClick={() => toggle(tag)}
+                  style={{ border: "1.5px solid " + (sel ? "#581073" : "#E8D5F0"), borderRadius: 10, padding: "8px 6px", fontSize: 12, fontWeight: 600, color: sel ? "#581073" : "#4A4A6A", background: sel ? "#F5E8F9" : "#F8F8FC", cursor: "pointer", textAlign: "center" }}>
+                  {tag}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#2F2F33", marginBottom: 4 }}>Photos <span style={{ color: "#9090B0", fontWeight: 400 }}>(Optional)</span></div>
+          <div style={{ fontSize: 12, color: "#9090B0", marginBottom: 8 }}>Help others discover this place by adding a photo.</div>
+          <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: "2px dashed #E8D5F0", borderRadius: 12, padding: 20, cursor: "pointer", background: "#F8F8FC" }}>
+            {rec.photo ? <img src={URL.createObjectURL(rec.photo)} alt="" style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 8 }} /> : (
+              <><div style={{ width: 40, height: 40, borderRadius: "50%", background: "#F5E8F9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#581073", marginBottom: 8 }}>+</div><span style={{ fontSize: 13, color: "#581073", fontWeight: 600 }}>Add Photo</span></>
+            )}
+            <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) setter(p => { const n = [...p]; n[idx] = { ...n[idx], photo: f }; return n; }); }} />
+          </label>
+          <div style={{ fontSize: 11, color: "#9090B0", marginTop: 6 }}>You can always add more later.</div>
+        </div>
+      </div>
+    );
+  };
+
+  // ── Step 4: Food Spots (skippable) ────────────────────────────────────────────
+  if (step === 4) return (
+    <div style={{ minHeight: "100vh", background: "#F8F8FC", display: "flex", flexDirection: "column" }}>
+      <div style={headerStyle}>
+        <button onClick={() => setStep(3)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", marginRight: 12, color: "#4A4A6A" }}>←</button>
+        <NearMetLogo size={32} />
+        <button onClick={() => setStep(STEP_4B)} style={{ marginLeft: "auto", fontSize: 14, fontWeight: 600, color: "#9090B0", background: "none", border: "none", cursor: "pointer" }}>Skip</button>
+      </div>
+      <div style={{ flex: 1, padding: "28px 24px", maxWidth: 480, width: "100%", margin: "0 auto", overflowY: "auto" }}>
+        <h2 style={{ fontSize: 26, fontWeight: 800, color: "#2F2F33", letterSpacing: "-0.03em", marginBottom: 4 }}>Places You Would Recommend</h2>
+        <p style={{ fontSize: 14, color: "#9090B0", marginBottom: 24 }}>Share your favourite spots and hidden gems with others.</p>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+          <div style={{ width: 48, height: 48, borderRadius: "50%", background: "#F5E8F9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>🍽️</div>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#2F2F33" }}>Food Spots</div>
+            <div style={{ fontSize: 12, color: "#9090B0" }}>Recommend up to 3 food spots others should experience.</div>
+          </div>
+        </div>
+        {foodRecs.map((rec, i) => (
+          <RecForm key={"f"+i} rec={rec} idx={i} setter={setFoodRecs} tags={FOOD_TAGS}
+            placeholder="Enter food spot name"
+            exampleText={`Example: "The ramen is delicious, the portions are generous and it's affordable."`} />
+        ))}
+      </div>
+      <div style={{ padding: "12px 24px 20px", background: "#fff", borderTop: "1px solid #F5E8F9" }}>
+        <StepDots total={4} current={2} />
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={() => setStep(3)} style={{ flex: 1, background: "#F5E8F9", color: "#581073", border: "none", borderRadius: 12, padding: "14px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>← Back</button>
+          <button className="ob-btn-primary" style={{ flex: 2, borderRadius: 12, padding: "14px", fontSize: 14, fontWeight: 700, cursor: "pointer" }} onClick={() => setStep(STEP_4B)}>Save & Continue →</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── Step 4b: Places Worth Exploring (skippable) ────────────────────────────────
+  if (step === STEP_4B) return (
+    <div style={{ minHeight: "100vh", background: "#F8F8FC", display: "flex", flexDirection: "column" }}>
+      <div style={headerStyle}>
+        <button onClick={() => setStep(4)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", marginRight: 12, color: "#4A4A6A" }}>←</button>
+        <NearMetLogo size={32} />
+        <button onClick={() => setStep(5)} style={{ marginLeft: "auto", fontSize: 14, fontWeight: 600, color: "#9090B0", background: "none", border: "none", cursor: "pointer" }}>Skip</button>
+      </div>
+      <div style={{ flex: 1, padding: "28px 24px", maxWidth: 480, width: "100%", margin: "0 auto", overflowY: "auto" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+          <div style={{ width: 48, height: 48, borderRadius: "50%", background: "#F5E8F9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>📍</div>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#2F2F33" }}>Places Worth Exploring</div>
+            <div style={{ fontSize: 12, color: "#9090B0" }}>Recommend up to 3 places everyone should experience.</div>
+          </div>
+        </div>
+        {placeRecs.map((rec, i) => (
+          <RecForm key={"p"+i} rec={rec} idx={i} setter={setPlaceRecs} tags={PLACE_TAGS}
+            placeholder="Enter place name"
+            exampleText={`Example: "...watching the sunset while enjoying tea feels peaceful."`} />
+        ))}
+      </div>
+      <div style={{ padding: "12px 24px 20px", background: "#fff", borderTop: "1px solid #F5E8F9" }}>
+        <StepDots total={4} current={3} />
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={() => setStep(4)} style={{ flex: 1, background: "#F5E8F9", color: "#581073", border: "none", borderRadius: 12, padding: "14px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>← Back</button>
+          <button className="ob-btn-primary" style={{ flex: 2, borderRadius: 12, padding: "14px", fontSize: 14, fontWeight: 700, cursor: "pointer" }} onClick={() => setStep(5)}>Finish →</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── Step 5: Done ──────────────────────────────────────────────────────────────
+  return (
+    <div style={{ minHeight: "100vh", background: "#F8F8FC", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32 }}>
+      <NearMetLogo size={52} />
+      <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#F5E8F9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, marginTop: 32, marginBottom: 16 }}>✓</div>
+      <h1 style={{ fontSize: 26, fontWeight: 800, color: "#2F2F33", textAlign: "center", marginBottom: 8 }}>Your NearMet profile is ready.</h1>
+      <p style={{ fontSize: 14, color: "#9090B0", textAlign: "center", lineHeight: 1.6, marginBottom: 32 }}>Time to meet like-minded people and create lasting memories.</p>
+      <button className="ob-btn-primary ob-btn-full" style={{ maxWidth: 340 }} onClick={() => onDone(buildDonePayload())}>
+        Enter NearMet →
+      </button>
+    </div>
+  );
 }
 
+
+
 // ─── CHAT VIEW ────────────────────────────────────────────────────────────────
-function ChatView({ connectionId, person, userId, onBack }) {
+function ChatView({ connectionId, person, userId, onBack, onBlocked }) {
   const [chatInput, setChatInput] = useState("");
   const [chatMsgs, setChatMsgs] = useState([]);
   const [chatLoading, setChatLoading] = useState(true);
   const [chatError, setChatError] = useState("");
-  const [promptsExpanded, setPromptsExpanded] = useState(true);
+  const [showBlockMenu, setShowBlockMenu] = useState(false);
+  const [blockConfirm, setBlockConfirm] = useState(false);
+  const [blocking, setBlocking] = useState(false);
+  const bottomRef = useRef(null);
 
   useEffect(() => {
     let active = true;
@@ -841,14 +1121,42 @@ function ChatView({ connectionId, person, userId, onBack }) {
       .then(msgs => { if (active) setChatMsgs(msgs || []); })
       .catch(e => { console.error(e); if (active) setChatError("Couldn't load this conversation."); })
       .finally(() => { if (active) setChatLoading(false); });
-    return () => { active = false; };
+
+    const sub = subscribeToMessages(connectionId, newMsg => {
+      setChatMsgs(prev => {
+        if (prev.find(m => m.id === newMsg.id)) return prev;
+        return [...prev, newMsg];
+      });
+    });
+
+    const poll = setInterval(() => {
+      if (!active) return;
+      getMessages(connectionId).then(msgs => {
+        if (!active) return;
+        setChatMsgs(prev => (!msgs || msgs.length === prev.length) ? prev : msgs);
+      }).catch(() => {});
+    }, 3000);
+
+    return () => { active = false; sub?.unsubscribe?.(); clearInterval(poll); };
   }, [connectionId]);
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMsgs]);
 
   const sendChatMessage = async () => {
     if (!chatInput.trim()) return;
     const text = chatInput.trim(); setChatInput(""); setChatError("");
     try { const msg = await sendMessage(connectionId, userId, text); setChatMsgs(p => [...p, msg]); }
     catch (e) { console.error(e); setChatError("Couldn't send that — please try again."); }
+  };
+
+  const handleBlock = async () => {
+    setBlocking(true);
+    try {
+      await blockUser(userId, person.id);
+      onBlocked?.();
+      onBack();
+    }
+    catch (e) { console.error(e); setBlocking(false); setBlockConfirm(false); }
   };
 
   const theirPrompts = person.prompts
@@ -858,87 +1166,106 @@ function ChatView({ connectionId, person, userId, onBack }) {
 
   return (
     <div className="chat-root">
+      {blockConfirm && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div style={{ background: "var(--white)", borderRadius: 20, padding: 24, maxWidth: 320, width: "100%", textAlign: "center" }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>🚫</div>
+            <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 8 }}>Block {person.name}?</div>
+            <p style={{ fontSize: 13, color: "var(--text3)", lineHeight: 1.6, marginBottom: 20 }}>They won't be able to see your profile or message you. This can't be undone.</p>
+            <button onClick={handleBlock} disabled={blocking} style={{ width: "100%", background: "#c0392b", color: "white", borderRadius: 12, padding: 13, fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer", marginBottom: 10 }}>
+              {blocking ? "Blocking…" : `Block ${person.name}`}
+            </button>
+            <button onClick={() => setBlockConfirm(false)} style={{ width: "100%", background: "var(--bg2)", color: "var(--text2)", borderRadius: 12, padding: 13, fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer" }}>Cancel</button>
+          </div>
+        </div>
+      )}
       <div className="chat-header">
         <button className="chat-back" onClick={onBack}>←</button>
         <div className="chat-avatar">{(person.name || "?").slice(0, 2).toUpperCase()}</div>
-        <div><div className="chat-uname">{person.name}</div></div>
-      </div>
-      {theirPrompts.length > 0 && (
-        <div className="chat-prompts-banner">
-          <button className="chat-prompts-toggle" onClick={() => setPromptsExpanded(o => !o)}>
-            <span>💬 {person.name.split(" ")[0]}'s conversation starters</span>
-            <span>{promptsExpanded ? "▲" : "▼"}</span>
-          </button>
-          {promptsExpanded && (
-            <div className="chat-prompts-list">
-              {theirPrompts.map((p, i) => (
-                <div key={i} className="chat-prompt-card" onClick={() => { setChatInput(`Re: "${p.q.slice(0, 50)}…" — `); setPromptsExpanded(false); }}>
-                  <div className="chat-prompt-q">{p.q}</div>
-                  <div className="chat-prompt-a">{p.a}</div>
-                  <div className="chat-prompt-hint">Tap to reply →</div>
-                </div>
-              ))}
+        <div style={{ flex: 1 }}><div className="chat-uname">{person.name}</div></div>
+        <div style={{ position: "relative" }}>
+          <button onClick={() => setShowBlockMenu(o => !o)} style={{ width: 32, height: 32, borderRadius: "50%", border: "1.5px solid var(--border)", background: "var(--white)", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text3)" }}>⋯</button>
+          {showBlockMenu && (
+            <div style={{ position: "absolute", right: 0, top: 38, background: "var(--white)", border: "1px solid var(--border)", borderRadius: 12, boxShadow: "var(--shadow2)", zIndex: 50, minWidth: 160, overflow: "hidden" }}>
+              <button onClick={() => { setShowBlockMenu(false); setBlockConfirm(true); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "12px 16px", fontSize: 14, fontWeight: 600, color: "#c0392b", background: "none", border: "none", cursor: "pointer" }}>🚫 Block {person.name}</button>
             </div>
           )}
         </div>
-      )}
+      </div>
       <div className="chat-msgs">
-        {chatLoading && <div className="chat-empty"><p>Loading conversation…</p></div>}
+        {chatLoading && <div className="chat-empty"><p>Loading…</p></div>}
+        {chatError && <div style={{ textAlign: "center", padding: 16, color: "var(--text3)", fontSize: 13 }}>{chatError}</div>}
         {!chatLoading && chatMsgs.length === 0 && (
           <div className="chat-empty">
             <div style={{ fontSize: 28 }}>✦</div>
             <p style={{ fontWeight: 700, marginBottom: 6 }}>Start a real conversation.</p>
-            {person.prompts && (() => {
-              const prompts = Array.isArray(person.prompts)
-                ? person.prompts.filter(p => p.a)
-                : Object.entries(person.prompts).filter(([, a]) => a?.trim()).map(([q, a]) => ({ q, a }));
-              const pick = prompts[0];
-              if (!pick) return null;
-              return (
-                <div style={{ background: "var(--bg2)", borderRadius: 12, padding: "12px 14px", marginTop: 10, textAlign: "left", cursor: "pointer" }}
-                  onClick={() => setChatInput(`I saw your answer to "${pick.q.slice(0, 40)}…" — `)}>
-                  <div style={{ fontSize: 11, color: "var(--text3)", marginBottom: 4 }}>Their answer to:</div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text)", marginBottom: 4 }}>{pick.q}</div>
-                  <div style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.5 }}>{pick.a}</div>
-                  <div style={{ fontSize: 11, color: "var(--green2)", marginTop: 8, fontWeight: 600 }}>Tap to reply →</div>
-                </div>
-              );
-            })()}
+            {theirPrompts[0] && (
+              <div style={{ background: "var(--bg2)", borderRadius: 12, padding: "12px 14px", marginTop: 10, textAlign: "left", cursor: "pointer" }} onClick={() => setChatInput(`I saw your answer to "${theirPrompts[0].q?.slice(0, 40)}…" — `)}>
+                <div style={{ fontSize: 11, color: "var(--text3)", marginBottom: 4 }}>Their answer to:</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text)", marginBottom: 4 }}>{theirPrompts[0].q}</div>
+                <div style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.5 }}>{theirPrompts[0].a}</div>
+                <div style={{ fontSize: 11, color: "var(--purple)", marginTop: 8, fontWeight: 600 }}>Tap to reply →</div>
+              </div>
+            )}
           </div>
         )}
         {!chatLoading && chatMsgs.map((m, i) => <div key={m.id || i} className={`chat-bubble ${m.sender_id === userId ? "me" : ""}`}>{m.text}</div>)}
+        <div ref={bottomRef} />
       </div>
-      {chatError && <div className="profile-save-error" style={{ margin: "0 16px" }}>⚠️ {chatError}</div>}
+      {chatError && chatMsgs.length > 0 && <div style={{ padding: "8px 16px", fontSize: 12, color: "#c0392b" }}>{chatError}</div>}
       <div className="chat-input-row">
-        <input className="chat-input" value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChatMessage()} placeholder="Say something..." />
-        <button className="chat-send" onClick={sendChatMessage}>Send</button>
+        <input className="chat-input" placeholder="Say something..." value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } }} />
+        <button className="chat-send" onClick={sendChatMessage} disabled={!chatInput.trim()}>Send</button>
       </div>
     </div>
   );
 }
 
 // ─── MESSAGES PANEL ───────────────────────────────────────────────────────────
-function MessagesPanel({ userId, onClose }) {
+function MessagesPanel({ userId, onClose, onPendingChange }) {
   const [connections, setConnections] = useState([]);
+  const [pending, setPending] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [openChat, setOpenChat] = useState(null);
+  const [activeTab, setActiveTab] = useState("messages");
+  const [actionLoading, setActionLoading] = useState(null);
+  const [seenCounts, setSeenCounts] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`nm_seen_${userId}`) || "{}"); }
+    catch { return {}; }
+  });
 
-  useEffect(() => {
+  const markSeen = (connId, count) => {
+    setSeenCounts(prev => {
+      const next = { ...prev, [connId]: count };
+      try { localStorage.setItem(`nm_seen_${userId}`, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+
+  const load = () => {
     if (!userId) { setLoading(false); return; }
     let active = true;
-    getConnections(userId)
-      .then(data => { if (active) setConnections(data || []); })
-      .catch(e => { console.error(e); if (active) setLoadError("Couldn't load your messages right now."); })
+    setLoading(true);
+    Promise.all([getConnections(userId), getPendingRequests(userId)])
+      .then(([conns, reqs]) => {
+        if (!active) return;
+        setConnections(conns || []);
+        setPending(reqs || []);
+        onPendingChange?.((reqs || []).length);
+      })
+      .catch(e => { console.error(e); if (active) setLoadError("Couldn't load messages right now."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [userId]);
+  };
+
+  useEffect(load, [userId]);
 
   if (openChat) return (
     <div className="msgs-overlay">
       <div className="msgs-overlay-bg" onClick={onClose} />
       <div className="msgs-panel msgs-panel-chat">
-        <ChatView connectionId={openChat.id} person={openChat.otherPerson} userId={userId} onBack={() => setOpenChat(null)} />
+        <ChatView connectionId={openChat.id} person={openChat.otherPerson} userId={userId} onBack={() => setOpenChat(null)} onBlocked={() => { setOpenChat(null); load(); }} />
       </div>
     </div>
   );
@@ -946,33 +1273,100 @@ function MessagesPanel({ userId, onClose }) {
   const visibleConnections = connections.filter(c => {
     const other = c.user1_id === userId ? c.user2 : c.user1;
     if (!other || other.id === userId) return false;
+    if (c.status === 'pending') return false;
     const msgCount = Array.isArray(c.messages) ? (c.messages[0]?.count ?? 0) : 0;
     return msgCount > 0;
   });
+
+  const handleAccept = async (conn) => {
+    setActionLoading(conn.id + "_accept");
+    try {
+      await acceptRequest(conn.id);
+      const requester = conn.requester_id === conn.user1_id ? conn.user1 : conn.user2;
+      setOpenChat({ id: conn.id, otherPerson: requester });
+      load();
+    } catch (e) { console.error(e); }
+    finally { setActionLoading(null); }
+  };
+
+  const handleReject = async (connId, otherId) => {
+    setActionLoading(connId + "_reject");
+    try { await rejectRequest(connId); await blockUser(userId, otherId); load(); }
+    catch (e) { console.error(e); }
+    finally { setActionLoading(null); }
+  };
 
   return (
     <div className="msgs-overlay">
       <div className="msgs-overlay-bg" onClick={onClose} />
       <div className="msgs-panel">
-        <div className="msgs-panel-header"><div className="msgs-panel-title">Messages</div><button className="msgs-panel-close" onClick={onClose}>×</button></div>
+        <div className="msgs-panel-header">
+          <div className="msgs-panel-title">Messages</div>
+          {pending.length > 0 && <div style={{ background: "#581073", color: "white", borderRadius: 999, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>{pending.length}</div>}
+          <button className="msgs-panel-close" onClick={onClose}>×</button>
+        </div>
+        {pending.length > 0 && (
+          <div style={{ display: "flex", borderBottom: "1px solid var(--border)" }}>
+            {[["messages", "Messages"], ["requests", `Requests (${pending.length})`]].map(([id, lbl]) => (
+              <button key={id} onClick={() => setActiveTab(id)} style={{ flex: 1, padding: "11px 8px", fontSize: 13, fontWeight: 600, border: "none", background: "none", cursor: "pointer", color: activeTab === id ? "#581073" : "var(--text3)", borderBottom: activeTab === id ? "2.5px solid #581073" : "2.5px solid transparent" }}>{lbl}</button>
+            ))}
+          </div>
+        )}
         <div className="msgs-list">
-          {loading && <div className="conn-empty" style={{ padding: "40px 16px" }}><p>Loading messages…</p></div>}
+          {loading && <div className="conn-empty" style={{ padding: "40px 16px" }}><p>Loading…</p></div>}
           {!loading && loadError && <div className="conn-empty" style={{ padding: "40px 16px" }}><p>{loadError}</p></div>}
-          {!loading && !loadError && visibleConnections.length === 0 && (
+          {!loading && activeTab === "requests" && pending.map(c => {
+            const requester = c.requester_id === c.user1_id ? c.user1 : c.user2;
+            if (!requester) return null;
+            const photo = (requester.photo_urls || []).filter(Boolean)[0];
+            const initials = (requester.name || "?").slice(0, 2).toUpperCase();
+            return (
+              <div key={c.id} style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                  {photo ? <img src={photo} alt="" className="msgs-list-avatar-img" /> : <div className="msgs-list-avatar">{initials}</div>}
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>{requester.name}{requester.age ? `, ${requester.age}` : ""}</div>
+                    <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>Wants to connect with you</div>
+                  </div>
+                </div>
+                {(requester.interests || []).length > 0 && (
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+                    {(requester.interests || []).slice(0, 4).map(i => {
+                      return <span key={i} style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 999, padding: "3px 10px", fontSize: 11, fontWeight: 600, color: "var(--text2)" }}>{formatInterest(i)}</span>;
+                    })}
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => handleAccept(c)} disabled={!!actionLoading} style={{ flex: 2, background: "#581073", color: "white", border: "none", borderRadius: 10, padding: "10px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>{actionLoading === c.id + "_accept" ? "Accepting…" : "Accept"}</button>
+                  <button onClick={() => handleReject(c.id, requester.id)} disabled={!!actionLoading} style={{ flex: 1, background: "var(--bg2)", color: "var(--text2)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{actionLoading === c.id + "_reject" ? "…" : "✕"}</button>
+                </div>
+              </div>
+            );
+          })}
+          {!loading && activeTab === "messages" && visibleConnections.length === 0 && (
             <div className="conn-empty" style={{ padding: "40px 16px" }}>
               <div style={{ fontSize: 36 }}>💬</div>
               <div className="conn-empty-title">No conversations yet</div>
               <p style={{ color: "var(--text3)", fontSize: 13, marginTop: 6 }}>Message someone from Connections to start chatting.</p>
             </div>
           )}
-          {!loading && visibleConnections.map(c => {
+          {!loading && activeTab === "messages" && visibleConnections.map(c => {
             const other = c.user1_id === userId ? c.user2 : c.user1;
             const initials = (other.name || "?").slice(0, 2).toUpperCase();
             const photo = (other.photo_urls || []).filter(Boolean)[0];
+            const msgCount = Array.isArray(c.messages) ? (c.messages[0]?.count ?? 0) : 0;
+            const lastSeen = seenCounts[c.id] ?? 0;
+            const hasNew = msgCount > lastSeen;
             return (
-              <button key={c.id} className="msgs-list-row" onClick={() => setOpenChat({ id: c.id, otherPerson: other })}>
-                {photo ? <img src={photo} alt="" className="msgs-list-avatar-img" /> : <div className="msgs-list-avatar">{initials}</div>}
-                <div className="msgs-list-info"><div className="msgs-list-name">{other.name}{other.age ? `, ${other.age}` : ""}</div><div className="msgs-list-sub">Tap to open conversation</div></div>
+              <button key={c.id} className="msgs-list-row" style={{ background: hasNew ? "var(--purple-lt)" : "transparent" }} onClick={() => { markSeen(c.id, msgCount); setOpenChat({ id: c.id, otherPerson: other }); }}>
+                <div style={{ position: "relative", flexShrink: 0 }}>
+                  {photo ? <img src={photo} alt="" className="msgs-list-avatar-img" /> : <div className="msgs-list-avatar">{initials}</div>}
+                  {hasNew && <div style={{ position: "absolute", top: 0, right: 0, width: 10, height: 10, borderRadius: "50%", background: "#FF9A8B", border: "2px solid white" }} />}
+                </div>
+                <div className="msgs-list-info">
+                  <div className="msgs-list-name" style={{ fontWeight: hasNew ? 800 : 600 }}>{other.name}{other.age ? `, ${other.age}` : ""}</div>
+                  <div className="msgs-list-sub" style={{ color: hasNew ? "#581073" : undefined, fontWeight: hasNew ? 600 : undefined }}>{hasNew ? "New message" : "Tap to open conversation"}</div>
+                </div>
                 <span className="msgs-list-chevron">›</span>
               </button>
             );
@@ -983,12 +1377,533 @@ function MessagesPanel({ userId, onClose }) {
   );
 }
 
-// ─── CONNECTIONS SCREEN ───────────────────────────────────────────────────────
+
+// Match interests flexibly — handles both old IDs ("music") and new label-based IDs ("movies_&_tv_series")
+function interestsMatch(a, b) {
+  const norm = s => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  return norm(a) === norm(b);
+}
+function sharedInterests(arrA, arrB) {
+  return (arrA || []).filter(a => (arrB || []).some(b => interestsMatch(a, b)));
+}
+// Convert stored interest ID to readable label
+// Handles both old short IDs via INTEREST_OPTIONS and new underscore format
+function formatInterest(id) {
+  if (!id) return "";
+  const opt = INTEREST_OPTIONS.find(o => o.id === id);
+  if (opt) return (opt.icon ? opt.icon + " " : "") + opt.label;
+  // New format: "reality_tv" → "Reality TV", "movies_&_tv_series" → "Movies & TV Series"
+  return id.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()).replace("& ", "& ");
+}
+
+// ─── FULL PROFILE VIEW ─────────────────────────────────────────────────────────
+function FullProfileView({ person, city, onBack, onMessage, connecting, me }) {
+  const cd = CITIES[city] || CITIES.mumbai;
+  const photos = (person.photo_urls || []).filter(Boolean);
+  const [idx, setIdx] = useState(0);
+  const interests = person.interests || [];
+  const things = person.city_wants || person.things || [];
+  const foodRecs = person.food_recs || [];
+  const cityRecs = person.city_recs || [];
+  const myInterests = me?.interests || [];
+  const myThings = me?.things || me?.city_wants || [];
+
+  const prompts = person.prompts
+    ? Array.isArray(person.prompts) ? person.prompts.filter(p => p.a)
+      : Object.entries(person.prompts).filter(([, ans]) => ans?.trim()).map(([q, a]) => ({ q, a }))
+    : [];
+
+  return (
+    <div className="pv-fullscreen">
+      <div className="pv-hero-wrap">
+        {photos.length > 0 ? (
+          <>
+            <img src={photos[idx]} alt={person.name} className="pv-hero-img" onContextMenu={e => e.preventDefault()} draggable={false} />
+            {photos.length > 1 && (
+              <>
+                {idx > 0 && <button className="pv-slide-btn pv-slide-prev" onClick={() => setIdx(i => i - 1)}>‹</button>}
+                {idx < photos.length - 1 && <button className="pv-slide-btn pv-slide-next" onClick={() => setIdx(i => i + 1)}>›</button>}
+                <div className="pv-dots">{photos.map((_, i) => <div key={i} className={`pv-dot ${i === idx ? "active" : ""}`} onClick={() => setIdx(i)} />)}</div>
+              </>
+            )}
+          </>
+        ) : (
+          <div className="pv-hero-placeholder"><div style={{ fontSize: 52, fontWeight: 800, color: "#581073", opacity: 0.4 }}>{(person.name || "?").slice(0, 2).toUpperCase()}</div></div>
+        )}
+        <button className="pv-back-btn" onClick={onBack}>←</button>
+      </div>
+
+      <div className="pv-content">
+        <div className="pv-name-row">
+          <div className="pv-name">{person.name}{person.age ? `, ${person.age}` : ""}
+            {(person.gender || person.pronouns) ? <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text3)", marginLeft: 8 }}>· {person.gender || person.pronouns}</span> : ""}
+          </div>
+        </div>
+        <div className="pv-city">📍 {cd.label}</div>
+
+        {/* Interests */}
+        {interests.length > 0 && (() => {
+          const sharedInts = sharedInterests(interests, myInterests);
+          return (
+            <>
+              <div className="pv-section-title">Interests{sharedInts.length > 0 && <span style={{ fontSize: 12, color: "var(--coral)", fontWeight: 600, marginLeft: 10 }}>✦ {sharedInts.length} in common</span>}</div>
+              <div className="pv-interest-chips">
+                {interests.map(i => {
+                  const isShared = sharedInts.includes(i);
+                  return (
+                    <span key={i} className="pv-interest-chip" style={isShared ? { background: "var(--coral-lt)", color: "var(--coral-dk)", border: "1.5px solid var(--coral)", fontWeight: 700 } : {}}>
+                      {formatInterest(i)}{isShared ? " ✦" : ""}
+                    </span>
+                  );
+                })}
+              </div>
+            </>
+          );
+        })()}
+
+        {/* Things to do */}
+        {things.length > 0 && (() => {
+          const shared = things.filter(t => myThings.includes(t));
+          const other = things.filter(t => !myThings.includes(t));
+          const display = [...shared, ...other].slice(0, 6);
+          return (
+            <>
+              <div className="pv-section-title">Things to do together{shared.length > 0 && <span style={{ fontSize: 12, color: "var(--coral)", fontWeight: 600, marginLeft: 10 }}>✦ {shared.length} in common</span>}</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+                {display.map(t => (
+                  <span key={t} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, background: shared.includes(t) ? "var(--coral-lt)" : "var(--bg)", color: shared.includes(t) ? "var(--coral-dk)" : "var(--text3)", border: shared.includes(t) ? "1.5px solid var(--coral)" : "1px solid var(--border)", borderRadius: 8, padding: "5px 10px" }}>
+                    <span style={{ fontSize: 15 }}>{ACTIVITY_ICONS[t] || "📌"}</span>{t}
+                  </span>
+                ))}
+              </div>
+            </>
+          );
+        })()}
+
+        {/* Prompts */}
+        {prompts.length > 0 && (
+          <>
+            <div className="pv-section-title">Thoughts</div>
+            {prompts.map((p, i) => (
+              <div key={i} className="pv-prompt-card">
+                <div className="pv-prompt-q">{p.q}</div>
+                <div className="pv-prompt-a">{p.a}</div>
+              </div>
+            ))}
+          </>
+        )}
+
+        {/* Food recs */}
+        {foodRecs.filter(Boolean).length > 0 && (
+          <>
+            <div className="pv-section-title">🍽️ Food picks in {cd.label}</div>
+            <div className="pv-recs-grid">
+              {foodRecs.filter(Boolean).map((r, i) => {
+                const rec = typeof r === "object" ? r : { name: r };
+                return (
+                  <div key={i} className="pv-rec-item">
+                    <div className="pv-rec-name">{rec.name}</div>
+                    {rec.location && <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>📍 {rec.location}</div>}
+                    {rec.because && <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 4, lineHeight: 1.5, fontStyle: "italic" }}>"{rec.because}"</div>}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* City recs */}
+        {cityRecs.filter(Boolean).length > 0 && (
+          <>
+            <div className="pv-section-title">📍 City favourites</div>
+            <div className="pv-recs-grid">
+              {cityRecs.filter(Boolean).map((r, i) => {
+                const rec = typeof r === "object" ? r : { name: r };
+                return (
+                  <div key={i} className="pv-rec-item">
+                    <div className="pv-rec-name">{rec.name}</div>
+                    {rec.location && <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>📍 {rec.location}</div>}
+                    {rec.because && <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 4, lineHeight: 1.5, fontStyle: "italic" }}>"{rec.because}"</div>}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        <button className="pv-chat-btn" onClick={onMessage} disabled={connecting}>
+          {connecting ? "Connecting…" : `Message ${person.name} →`}
+        </button>
+        <div style={{ height: 32 }} />
+      </div>
+    </div>
+  );
+}
+
+// ─── HOME SCREEN ──────────────────────────────────────────────────────────────
+function HomeScreen({ user, userId, city, onNavigate, onOpenProfile }) {
+  const [topPeople, setTopPeople] = useState([]);
+  const [topEvents, setTopEvents] = useState([]);
+  const [viewProfile, setViewProfile] = useState(null);
+  const [activityView, setActivityView] = useState(null);
+  const [allPeople, setAllPeople] = useState([]);
+  const [completeProfileStep, setCompleteProfileStep] = useState(null); // which incomplete section to show
+  const cd = CITIES[city] || CITIES.mumbai;
+
+  useEffect(() => {
+    if (!userId) return;
+    getPeople(city, userId).then(p => {
+      setTopPeople((p || []).slice(0, 3));
+      setAllPeople(p || []);
+    }).catch(() => {});
+    getCommunityEvents(city).then(e => setTopEvents((e || []).slice(0, 2))).catch(() => {});
+  }, [city, userId]);
+
+  // Profile completeness score
+  const sections = [
+    user.photo_urls?.filter(Boolean).length > 0,
+    (user.interests || []).length > 0,
+    (user.things || user.city_wants || []).length > 0,
+    (user.cuisines || []).length > 0,
+    (user.food_recs || []).filter(Boolean).length > 0,
+    (user.city_recs || []).filter(Boolean).length > 0,
+    Object.values(user.prompts || {}).filter(Boolean).length > 0,
+  ];
+  const filledCount = sections.filter(Boolean).length;
+  const total = sections.length;
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  // Show full profile view
+  if (viewProfile) return (
+    <FullProfileView
+      person={viewProfile} city={city} me={user}
+      onBack={() => setViewProfile(null)}
+      onMessage={() => { setViewProfile(null); onNavigate("connections"); }}
+      connecting={false}
+    />
+  );
+
+  // Show people interested in a specific thing
+  if (activityView) {
+    const interested = allPeople.filter(p =>
+      (p.city_wants || p.things || []).some(t =>
+        t.toLowerCase().replace(/[^a-z0-9]/g, "") === activityView.toLowerCase().replace(/[^a-z0-9]/g, "")
+      )
+    );
+    return (
+      <div style={{ paddingTop: 20, paddingBottom: 100 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          <button style={{ fontSize: 20, color: "var(--text2)", background: "none", border: "none", cursor: "pointer", padding: 0 }} onClick={() => setActivityView(null)}>←</button>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "var(--text)", letterSpacing: "-0.02em" }}>{activityView}</div>
+            <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>{interested.length} {interested.length === 1 ? "person wants" : "people want"} to do this</div>
+          </div>
+        </div>
+        {interested.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text3)" }}>
+            <div style={{ fontSize: 32 }}>🔍</div>
+            <p style={{ marginTop: 12, fontSize: 14 }}>No one has listed this yet — you could be the first!</p>
+          </div>
+        ) : (
+          interested.map(person => {
+            const photo = (person.photo_urls || []).filter(Boolean)[0];
+            const initials = (person.name || "?").slice(0, 2).toUpperCase();
+            return (
+              <div key={person.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 0", borderBottom: "1px solid var(--border)", cursor: "pointer" }}
+                onClick={() => { setActivityView(null); setViewProfile(person); }}>
+                {photo
+                  ? <img src={photo} alt="" style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+                  : <div style={{ width: 48, height: 48, borderRadius: "50%", background: "var(--purple-lt)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, color: "var(--purple)", flexShrink: 0 }}>{initials}</div>
+                }
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>{person.name}{person.age ? `, ${person.age}` : ""}</div>
+                  <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>📍 {cd.label}</div>
+                </div>
+                <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
+              </div>
+            );
+          })
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ paddingTop: 20, paddingBottom: 100 }}>
+      {/* Greeting */}
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.03em", color: "var(--text)", marginBottom: 4 }}>
+          {greeting}, <span style={{ color: "var(--purple)" }}>{user.name?.split(" ")[0] || "there"}</span>
+        </h1>
+        <p style={{ fontSize: 13, color: "var(--text3)" }}>Welcome to Mumbai's city explorer community.</p>
+      </div>
+
+      {/* Quick access */}
+      <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text3)", letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 10 }}>Quick access</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 28 }}>
+        {[
+          ["connections", "👥", "People"],
+          ["places", "📍", "Places"],
+          ["food", "🍽️", "Food"],
+          ["events", "🎉", "Events"],
+        ].map(([id, icon, lbl]) => (
+          <button key={id} onClick={() => onNavigate(id)}
+            style={{ background: "var(--white)", border: "1.5px solid var(--border)", borderRadius: 14, padding: "14px 8px", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, cursor: "pointer" }}>
+            <span style={{ fontSize: 22 }}>{icon}</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text2)" }}>{lbl}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Top matches */}
+      {topPeople.length > 0 && (
+        <>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text3)", letterSpacing: ".08em", textTransform: "uppercase" }}>People you might click with</div>
+            <button onClick={() => onNavigate("connections")} style={{ fontSize: 12, color: "var(--purple)", fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}>See all →</button>
+          </div>
+          <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden", marginBottom: 28 }}>
+            {topPeople.map((person, i) => {
+              const myInterests = user.interests || [];
+              const myThings = user.things || user.city_wants || [];
+              const sharedInts = sharedInterests(person.interests, myInterests);
+              const sharedThings = sharedInterests(person.city_wants, myThings);
+              const allShared = [...new Set([...sharedThings, ...sharedInts])].slice(0, 3);
+              const photo = (person.photo_urls || []).filter(Boolean)[0];
+              const initials = (person.name || "?").slice(0, 2).toUpperCase();
+              return (
+                <div key={person.id}
+                  style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 14px", borderBottom: i < topPeople.length - 1 ? "1px solid var(--border)" : "none", cursor: "pointer" }}
+                  onClick={() => setViewProfile(person)}>
+                  {photo
+                    ? <img src={photo} alt={person.name} style={{ width: 44, height: 44, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+                    : <div style={{ width: 44, height: 44, borderRadius: "50%", background: "var(--purple-lt)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "var(--purple)", flexShrink: 0 }}>{initials}</div>
+                  }
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>{person.name}{person.age ? `, ${person.age}` : ""}</div>
+                    {allShared.length > 0 && (
+                      <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 5 }}>
+                        {allShared.map(t => (
+                          <span key={t} style={{ background: "var(--coral-lt)", color: "var(--coral-dk)", border: "1px solid var(--coral)", borderRadius: 999, padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>{formatInterest(t)} ✦</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Upcoming events */}
+      {topEvents.length > 0 && (
+        <>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text3)", letterSpacing: ".08em", textTransform: "uppercase" }}>Happening soon</div>
+            <button onClick={() => onNavigate("events")} style={{ fontSize: 12, color: "var(--purple)", fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}>See all →</button>
+          </div>
+          <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden", marginBottom: 28 }}>
+            {topEvents.map((e, i) => (
+              <div key={e.id} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "13px 14px", borderBottom: i < topEvents.length - 1 ? "1px solid var(--border)" : "none" }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--purple)", flexShrink: 0, marginTop: 6 }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>{e.name}</div>
+                  <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>📅 {e.event_date} · {e.location}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Things to do — personalised + daily discovery */}
+      {(() => {
+        const myThings = user.things || user.city_wants || [];
+        const allThings = THINGS_OPTIONS;
+        const mySet = new Set(myThings);
+
+        // Daily seed — changes every day so "new" items rotate
+        const daySeed = Math.floor(Date.now() / 86400000);
+        const shuffle = (arr, seed) => {
+          const a = [...arr]; let s = seed;
+          for (let i = a.length - 1; i > 0; i--) {
+            s = (s * 1664525 + 1013904223) & 0xffffffff;
+            const j = Math.abs(s) % (i + 1);
+            [a[i], a[j]] = [a[j], a[i]];
+          }
+          return a;
+        };
+
+        // Discovery pool — things NOT in the user's list
+        const discovery = shuffle(allThings.filter(t => !mySet.has(t)), daySeed).slice(0, 3);
+
+        if (myThings.length === 0 && discovery.length === 0) return null;
+
+        return (
+          <div style={{ marginBottom: 28 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text3)", letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 12 }}>Things to Experience Today</div>
+
+            {/* User's own things */}
+            {myThings.length > 0 && (
+              <div style={{ marginBottom: 4 }}>
+                {myThings.map(t => (
+                  <div key={t} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "var(--white)", border: "1px solid var(--border)", borderRadius: 14, marginBottom: 8, cursor: "pointer" }}
+                    onClick={() => setActivityView(t)}>
+                    <span style={{ fontSize: 18 }}>{ACTIVITY_ICONS[t] || "📌"}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>{t}</div>
+                      <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>See who wants to do this →</div>
+                    </div>
+                    <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Divider — daily discovery */}
+            {discovery.length > 0 && (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "16px 0 12px" }}>
+                  <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#FF9A8B", letterSpacing: ".06em", textTransform: "uppercase", whiteSpace: "nowrap" }}>✦ Experience something new today</div>
+                  <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+                </div>
+                {discovery.map(t => (
+                  <div key={t} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "#FFF8F6", border: "1px solid #FFD9D0", borderRadius: 14, marginBottom: 8, cursor: "pointer" }}
+                    onClick={() => setActivityView(t)}>
+                    <span style={{ fontSize: 18 }}>{ACTIVITY_ICONS[t] || "📌"}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>{t}</div>
+                      <div style={{ fontSize: 11, color: "#FF9A8B", marginTop: 2 }}>New today · See who's interested →</div>
+                    </div>
+                    <span style={{ color: "#FF9A8B", fontSize: 18 }}>›</span>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        );
+      })()}
+      <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text3)", letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 10 }}>Your profile</div>
+      <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 16, padding: "16px 14px" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: "var(--purple)", letterSpacing: "-0.03em" }}>{filledCount}/{total}</div>
+            <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>Profile sections filled in</div>
+          </div>
+          <div style={{ flex: 1, paddingTop: 6 }}>
+            <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 6 }}>
+              {sections.map((done, i) => (
+                <div key={i} style={{ flex: "1 0 12px", height: 6, borderRadius: 3, background: done ? "var(--purple)" : "var(--bg2)", minWidth: 20 }} />
+              ))}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text3)", textAlign: "right" }}>
+              {filledCount === total ? "Profile complete 🎉" : "More sections = better matches"}
+            </div>
+          </div>
+        </div>
+        {filledCount < total && (
+          <button onClick={() => setCompleteProfileStep("photos")}
+            style={{ marginTop: 12, width: "100%", background: "var(--purple)", border: "none", borderRadius: 10, padding: "10px", fontSize: 13, fontWeight: 700, color: "white", cursor: "pointer" }}>
+            Complete your profile →
+          </button>
+        )}
+      </div>
+
+      {/* Complete profile popup */}
+      {completeProfileStep && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "flex-end" }}>
+          <div style={{ background: "white", borderRadius: "20px 20px 0 0", width: "100%", maxHeight: "90vh", overflowY: "auto", padding: "24px 20px 40px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "var(--text)" }}>Complete your profile</div>
+              <button onClick={() => setCompleteProfileStep(null)} style={{ fontSize: 24, background: "none", border: "none", cursor: "pointer", color: "var(--text3)" }}>×</button>
+            </div>
+            {/* Show missing sections */}
+            {!sections[0] && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", marginBottom: 8 }}>📸 Add photos</div>
+                <div style={{ fontSize: 13, color: "var(--text3)" }}>Profiles with photos get 3× more connections. Go to your profile to upload.</div>
+              </div>
+            )}
+            {!sections[2] && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", marginBottom: 8 }}>✨ Things I Want to Experience</div>
+                <div style={{ fontSize: 13, color: "var(--text3)", marginBottom: 10 }}>This is the most important section for matching. Choose up to 5.</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                  {THINGS_OPTIONS.slice(0, 12).map(t => (
+                    <button key={t} type="button"
+                      style={{ border: "1.5px solid var(--border)", borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 600, color: "var(--text2)", background: "var(--white)", cursor: "pointer" }}
+                      onClick={() => { if (onOpenProfile) { onOpenProfile(); setCompleteProfileStep(null); } else onNavigate("profile"); }}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => { onNavigate("profile"); setCompleteProfileStep(null); }} style={{ marginTop: 10, fontSize: 13, color: "var(--purple)", fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}>
+                  See all options in your profile →
+                </button>
+              </div>
+            )}
+            {!sections[6] && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", marginBottom: 8 }}>💬 Add your thoughts</div>
+                <div style={{ fontSize: 13, color: "var(--text3)", marginBottom: 10 }}>Answer a few prompts so people know what to talk to you about.</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {THOUGHT_PROMPTS.slice(0, 3).map(p => (
+                    <div key={p} style={{ background: "var(--bg2)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "var(--text2)" }}>{p}</div>
+                  ))}
+                </div>
+                <button onClick={() => { onNavigate("profile"); setCompleteProfileStep(null); }} style={{ marginTop: 10, fontSize: 13, color: "var(--purple)", fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}>
+                  Answer these in your profile →
+                </button>
+              </div>
+            )}
+            <button onClick={() => { onNavigate("profile"); setCompleteProfileStep(null); }}
+              style={{ width: "100%", background: "var(--purple)", color: "white", borderRadius: 12, padding: "14px", fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer", marginTop: 8 }}>
+              Go to full profile →
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── PROFILE SLIDESHOW ────────────────────────────────────────────────────────
+function ProfileSlideshow({ photos, name }) {
+  const [idx, setIdx] = useState(0);
+  if (!photos || !photos.length) return (
+    <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ width: 100, height: 100, borderRadius: "50%", background: "#581073", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, fontWeight: 800, color: "white", boxShadow: "0 4px 20px rgba(91,79,212,0.35)" }}>
+        {(name || "?").slice(0, 2).toUpperCase()}
+      </div>
+    </div>
+  );
+  return (
+    <div style={{ position: "relative", height: 280, overflow: "hidden" }}>
+      <img src={photos[idx]} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} onContextMenu={e => e.preventDefault()} draggable={false} />
+      {photos.length > 1 && (
+        <>
+          {idx > 0 && <button onClick={() => setIdx(i => i - 1)} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 34, height: 34, borderRadius: "50%", background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", fontSize: 18 }}>‹</button>}
+          {idx < photos.length - 1 && <button onClick={() => setIdx(i => i + 1)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", width: 34, height: 34, borderRadius: "50%", background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", fontSize: 18 }}>›</button>}
+          <div style={{ position: "absolute", bottom: 10, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 5 }}>
+            {photos.map((_, i) => <div key={i} onClick={() => setIdx(i)} style={{ width: i === idx ? 18 : 6, height: 6, borderRadius: 3, background: i === idx ? "white" : "rgba(255,255,255,0.5)", cursor: "pointer", transition: ".15s" }} />)}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function ConnectionsScreen({ city, userId, me }) {
   const [subTab, setSubTab] = useState("foryou"); // "foryou" | "byactivity"
 
   // For You state
   const [people, setPeople] = useState([]);
+  const [blockedIds, setBlockedIds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [idx, setIdx] = useState(0);
@@ -1009,10 +1924,11 @@ function ConnectionsScreen({ city, userId, me }) {
     if (!userId) { setLoading(false); return; }
     let active = true;
     setLoading(true); setLoadError("");
-    getPeople(city, userId)
-      .then(data => {
+    Promise.all([getPeople(city, userId), getBlockedIds(userId)])
+      .then(([data, blocked]) => {
         if (!active) return;
-        setPeople(data || []);
+        setBlockedIds(blocked || []);
+        setPeople((data || []).filter(p => !(blocked || []).includes(p.id)));
         setIdx(0);
       })
       .catch(e => { console.error(e); if (active) setLoadError("Couldn't load people right now."); })
@@ -1041,6 +1957,12 @@ function ConnectionsScreen({ city, userId, me }) {
     try {
       if (userId) {
         const conn = await getOrCreateConnection(userId, person.id);
+        if (conn.status === 'pending' && conn.requester_id === userId) {
+          // We sent the request — show feedback, don't open chat yet
+          setConnectError(`✓ Request sent to ${person.name}. You'll be able to chat once they accept.`);
+          setConnecting(false);
+          return;
+        }
         setChatOpen({ person, connectionId: conn.id });
       } else {
         // Demo mode: fake connection
@@ -1059,6 +1981,11 @@ function ConnectionsScreen({ city, userId, me }) {
       person={chatOpen.person}
       userId={userId}
       onBack={() => setChatOpen(null)}
+      onBlocked={() => {
+        setChatOpen(null);
+        // Remove blocked person from the people list immediately
+        setPeople(p => p.filter(x => x.id !== chatOpen.person.id));
+      }}
     />
   );
 
@@ -1104,9 +2031,9 @@ function ConnectionsScreen({ city, userId, me }) {
 
       {/* Tab toggle */}
       <div style={{ display: "flex", gap: 0, marginBottom: 20, border: "1.5px solid var(--border)", borderRadius: 14, overflow: "hidden", background: "var(--white)" }}>
-        {[["foryou", "👤", "People"], ["byactivity", "👥", "Things to do"]].map(([id, icon, lbl]) => (
+        {[["foryou", "👤", "People"], ["byactivity", "👥", "Things to Experience Today"]].map(([id, icon, lbl]) => (
           <button key={id}
-            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px 8px", fontSize: 14, fontWeight: 600, color: subTab === id ? "var(--green2)" : "var(--text3)", background: subTab === id ? "var(--green-light)" : "none", border: "none", borderRight: id === "foryou" ? "1px solid var(--border)" : "none", cursor: "pointer", transition: ".15s" }}
+            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px 8px", fontSize: 14, fontWeight: 600, color: subTab === id ? "var(--purple)" : "var(--text3)", background: subTab === id ? "var(--purple-lt)" : "none", border: "none", borderRight: id === "foryou" ? "1px solid var(--border)" : "none", cursor: "pointer", transition: ".15s" }}
             onClick={() => { setSubTab(id); setSelectedActivity(null); }}>
             <span>{icon}</span><span>{lbl}</span>
           </button>
@@ -1120,15 +2047,29 @@ function ConnectionsScreen({ city, userId, me }) {
           {loadError && <div className="conn-empty"><p>{loadError}</p></div>}
 
           {!userId && (
-            <div style={{ background: "var(--green-light)", border: "1.5px solid var(--green2)", borderRadius: 12, padding: "12px 16px", fontSize: 13, color: "var(--green2)", fontWeight: 600, marginBottom: 16 }}>
+            <div style={{ background: "var(--purple-lt)", border: "1.5px solid var(--purple)", borderRadius: 12, padding: "12px 16px", fontSize: 13, color: "var(--purple)", fontWeight: 600, marginBottom: 16 }}>
               Sign in to connect with real people in {cd.label}.
             </div>
           )}
 
           {current ? (
             <div style={{ background: "var(--white)", borderRadius: 20, overflow: "hidden", border: "1px solid var(--border)", boxShadow: "var(--shadow2)" }}>
-              {/* Photo slideshow */}
-              <ProfileSlideshow photos={(current.photo_urls || current.photos || []).filter(Boolean)} name={current.name} onBack={null} />
+              {/* Photo / illustrated banner */}
+              <div style={{ position: "relative", height: 220, overflow: "hidden", background: "linear-gradient(135deg, #FFF0EE 0%, #FAF8F4 50%, #F5E8F9 100%)" }}>
+                {/* Decorative SVG illustration */}
+                <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0.35 }} viewBox="0 0 400 220" fill="none">
+                  <circle cx="60" cy="50" r="30" fill="#FF9A8B" opacity="0.3"/>
+                  <path d="M0 160 Q60 100 120 140 Q180 180 240 130 Q300 80 360 120 L400 110 L400 220 L0 220Z" fill="#FF9A8B" opacity="0.12"/>
+                  <rect x="20" y="80" width="8" height="60" rx="4" fill="#2F2F33" opacity="0.08"/>
+                  <rect x="35" y="90" width="8" height="50" rx="4" fill="#2F2F33" opacity="0.08"/>
+                  <rect x="50" y="70" width="8" height="70" rx="4" fill="#2F2F33" opacity="0.08"/>
+                  <path d="M320 180 Q340 150 360 170 Q380 190 400 165" stroke="#581073" strokeWidth="1.5" opacity="0.2" fill="none"/>
+                  <circle cx="350" cy="80" r="4" fill="#FF9A8B" opacity="0.4"/>
+                  <path d="M347 80 L350 60" stroke="#FF9A8B" strokeWidth="1.5" opacity="0.4"/>
+                </svg>
+                {/* Photo or initials circle */}
+                <ProfileSlideshow photos={(current.photo_urls || current.photos || []).filter(Boolean)} name={current.name} />
+              </div>
 
               {/* Name + location */}
               <div style={{ padding: "16px 20px 0" }}>
@@ -1142,22 +2083,22 @@ function ConnectionsScreen({ city, userId, me }) {
                 {/* Interests — highlight shared ones */}
                 {(current.interests || []).length > 0 && (() => {
                   const myInterests = me?.interests || [];
-                  const sharedInts = (current.interests || []).filter(i => myInterests.includes(i));
+                  const sharedInts = sharedInterests(current.interests, myInterests);
                   return (
                     <>
                       <div style={{ fontSize: 13, fontWeight: 700, marginTop: 14, marginBottom: 4 }}>Interests</div>
-                      {sharedInts.length > 0 && <div style={{ fontSize: 11, color: "var(--green2)", fontWeight: 600, marginBottom: 8 }}>✦ {sharedInts.length} in common with you</div>}
+                      {sharedInts.length > 0 && <div style={{ fontSize: 11, color: "var(--purple)", fontWeight: 600, marginBottom: 8 }}>✦ {sharedInts.length} in common with you</div>}
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
                         {(current.interests || []).slice(0, 7).map(i => {
-                          const opt = INTEREST_OPTIONS.find(o => o.id === i);
-                          const isShared = myInterests.includes(i);
+                          const isShared = sharedInts.includes(i);
                           return (
                             <span key={i} style={{
-                              border: isShared ? "1.5px solid var(--green2)" : "1.5px solid var(--border)",
-                              borderRadius: 999, padding: "6px 12px", fontSize: 13, fontWeight: isShared ? 700 : 500,
-                              color: isShared ? "var(--green2)" : "var(--text2)",
-                              background: isShared ? "var(--green-bg)" : "var(--white)"
-                            }}>{opt?.icon} {opt?.label || i}</span>
+                              border: isShared ? "1.5px solid var(--coral)" : "1.5px solid var(--border)",
+                              borderRadius: 999, padding: "6px 12px", fontSize: 13,
+                              fontWeight: isShared ? 700 : 500,
+                              color: isShared ? "var(--coral-dk)" : "var(--text2)",
+                              background: isShared ? "var(--coral-lt)" : "var(--white)",
+                            }}>{formatInterest(i)}{isShared ? " ✦" : ""}</span>
                           );
                         })}
                       </div>
@@ -1175,10 +2116,10 @@ function ConnectionsScreen({ city, userId, me }) {
                   return (
                     <>
                       <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Things to do together</div>
-                      {shared.length > 0 && <div style={{ fontSize: 11, color: "var(--green2)", fontWeight: 600, marginBottom: 8 }}>✦ {shared.length} in common with you</div>}
+                      {shared.length > 0 && <div style={{ fontSize: 11, color: "var(--purple)", fontWeight: 600, marginBottom: 8 }}>✦ {shared.length} in common with you</div>}
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
                         {display.map(t => (
-                          <span key={t} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, background: shared.includes(t) ? "var(--green-bg)" : "var(--bg2)", color: shared.includes(t) ? "var(--green2)" : "var(--text2)", border: shared.includes(t) ? "1.5px solid var(--green2)" : "1px solid var(--border)", borderRadius: 8, padding: "5px 10px" }}>
+                          <span key={t} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, background: shared.includes(t) ? "var(--coral-lt)" : "var(--bg)", color: shared.includes(t) ? "var(--coral-dk)" : "var(--text3)", border: shared.includes(t) ? "1.5px solid var(--coral)" : "1px solid var(--border)", borderRadius: 8, padding: "5px 10px" }}>
                             <span style={{ fontSize: 15 }}>{ACTIVITY_ICONS[t] || "📌"}</span>{t}
                           </span>
                         ))}
@@ -1188,9 +2129,29 @@ function ConnectionsScreen({ city, userId, me }) {
                 })()}
               </div>
 
+              {/* Thoughts / prompts */}
+              {(() => {
+                const prompts = current.prompts
+                  ? Array.isArray(current.prompts) ? current.prompts.filter(p => p.a)
+                    : Object.entries(current.prompts).filter(([, ans]) => ans?.trim()).map(([q, a]) => ({ q, a }))
+                  : [];
+                if (!prompts.length) return null;
+                return (
+                  <div style={{ padding: "12px 20px 0" }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)", marginBottom: 10 }}>Thoughts</div>
+                    {prompts.slice(0, 2).map((p, i) => (
+                      <div key={i} style={{ background: "var(--bg2)", borderRadius: 12, padding: "12px 14px", marginBottom: 8 }}>
+                        <div style={{ fontSize: 11, color: "var(--text3)", fontWeight: 600, marginBottom: 4 }}>{p.q}</div>
+                        <div style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.5 }}>{p.a}</div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
               {/* View full profile + Back/Next */}
               <div style={{ padding: "12px 20px 20px", borderTop: "1px solid var(--border)" }}>
-                <button style={{ width: "100%", background: "var(--green2)", color: "white", borderRadius: 12, padding: "13px", fontSize: 14, fontWeight: 700, marginBottom: 10, border: "none", cursor: "pointer" }} onClick={() => openChat(current)}>
+                <button style={{ width: "100%", background: "var(--purple)", color: "white", borderRadius: 12, padding: "13px", fontSize: 14, fontWeight: 700, marginBottom: 10, border: "none", cursor: "pointer" }} onClick={() => openChat(current)}>
                   Message {current.name} →
                 </button>
                 <button style={{ width: "100%", border: "1.5px solid var(--border)", borderRadius: 12, padding: "11px", fontSize: 13, fontWeight: 600, color: "var(--text2)", background: "var(--white)", cursor: "pointer", marginBottom: 10 }} onClick={() => setViewProfile(current)}>
@@ -1223,7 +2184,11 @@ function ConnectionsScreen({ city, userId, me }) {
             </div>
           )}
 
-          {connectError && <div className="profile-save-error" style={{ marginTop: 12 }}>⚠️ {connectError}</div>}
+          {connectError && (
+            <div style={{ marginTop: 12, background: connectError.startsWith("✓") ? "var(--purple-lt)" : "#fdecea", border: `1px solid ${connectError.startsWith("✓") ? "var(--purple)" : "#f5c6c0"}`, color: connectError.startsWith("✓") ? "var(--purple)" : "#c0392b", fontSize: 13, fontWeight: 600, borderRadius: 10, padding: "10px 14px", lineHeight: 1.5 }}>
+              {connectError}
+            </div>
+          )}
         </div>
       )}
 
@@ -1236,7 +2201,7 @@ function ConnectionsScreen({ city, userId, me }) {
                 style={{ display: "flex", alignItems: "center", gap: 14, padding: 16, background: "var(--white)", border: "1px solid var(--border)", borderRadius: 16, boxShadow: "var(--shadow)", cursor: "pointer", textAlign: "left", width: "100%" }}
                 onClick={() => setSelectedActivity(activity)}>
                 {/* Icon circle */}
-                <div style={{ width: 52, height: 52, borderRadius: 999, background: "var(--green-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, flexShrink: 0 }}>
+                <div style={{ width: 52, height: 52, borderRadius: 999, background: "var(--purple-lt)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, flexShrink: 0 }}>
                   {ACTIVITY_ICONS[activity] || "📌"}
                 </div>
                 <div style={{ flex: 1 }}>
@@ -1245,7 +2210,7 @@ function ConnectionsScreen({ city, userId, me }) {
                     {actPeople.length} {actPeople.length === 1 ? "person" : "people"} want to do this in {cd.label}
                   </div>
                 </div>
-                <div style={{ background: "var(--green-light)", color: "var(--green2)", borderRadius: 999, padding: "5px 12px", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+                <div style={{ background: "var(--purple-lt)", color: "var(--purple)", borderRadius: 999, padding: "5px 12px", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
                   {actPeople.length}
                 </div>
                 <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
@@ -1268,12 +2233,12 @@ function ConnectionsScreen({ city, userId, me }) {
         <div>
           <button style={{ fontSize: 20, color: "var(--text2)", marginBottom: 16, background: "none", border: "none", cursor: "pointer", padding: 0 }} onClick={() => setSelectedActivity(null)}>← Back</button>
           <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>{selectedActivity}</h2>
-          <p style={{ fontSize: 14, color: "var(--green2)", fontWeight: 600, marginBottom: 20 }}>
+          <p style={{ fontSize: 14, color: "var(--purple)", fontWeight: 600, marginBottom: 20 }}>
             {activityGroups[selectedActivity]?.length} {activityGroups[selectedActivity]?.length === 1 ? "person wants" : "people want"} to do this
           </p>
 
           {/* Activity banner */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--green-light)", border: "1.5px solid rgba(45,106,45,0.2)", borderRadius: 14, padding: "14px 16px", marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--purple-lt)", border: "1.5px solid rgba(45,106,45,0.2)", borderRadius: 14, padding: "14px 16px", marginBottom: 20 }}>
             <span style={{ fontSize: 28 }}>{ACTIVITY_ICONS[selectedActivity] || "📌"}</span>
             <p style={{ fontSize: 13, color: "var(--text2)", margin: 0, lineHeight: 1.5 }}>
               Browse people who also want to {selectedActivity.toLowerCase()}.
@@ -1284,14 +2249,14 @@ function ConnectionsScreen({ city, userId, me }) {
             {(activityGroups[selectedActivity] || []).map(person => {
               const photos = (person.photo_urls || person.photos || []).filter(Boolean);
               const initials = (person.name || "?").slice(0, 2).toUpperCase();
-              const interests = (person.interests || []).slice(0, 4).map(i => INTEREST_OPTIONS.find(o => o.id === i)?.label || i);
+              const interests = (person.interests || []).slice(0, 4).map(i => formatInterest(i));
               return (
                 <button key={person.id}
                   style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 0", borderBottom: "1px solid var(--border)", background: "none", border: "none", borderBottom: "1px solid var(--border)", cursor: "pointer", textAlign: "left", width: "100%" }}
                   onClick={() => setActivityProfileView(person)}>
                   {photos[0]
                     ? <img src={photos[0]} alt={person.name} style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
-                    : <div style={{ width: 48, height: 48, borderRadius: "50%", background: "var(--green-light)", color: "var(--green2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, flexShrink: 0 }}>{initials}</div>
+                    : <div style={{ width: 48, height: 48, borderRadius: "50%", background: "var(--purple-lt)", color: "var(--purple)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, flexShrink: 0 }}>{initials}</div>
                   }
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>{person.name}{person.age ? `, ${person.age}` : ""}</div>
@@ -1365,7 +2330,7 @@ function PlaceDetailView({ place, onBack, isSaved, onToggleSave }) {
             <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 3 }}>📍 {place.area}</div>
           </div>
           {place.category && (
-            <span style={{ background: "var(--green-bg)", color: "var(--green2)", borderRadius: 8, padding: "5px 12px", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{place.category}</span>
+            <span style={{ background: "var(--purple-lt)", color: "var(--purple)", borderRadius: 8, padding: "5px 12px", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{place.category}</span>
           )}
         </div>
 
@@ -1401,7 +2366,7 @@ function PlaceDetailView({ place, onBack, isSaved, onToggleSave }) {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           {place.address && (
             <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.address || place.name)}`} target="_blank" rel="noopener noreferrer"
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px", background: "var(--green2)", color: "white", borderRadius: 12, fontSize: 14, fontWeight: 700, textDecoration: "none" }}>
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px", background: "var(--purple)", color: "white", borderRadius: 12, fontSize: 14, fontWeight: 700, textDecoration: "none" }}>
               🗺️ Directions
             </a>
           )}
@@ -1415,13 +2380,15 @@ function PlaceDetailView({ place, onBack, isSaved, onToggleSave }) {
   );
 }
 
-function PlacesToExploreScreen({ city, userId, userName }) {
+function PlacesToExploreScreen({ city, userId, userName, savedExplorePlaces, onToggleExploreSave }) {
   const places = PLACES_TO_EXPLORE[city] || [];
-  const [saved, setSaved] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTag, setActiveTag] = useState("All");
   const [openPlace, setOpenPlace] = useState(null);
   const [showSaved, setShowSaved] = useState(false);
+  // Saved state comes from props (persisted to profile) — no local state needed
+  const isSaved = (id) => (savedExplorePlaces || []).includes(String(id));
+  const toggleSave = (id) => onToggleExploreSave?.(String(id));
   const [submitOpen, setSubmitOpen] = useState(false);
   const [submitForm, setSubmitForm] = useState({ name: "", area: "", desc: "" });
   const [submitPhoto, setSubmitPhoto] = useState(null);
@@ -1469,14 +2436,14 @@ function PlacesToExploreScreen({ city, userId, userName }) {
     <PlaceDetailView
       place={openPlace}
       onBack={() => setOpenPlace(null)}
-      isSaved={!!saved[openPlace.id]}
-      onToggleSave={id => setSaved(s => ({ ...s, [id]: !s[id] }))}
+      isSaved={isSaved(openPlace.id)}
+      onToggleSave={toggleSave}
     />
   );
 
   // Saved places view
   if (showSaved) {
-    const savedPlaces = places.filter(p => saved[p.id]);
+    const savedPlaces = places.filter(p => isSaved(p.id));
     return (
       <div style={{ paddingTop: 20, paddingBottom: 80 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
@@ -1515,9 +2482,9 @@ function PlacesToExploreScreen({ city, userId, userName }) {
       <div style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
           <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.03em" }}>Places to explore</h1>
-          {Object.values(saved).some(Boolean) && (
-            <button onClick={() => setShowSaved(true)} style={{ background: "var(--green-bg)", color: "var(--green2)", border: "1.5px solid var(--green2)", borderRadius: 10, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
-              🔖 {Object.values(saved).filter(Boolean).length} saved
+          {(savedExplorePlaces || []).length > 0 && (
+            <button onClick={() => setShowSaved(true)} style={{ background: "var(--purple-lt)", color: "var(--purple)", border: "1.5px solid var(--purple)", borderRadius: 10, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
+              🔖 {(savedExplorePlaces || []).length} saved
             </button>
           )}
         </div>
@@ -1535,7 +2502,7 @@ function PlacesToExploreScreen({ city, userId, userName }) {
       <div style={{ display: "flex", gap: 8, overflowX: "auto", scrollbarWidth: "none", paddingBottom: 14, marginBottom: 4 }}>
         {allTags.map(tag => (
           <button key={tag}
-            style={{ flexShrink: 0, border: "1.5px solid var(--border)", borderRadius: 999, padding: "7px 14px", fontSize: 13, fontWeight: 600, color: activeTag === tag ? "white" : "var(--text3)", background: activeTag === tag ? "var(--green2)" : "var(--white)", cursor: "pointer", transition: ".15s", borderColor: activeTag === tag ? "var(--green2)" : "var(--border)" }}
+            style={{ flexShrink: 0, border: "1.5px solid var(--border)", borderRadius: 999, padding: "7px 14px", fontSize: 13, fontWeight: 600, color: activeTag === tag ? "white" : "var(--text3)", background: activeTag === tag ? "var(--purple)" : "var(--white)", cursor: "pointer", transition: ".15s", borderColor: activeTag === tag ? "var(--purple)" : "var(--border)" }}
             onClick={() => setActiveTag(tag)}>{tag}</button>
         ))}
       </div>
@@ -1555,8 +2522,8 @@ function PlacesToExploreScreen({ city, userId, userName }) {
                 <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 1 }}>📍 {place.area}</div>
               </div>
               <button style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", flexShrink: 0, padding: 0 }}
-                onClick={e => { e.stopPropagation(); setSaved(s => ({ ...s, [place.id]: !s[place.id] })); }}>
-                {saved[place.id] ? "🔖" : "📑"}
+                onClick={e => { e.stopPropagation(); toggleSave(place.id); }}>
+                {isSaved(place.id) ? "🔖" : "📑"}
               </button>
             </div>
             <p style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.5, margin: "0 0 8px" }}>
@@ -1564,7 +2531,7 @@ function PlacesToExploreScreen({ city, userId, userName }) {
             </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
               {place.tags.map(t => (
-                <span key={t} style={{ background: "var(--green-bg)", color: "var(--green2)", borderRadius: 6, padding: "3px 8px", fontSize: 11, fontWeight: 700 }}>{t}</span>
+                <span key={t} style={{ background: "var(--purple-lt)", color: "var(--purple)", borderRadius: 6, padding: "3px 8px", fontSize: 11, fontWeight: 700 }}>{t}</span>
               ))}
               <span style={{ marginLeft: "auto", fontSize: 18, color: "var(--text3)" }}>›</span>
             </div>
@@ -1594,24 +2561,42 @@ function PlacesToExploreScreen({ city, userId, userName }) {
       {/* Submit CTA */}
       <div style={{ marginTop: 24, background: "var(--bg2)", borderRadius: 16, padding: "18px 20px", border: "1px solid var(--border)" }}>
         <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Know a great spot?</div>
-        <div style={{ fontSize: 13, color: "var(--text3)", marginBottom: 12, lineHeight: 1.5 }}>Add it to the map and help others discover the city.</div>
-        <button style={{ background: "var(--green2)", color: "white", borderRadius: 999, padding: "10px 20px", fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer" }} onClick={() => setSubmitOpen(o => !o)}>
+        <div style={{ fontSize: 13, color: "var(--text3)", marginBottom: 12, lineHeight: 1.5 }}>Add it and help others discover the city.</div>
+        <button style={{ background: "var(--purple)", color: "white", borderRadius: 999, padding: "10px 20px", fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer" }} onClick={() => setSubmitOpen(o => !o)}>
           {submitOpen ? "Close" : "+ Add a place"}
         </button>
         {submitOpen && (
           <div style={{ marginTop: 14 }}>
             {submitDone ? (
-              <div style={{ textAlign: "center", padding: "12px", fontSize: 15, fontWeight: 700, color: "var(--green2)" }}>✓ Added! Thanks for sharing.</div>
+              <div style={{ textAlign: "center", padding: "12px", fontSize: 15, fontWeight: 700, color: "var(--purple)" }}>✓ Added! Thanks for sharing.</div>
             ) : (
               <>
-                <label style={{ display: "flex", alignItems: "center", justifyContent: "center", border: "2px dashed var(--border)", borderRadius: 12, minHeight: 100, cursor: "pointer", overflow: "hidden", marginBottom: 10, background: "var(--bg2)" }}>
-                  {submitPhotoPreview ? <img src={submitPhotoPreview} alt="" style={{ width: "100%", height: 120, objectFit: "cover" }} /> : <span style={{ fontSize: 13, color: "var(--text3)" }}>📷 Add a photo</span>}
+                <input className="ob-input" style={{ marginBottom: 10 }} placeholder="Place name" value={submitForm.name} onChange={e => setSubmitForm(f => ({ ...f, name: e.target.value }))} />
+                <input className="ob-input" style={{ marginBottom: 10 }} placeholder="Location / neighbourhood" value={submitForm.area} onChange={e => setSubmitForm(f => ({ ...f, area: e.target.value }))} />
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 6 }}>This place is worth visiting because...</div>
+                  <textarea className="ob-input" rows={2} style={{ resize: "none" }} placeholder={`Example: "...watching the sunset while enjoying tea feels peaceful."`} value={submitForm.desc} onChange={e => setSubmitForm(f => ({ ...f, desc: e.target.value }))} />
+                </div>
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 6 }}>What makes this place special?</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                    {["Beautiful Views", "Photo Worthy", "Hidden Gem", "Peaceful Escape", "Better with company", "Solo Friendly", "Sunset Spot", "Rich History", "Nature Escape"].map(t => {
+                      const sel = (submitForm.tags || []).includes(t);
+                      return (
+                        <button key={t} type="button"
+                          onClick={() => setSubmitForm(f => ({ ...f, tags: sel ? (f.tags||[]).filter(x=>x!==t) : [...(f.tags||[]),t] }))}
+                          style={{ border: "1.5px solid " + (sel ? "var(--purple)" : "var(--border)"), borderRadius: 10, padding: "8px 4px", fontSize: 11, fontWeight: 600, color: sel ? "white" : "var(--text2)", background: sel ? "var(--purple)" : "var(--bg)", cursor: "pointer", textAlign: "center" }}>
+                          {t}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: "2px dashed var(--border)", borderRadius: 12, minHeight: 80, cursor: "pointer", overflow: "hidden", marginBottom: 10, background: "var(--bg)" }}>
+                  {submitPhotoPreview ? <img src={submitPhotoPreview} alt="" style={{ width: "100%", height: 120, objectFit: "cover" }} /> : <><div style={{ fontSize: 24 }}>📷</div><span style={{ fontSize: 12, color: "var(--purple)", fontWeight: 600 }}>Add Photo (Optional)</span></>}
                   <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; setSubmitPhoto(f || null); setSubmitPhotoPreview(f ? URL.createObjectURL(f) : null); }} />
                 </label>
-                <input className="ob-input" style={{ marginBottom: 10 }} placeholder="Place name" value={submitForm.name} onChange={e => setSubmitForm(f => ({ ...f, name: e.target.value }))} />
-                <input className="ob-input" style={{ marginBottom: 10 }} placeholder="Area / neighbourhood" value={submitForm.area} onChange={e => setSubmitForm(f => ({ ...f, area: e.target.value }))} />
-                <textarea className="ob-input" rows={3} style={{ resize: "none", marginBottom: 10 }} placeholder="What makes it special?" value={submitForm.desc} onChange={e => setSubmitForm(f => ({ ...f, desc: e.target.value }))} />
-                <button style={{ width: "100%", background: "var(--green)", color: "white", borderRadius: 12, padding: "12px", fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer" }} disabled={submitting || !submitForm.name.trim() || !submitForm.area.trim()} onClick={handleSubmit}>
+                <button style={{ width: "100%", background: "var(--purple)", color: "white", borderRadius: 12, padding: "12px", fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer" }} disabled={submitting || !submitForm.name.trim()} onClick={handleSubmit}>
                   {submitting ? "Adding…" : "Add this place"}
                 </button>
               </>
@@ -1854,7 +2839,7 @@ function FoodScreen({ city, userCuisines, userBudget, userId, userName, savedPla
           {searchQuery && <button style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--bg2)", border: "none", fontSize: 14, cursor: "pointer" }} onClick={() => setSearchQuery("")}>×</button>}
         </div>
         {(savedPlaces || []).length > 0 && (
-          <button onClick={() => setShowSaved(true)} style={{ flexShrink: 0, background: "var(--green-bg)", color: "var(--green2)", border: "1.5px solid var(--green2)", borderRadius: 12, padding: "10px 12px", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
+          <button onClick={() => setShowSaved(true)} style={{ flexShrink: 0, background: "var(--purple-lt)", color: "var(--purple)", border: "1.5px solid var(--purple)", borderRadius: 12, padding: "10px 12px", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
             🔖 {(savedPlaces || []).length}
           </button>
         )}
@@ -1953,31 +2938,28 @@ function FoodScreen({ city, userCuisines, userBudget, userId, userName, savedPla
 
 function ShareFoodExperienceForm({ cd, userId, userName, onDone }) {
   const [selectedPlace, setSelectedPlace] = useState("");
-  const [favoriteItem, setFavoriteItem] = useState("");
   const [note, setNote] = useState("");
+  const [tags, setTags] = useState([]);
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
+  const FOOD_TAGS = ["Worth the Meal", "Budget Friendly", "Better with company", "Solo Friendly", "Photo Worthy", "Hidden Gem"];
+  const toggleTag = t => setTags(p => p.includes(t) ? p.filter(x => x !== t) : [...p, t]);
 
   const handleSubmit = async () => {
     if (!userId) { setError("Sign in to share your experience."); return; }
     if (!selectedPlace) { setError("Please select a place first."); return; }
-    if (!photoFile && !note.trim() && !favoriteItem.trim()) { setError("Add a photo, note, or favorite item."); return; }
     setSubmitting(true); setError("");
     try {
       let photoUrl = null;
       if (photoFile) photoUrl = await uploadFoodExperiencePhoto(userId, photoFile);
-      await shareFoodExperience(userId, userName || "Someone", selectedPlace, { photoUrl, note: note.trim(), favoriteItem: favoriteItem.trim() });
+      await shareFoodExperience(userId, userName || "Someone", selectedPlace, { photoUrl, note: note.trim(), tags });
       setDone(true);
       setTimeout(onDone, 1200);
-    } catch (e) {
-      console.error(e);
-      setError("Couldn't share that — please try again.");
-    } finally {
-      setSubmitting(false);
-    }
+    } catch (e) { console.error(e); setError("Couldn't share that — please try again."); }
+    finally { setSubmitting(false); }
   };
 
   if (done) return <div style={{ textAlign: "center", padding: "24px 0" }}><div style={{ fontSize: 32 }}>✓</div><div style={{ fontWeight: 700, marginTop: 6 }}>Thanks for sharing!</div></div>;
@@ -1985,72 +2967,102 @@ function ShareFoodExperienceForm({ cd, userId, userName, onDone }) {
   return (
     <div style={{ paddingBottom: 8 }}>
       {error && <div className="profile-save-error">⚠️ {error}</div>}
-      <select className="ob-input ob-select" style={{ marginBottom: 10 }} value={selectedPlace} onChange={e => setSelectedPlace(e.target.value)}>
-        <option value="">Select a place...</option>
+      <select className="ob-input ob-select" style={{ marginBottom: 12 }} value={selectedPlace} onChange={e => setSelectedPlace(e.target.value)}>
+        <option value="">Select a food spot...</option>
         {cd.food.map(p => <option key={p.id} value={p.name}>{p.name} — {p.hood}</option>)}
       </select>
-      <label className="experience-photo-picker">
-        {photoPreview ? <img src={photoPreview} alt="" className="experience-photo-preview" /> : <span>📷 Add a photo</span>}
-        <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; setPhotoFile(f || null); setPhotoPreview(f ? URL.createObjectURL(f) : null); }} />
-      </label>
-      <input className="ob-input" style={{ marginTop: 10 }} placeholder="Your favorite item" value={favoriteItem} onChange={e => setFavoriteItem(e.target.value)} />
-      <textarea className="ob-input experience-textarea" style={{ marginTop: 10 }} placeholder="What was it like?" value={note} onChange={e => setNote(e.target.value)} rows={3} />
-      <button className="filter-apply" style={{ marginTop: 12 }} disabled={submitting} onClick={handleSubmit}>{submitting ? "Sharing…" : "Share with the community"}</button>
+      <div style={{ marginBottom: 10 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 6 }}>This place is worth visiting because...</div>
+        <textarea className="ob-input" rows={3} style={{ resize: "none" }} placeholder={`Example: "The ramen is delicious and budget friendly."`} value={note} onChange={e => setNote(e.target.value)} />
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 6 }}>What makes this place special?</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+          {FOOD_TAGS.map(t => (
+            <button key={t} type="button" onClick={() => toggleTag(t)}
+              style={{ border: "1.5px solid " + (tags.includes(t) ? "var(--purple)" : "var(--border)"), borderRadius: 10, padding: "8px 6px", fontSize: 12, fontWeight: 600, color: tags.includes(t) ? "white" : "var(--text2)", background: tags.includes(t) ? "var(--purple)" : "var(--bg)", cursor: "pointer", textAlign: "center" }}>
+              {t}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 6 }}>Photos <span style={{ color: "var(--text3)", fontWeight: 400 }}>(Optional)</span></div>
+        <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: "2px dashed var(--border)", borderRadius: 12, padding: 20, cursor: "pointer", background: "var(--bg)" }}>
+          {photoPreview ? <img src={photoPreview} alt="" style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 8 }} /> : <><div style={{ fontSize: 28, marginBottom: 6 }}>📷</div><span style={{ fontSize: 13, color: "var(--purple)", fontWeight: 600 }}>Add Photo</span></>}
+          <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; setPhotoFile(f || null); setPhotoPreview(f ? URL.createObjectURL(f) : null); }} />
+        </label>
+      </div>
+      <button className="filter-apply" style={{ marginTop: 4 }} disabled={submitting} onClick={handleSubmit}>{submitting ? "Sharing…" : "Share with the community"}</button>
     </div>
   );
 }
 
 function SubmitFoodPlaceForm({ city, userId, userName, onSubmitted }) {
   const [name, setName] = useState("");
-  const [area, setArea] = useState("");
-  const [cuisine, setCuisine] = useState("");
-  const [description, setDescription] = useState("");
+  const [location, setLocation] = useState("");
+  const [because, setBecause] = useState("");
+  const [tags, setTags] = useState([]);
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
+  const FOOD_TAGS = ["Worth the Meal", "Budget Friendly", "Better with company", "Solo Friendly", "Photo Worthy", "Hidden Gem"];
+  const toggleTag = t => setTags(p => p.includes(t) ? p.filter(x => x !== t) : [...p, t]);
 
   const handleSubmit = async () => {
     if (!userId) { setError("Sign in to add a place."); return; }
-    if (!name.trim() || !area.trim()) { setError("Name and area are required."); return; }
+    if (!name.trim()) { setError("Name is required."); return; }
     setSubmitting(true); setError("");
     try {
       let photoUrl = null;
       if (photoFile) photoUrl = await uploadCommunityPlacePhoto(userId, photoFile);
       const place = await submitCommunityPlace(userId, userName || "Someone", {
-        city, name: name.trim(), area: area.trim(), cuisine: cuisine.trim(), description: description.trim(), photoUrl,
+        city, name: name.trim(), area: location.trim(), cuisine: "", description: because.trim(), photoUrl, tags,
       });
       setDone(true);
       onSubmitted(place);
-    } catch (e) {
-      console.error(e);
-      setError("Couldn't submit that — please try again.");
-    } finally {
-      setSubmitting(false);
-    }
+    } catch (e) { console.error(e); setError("Couldn't submit — please try again."); }
+    finally { setSubmitting(false); }
   };
 
   if (done) return (
     <div style={{ textAlign: "center", padding: "24px 0" }}>
       <div style={{ fontSize: 32 }}>✓</div>
       <div style={{ fontWeight: 700, marginTop: 6 }}>Submitted for review!</div>
-      <p style={{ fontSize: 13, color: "var(--text3)", marginTop: 6, lineHeight: 1.5, padding: "0 10px" }}>Our team reviews every new place before it goes live, to keep recommendations trustworthy. You'll see it appear here once approved.</p>
+      <p style={{ fontSize: 13, color: "var(--text3)", marginTop: 6, lineHeight: 1.5 }}>Our team reviews every new place before it goes live.</p>
     </div>
   );
 
   return (
     <div style={{ paddingBottom: 8 }}>
       {error && <div className="profile-save-error">⚠️ {error}</div>}
-      <label className="experience-photo-picker">
-        {photoPreview ? <img src={photoPreview} alt="" className="experience-photo-preview" /> : <span>📷 Add a photo</span>}
-        <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; setPhotoFile(f || null); setPhotoPreview(f ? URL.createObjectURL(f) : null); }} />
-      </label>
-      <input className="ob-input" style={{ marginTop: 10 }} placeholder="Place name*" value={name} onChange={e => setName(e.target.value)} />
-      <input className="ob-input" style={{ marginTop: 10 }} placeholder="Area / neighbourhood*" value={area} onChange={e => setArea(e.target.value)} />
-      <input className="ob-input" style={{ marginTop: 10 }} placeholder="Cuisine" value={cuisine} onChange={e => setCuisine(e.target.value)} />
-      <textarea className="ob-input experience-textarea" style={{ marginTop: 10 }} placeholder="What's your experience there?" value={description} onChange={e => setDescription(e.target.value)} rows={3} />
-      <div style={{ fontSize: 12, color: "var(--text3)", margin: "10px 0 12px", lineHeight: 1.5 }}>New places are reviewed by our team before they go live.</div>
+      <input className="ob-input" style={{ marginBottom: 10 }} placeholder="Food spot name" value={name} onChange={e => setName(e.target.value)} />
+      <input className="ob-input" style={{ marginBottom: 10 }} placeholder="Location / neighbourhood" value={location} onChange={e => setLocation(e.target.value)} />
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 6 }}>This place is worth visiting because...</div>
+        <textarea className="ob-input" rows={2} style={{ resize: "none" }} placeholder={`Example: "The ramen is delicious and budget friendly."`} value={because} onChange={e => setBecause(e.target.value)} />
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 6 }}>What makes this place special?</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+          {FOOD_TAGS.map(t => (
+            <button key={t} type="button" onClick={() => toggleTag(t)}
+              style={{ border: "1.5px solid " + (tags.includes(t) ? "var(--purple)" : "var(--border)"), borderRadius: 10, padding: "8px 6px", fontSize: 12, fontWeight: 600, color: tags.includes(t) ? "white" : "var(--text2)", background: tags.includes(t) ? "var(--purple)" : "var(--bg)", cursor: "pointer", textAlign: "center" }}>
+              {t}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 6 }}>Photos <span style={{ color: "var(--text3)", fontWeight: 400 }}>(Optional)</span></div>
+        <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: "2px dashed var(--border)", borderRadius: 12, padding: 20, cursor: "pointer", background: "var(--bg)" }}>
+          {photoPreview ? <img src={photoPreview} alt="" style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 8 }} /> : <><div style={{ fontSize: 28, marginBottom: 6 }}>📷</div><span style={{ fontSize: 13, color: "var(--purple)", fontWeight: 600 }}>Add Photo</span></>}
+          <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; setPhotoFile(f || null); setPhotoPreview(f ? URL.createObjectURL(f) : null); }} />
+        </label>
+        <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 6 }}>New places are reviewed before going live.</div>
+      </div>
       <button className="filter-apply" disabled={submitting} onClick={handleSubmit}>{submitting ? "Submitting…" : "Submit for review"}</button>
     </div>
   );
@@ -2086,7 +3098,7 @@ function EventDetailView({ event, onBack, userId, onToggleInterest, isInterested
       )}
 
       <div style={{ paddingTop: 18 }}>
-        <span style={{ background: "var(--green-bg)", color: "var(--green2)", borderRadius: 999, padding: "4px 12px", fontSize: 12, fontWeight: 700 }}>{event.category}</span>
+        <span style={{ background: "var(--purple-lt)", color: "var(--purple)", borderRadius: 999, padding: "4px 12px", fontSize: 12, fontWeight: 700 }}>{event.category}</span>
         <h1 style={{ fontSize: 24, fontWeight: 800, margin: "12px 0 10px", lineHeight: 1.25 }}>{event.name}</h1>
         <p style={{ fontSize: 14, color: "var(--text2)", lineHeight: 1.65, marginBottom: 20 }}>{event.description}</p>
 
@@ -2107,8 +3119,8 @@ function EventDetailView({ event, onBack, userId, onToggleInterest, isInterested
         </div>
 
         {(event.contact_info || event.payment_info) && (
-          <div style={{ border: "1.5px solid var(--green2)", background: "var(--green-light)", borderRadius: 14, padding: 16, marginBottom: 18 }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: "var(--green2)", letterSpacing: ".04em", textTransform: "uppercase", marginBottom: 8 }}>Contact the organiser</div>
+          <div style={{ border: "1.5px solid var(--purple)", background: "var(--purple-lt)", borderRadius: 14, padding: 16, marginBottom: 18 }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: "var(--purple)", letterSpacing: ".04em", textTransform: "uppercase", marginBottom: 8 }}>Contact the organiser</div>
             {event.contact_info && <div style={{ fontSize: 13, color: "var(--text2)", marginBottom: event.payment_info ? 6 : 0 }}>📞 {event.contact_info}</div>}
             {event.payment_info && <div style={{ fontSize: 13, color: "var(--text2)" }}>💳 {event.payment_info}</div>}
           </div>
@@ -2119,7 +3131,7 @@ function EventDetailView({ event, onBack, userId, onToggleInterest, isInterested
         </div>
 
         <button
-          style={{ width: "100%", background: isInterested ? "var(--bg2)" : "var(--green2)", color: isInterested ? "var(--text2)" : "white", borderRadius: 14, padding: 15, fontSize: 15, fontWeight: 800, border: "none", cursor: userId ? "pointer" : "not-allowed", opacity: userId ? 1 : 0.6, transition: ".15s" }}
+          style={{ width: "100%", background: isInterested ? "var(--bg2)" : "var(--purple)", color: isInterested ? "var(--text2)" : "white", borderRadius: 14, padding: 15, fontSize: 15, fontWeight: 800, border: "none", cursor: userId ? "pointer" : "not-allowed", opacity: userId ? 1 : 0.6, transition: ".15s" }}
           disabled={!userId}
           onClick={onToggleInterest}>
           {!userId ? "Sign in to show interest" : isInterested ? "✓ You're interested" : "I'm interested"}
@@ -2305,7 +3317,7 @@ function EventsScreen({ city, userId, userName }) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
           <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.03em" }}>What's happening</h1>
           {interestedEvents.length > 0 && (
-            <button onClick={() => setShowInterested(true)} style={{ background: "var(--green-bg)", color: "var(--green2)", border: "1.5px solid var(--green2)", borderRadius: 10, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
+            <button onClick={() => setShowInterested(true)} style={{ background: "var(--purple-lt)", color: "var(--purple)", border: "1.5px solid var(--purple)", borderRadius: 10, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
               🎉 {interestedEvents.length} saved
             </button>
           )}
@@ -2319,7 +3331,7 @@ function EventsScreen({ city, userId, userName }) {
       <div style={{ display: "flex", gap: 8, overflowX: "auto", scrollbarWidth: "none", paddingBottom: 12, marginBottom: 16 }}>
         {["All", ...EVENT_CATEGORIES].map(cat => (
           <button key={cat}
-            style={{ flexShrink: 0, border: "1.5px solid var(--border)", borderRadius: 999, padding: "7px 14px", fontSize: 13, fontWeight: 600, color: activeCat === cat ? "white" : "var(--text3)", background: activeCat === cat ? "var(--green2)" : "var(--white)", cursor: "pointer", transition: ".15s", borderColor: activeCat === cat ? "var(--green2)" : "var(--border)" }}
+            style={{ flexShrink: 0, border: "1.5px solid var(--border)", borderRadius: 999, padding: "7px 14px", fontSize: 13, fontWeight: 600, color: activeCat === cat ? "white" : "var(--text3)", background: activeCat === cat ? "var(--purple)" : "var(--white)", cursor: "pointer", transition: ".15s", borderColor: activeCat === cat ? "var(--purple)" : "var(--border)" }}
             onClick={() => setActiveCat(cat)}>{cat}</button>
         ))}
       </div>
@@ -2342,7 +3354,7 @@ function EventsScreen({ city, userId, userName }) {
               {e.photo_url ? <img src={e.photo_url} alt={e.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: 24 }}>🎉</span>}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ background: "var(--green-bg)", color: "var(--green2)", borderRadius: 999, padding: "2px 9px", fontSize: 10, fontWeight: 700 }}>{e.category}</span>
+              <span style={{ background: "var(--purple-lt)", color: "var(--purple)", borderRadius: 999, padding: "2px 9px", fontSize: 10, fontWeight: 700 }}>{e.category}</span>
               <div style={{ fontSize: 15, fontWeight: 700, marginTop: 5, marginBottom: 3, color: "var(--text)" }}>{e.name}</div>
               <div style={{ fontSize: 12, color: "var(--text3)", marginBottom: 2 }}>📅 {e.event_date}</div>
               <div style={{ fontSize: 12, color: "var(--text3)" }}>📍 {e.location}</div>
@@ -2354,7 +3366,7 @@ function EventsScreen({ city, userId, userName }) {
 
       {/* Sticky create event banner */}
       <div
-        style={{ position: "fixed", bottom: 56, left: 0, right: 0, background: "#1a3a1a", color: "white", display: "flex", alignItems: "center", gap: 14, padding: "14px 20px", cursor: "pointer", zIndex: 60 }}
+        style={{ position: "fixed", bottom: 56, left: 0, right: 0, background: "#581073", color: "white", display: "flex", alignItems: "center", gap: 14, padding: "14px 20px", cursor: "pointer", zIndex: 60 }}
         onClick={() => setCreateOpen(o => !o)}>
         <span style={{ fontSize: 20, flexShrink: 0 }}>📅</span>
         <div>
@@ -2380,7 +3392,68 @@ function EventsScreen({ city, userId, userName }) {
   );
 }
 
-// ─── OWN PROFILE ──────────────────────────────────────────────────────────────
+// ─── BLOCKED USERS SECTION ───────────────────────────────────────────────────
+function BlockedUsersSection({ userId }) {
+  const [blocked, setBlocked] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [unblocking, setUnblocking] = useState(null);
+  const [expanded, setExpanded] = useState(false);
+
+  const load = async () => {
+    if (!userId) return;
+    try {
+      const ids = await getBlockedIds(userId);
+      if (!ids.length) { setBlocked([]); setLoading(false); return; }
+      // Fetch profiles for blocked users
+      const { data } = await supabase.from('profiles').select('id,name,age').in('id', ids);
+      setBlocked(data || []);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { if (expanded) load(); }, [userId, expanded]);
+
+  const handleUnblock = async (blockedId) => {
+    setUnblocking(blockedId);
+    try {
+      await supabase.from('blocks').delete()
+        .eq('blocker_id', userId).eq('blocked_id', blockedId);
+      setBlocked(p => p.filter(b => b.id !== blockedId));
+    } catch (e) { console.error(e); }
+    finally { setUnblocking(null); }
+  };
+
+  return (
+    <div style={{ marginTop: 16 }}>
+      <button onClick={() => setExpanded(o => !o)}
+        style={{ width: "100%", background: "none", border: "1px solid var(--border)", borderRadius: 12, padding: "12px 16px", fontSize: 14, fontWeight: 600, color: "var(--text3)", cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        🚫 Blocked users
+        <span style={{ fontSize: 12 }}>{expanded ? "▲" : "▼"}</span>
+      </button>
+      {expanded && (
+        <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: "0 0 12px 12px", borderTop: "none", overflow: "hidden" }}>
+          {loading && <div style={{ padding: "16px", fontSize: 13, color: "var(--text3)", textAlign: "center" }}>Loading…</div>}
+          {!loading && blocked.length === 0 && (
+            <div style={{ padding: "16px", fontSize: 13, color: "var(--text3)", textAlign: "center" }}>No blocked users.</div>
+          )}
+          {!loading && blocked.map(b => (
+            <div key={b.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid var(--border)" }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>{b.name || "Unknown"}{b.age ? `, ${b.age}` : ""}</div>
+              </div>
+              <button onClick={() => handleUnblock(b.id)} disabled={unblocking === b.id}
+                style={{ fontSize: 12, fontWeight: 700, color: "#581073", background: "var(--bg2)", border: "none", borderRadius: 8, padding: "6px 12px", cursor: "pointer" }}>
+                {unblocking === b.id ? "…" : "Unblock"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 function EditableField({ label, value, onSave, type = "text", icon }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -2402,10 +3475,18 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
   const cd = CITIES[user.city];
   const [cuisines, setCuisines] = useState(user.cuisines || []);
   const [things, setThings] = useState(user.things || []);
+  const [selInterests, setSelInterests] = useState(user.interests || []);
   const [prompts, setPrompts] = useState(user.prompts || {});
   const [photos, setPhotos] = useState(user.photo_urls || []);
-  const [foodRecs, setFoodRecs] = useState(user.food_recs?.length ? user.food_recs : ["", "", ""]);
-  const [cityRecs, setCityRecs] = useState(user.city_recs?.length ? user.city_recs : ["", "", ""]);
+  const flatRec = r => r == null ? "" : typeof r === "string" ? r : typeof r === "object" ? (r.name || "") : String(r);
+  const [foodRecs, setFoodRecs] = useState(() => {
+    const arr = user.food_recs || [];
+    return [flatRec(arr[0]), flatRec(arr[1]), flatRec(arr[2])];
+  });
+  const [cityRecs, setCityRecs] = useState(() => {
+    const arr = user.city_recs || [];
+    return [flatRec(arr[0]), flatRec(arr[1]), flatRec(arr[2])];
+  });
   const [uploadingSlot, setUploadingSlot] = useState(null);
   const [saveError, setSaveError] = useState("");
   const [cityPickerOpen, setCityPickerOpen] = useState(false);
@@ -2413,9 +3494,16 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
   useEffect(() => { setCuisines(user.cuisines || []); }, [user.cuisines]);
   useEffect(() => { setPhotos(user.photo_urls || []); }, [user.photo_urls]);
   useEffect(() => { setThings(user.things || []); }, [user.things]);
+  useEffect(() => { setSelInterests(user.interests || []); }, [user.interests]);
   useEffect(() => { setPrompts(user.prompts || {}); }, [user.prompts]);
-  useEffect(() => { setFoodRecs(user.food_recs?.length ? user.food_recs : ["", "", ""]); }, [user.food_recs]);
-  useEffect(() => { setCityRecs(user.city_recs?.length ? user.city_recs : ["", "", ""]); }, [user.city_recs]);
+  useEffect(() => {
+    const arr = user.food_recs || [];
+    setFoodRecs([flatRec(arr[0]), flatRec(arr[1]), flatRec(arr[2])]);
+  }, [user.food_recs]);
+  useEffect(() => {
+    const arr = user.city_recs || [];
+    setCityRecs([flatRec(arr[0]), flatRec(arr[1]), flatRec(arr[2])]);
+  }, [user.city_recs]);
 
   const save = async (updates, revert) => {
     setSaveError("");
@@ -2476,7 +3564,7 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
                 {["she/her", "he/him", "they/them"].map(p => (
                   <button key={p} type="button"
-                    style={{ border: `1.5px solid ${user.pronouns === p ? "var(--green2)" : "var(--border)"}`, borderRadius: 8, padding: "5px 11px", fontSize: 12, fontWeight: 600, color: user.pronouns === p ? "white" : "var(--text2)", background: user.pronouns === p ? "var(--green2)" : "var(--white)", cursor: "pointer" }}
+                    style={{ border: `1.5px solid ${user.pronouns === p ? "var(--purple)" : "var(--border)"}`, borderRadius: 8, padding: "5px 11px", fontSize: 12, fontWeight: 600, color: user.pronouns === p ? "white" : "var(--text2)", background: user.pronouns === p ? "var(--purple)" : "var(--white)", cursor: "pointer" }}
                     onClick={() => save({ pronouns: user.pronouns === p ? "" : p })}>{p}</button>
                 ))}
               </div>
@@ -2510,19 +3598,33 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
         </div>
       </div>
 
-      {/* 3 Things to do */}
+      {/* 3 Things I Want to Experience */}
       <div className="profile-section">
         <div className="profile-sec-num">3</div>
         <div className="profile-sec-body">
-          <div className="profile-sec-title">Things I want to do <span className="profile-sec-count">{things.length} added</span></div>
-          <div className="profile-sec-sub">This powers the Things to do tab — the more you add, the more people you'll match with.</div>
-          <div className="ob-tags-row">{things.map((w, i) => <span key={i} className="ob-tag">{w}<button onClick={() => removeThing(w)}>×</button></span>)}</div>
-          <div className="ob-chips-grid" style={{ marginTop: 14 }}>
+          <div className="profile-sec-title">Things I Want to Experience <span className="profile-sec-count">{things.length}/5 added</span></div>
+          <div className="profile-sec-sub">Choose up to 5. This powers your matches — people who want the same things will find you.</div>
+          {things.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 10, marginBottom: 10 }}>
+              {things.map(t => (
+                <span key={t} style={{ background: "#F5E8F9", color: "#581073", borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                  {t}
+                  <button onClick={() => removeThing(t)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "#581073", padding: 0, lineHeight: 1 }}>×</button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 10 }}>
             {THINGS_OPTIONS.filter(t => !things.includes(t)).map(t => (
-              <button key={t} className="ob-thing-chip" onClick={() => addThing(t)}>{t}</button>
+              <button key={t} type="button"
+                onClick={() => { if (things.length < 5) addThing(t); }}
+                style={{ border: "1.5px solid var(--border)", borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 600, color: "var(--text2)", background: "var(--white)", cursor: things.length >= 5 ? "not-allowed" : "pointer", opacity: things.length >= 5 ? 0.4 : 1 }}>
+                {t}
+              </button>
             ))}
           </div>
-          <input className="ob-input" style={{ marginTop: 12 }} placeholder="Add your own..." onKeyDown={e => { if (e.key === "Enter" && e.target.value.trim()) { const val = e.target.value.trim(); if (!things.includes(val)) addThing(val); e.target.value = ""; } }} />
+          <input className="ob-input" style={{ marginTop: 12 }} placeholder="Or type your own (press Enter)..."
+            onKeyDown={e => { if (e.key === "Enter" && e.target.value.trim() && things.length < 3) { const val = e.target.value.trim(); if (!things.includes(val)) addThing(val); e.target.value = ""; } }} />
         </div>
       </div>
 
@@ -2561,18 +3663,27 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
       <div className="profile-section">
         <div className="profile-sec-num">5</div>
         <div className="profile-sec-body">
-          <div className="profile-sec-title">My top food recommendations <span className="profile-sec-count">{foodRecs.filter(Boolean).length}/3 added</span></div>
-          <div className="profile-sec-sub">Add up to 3 places you personally recommend. These show on your profile so others know where you love to eat.</div>
-          {[0, 1, 2].map(i => (
-            <input key={i} className="ob-input" style={{ marginTop: 10 }}
-              placeholder={`Place ${i + 1} (e.g. Nandan Coffee, Kala Ghoda)`}
-              value={foodRecs[i] || ""}
-              onChange={e => {
-                const next = [...foodRecs]; next[i] = e.target.value;
-                setFoodRecs(next); save({ food_recs: next }, () => setFoodRecs(foodRecs));
-              }}
-            />
-          ))}
+          <div className="profile-sec-title">Food Spots</div>
+          <div className="profile-sec-sub">Recommend up to 3 food spots others should experience.</div>
+          {[0, 1, 2].map(i => {
+            const raw = foodRecs[i];
+            const val = raw == null ? "" : typeof raw === "string" ? raw : typeof raw === "object" ? (raw.name || "") : String(raw);
+            return (
+              <input key={i} className="ob-input" style={{ marginTop: 10 }}
+                placeholder={`Food spot ${i + 1} (e.g. Nandan Coffee, Kala Ghoda)`}
+                value={val}
+                onChange={e => {
+                  const next = [...foodRecs];
+                  next[i] = e.target.value;
+                  setFoodRecs(next);
+                }}
+                onBlur={e => {
+                  const next = [...foodRecs];
+                  next[i] = e.target.value;
+                  save({ food_recs: next });
+                }} />
+            );
+          })}
         </div>
       </div>
 
@@ -2580,39 +3691,51 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
       <div className="profile-section">
         <div className="profile-sec-num">6</div>
         <div className="profile-sec-body">
-          <div className="profile-sec-title">In-city recommendations <span className="profile-sec-count">{cityRecs.filter(Boolean).length}/3 added</span></div>
-          <div className="profile-sec-sub">Share up to 3 places or spots you love in the city — beaches, parks, neighbourhoods, anything.</div>
-          {[0, 1, 2].map(i => (
-            <input key={i} className="ob-input" style={{ marginTop: 10 }}
-              placeholder={`Place ${i + 1} (e.g. Marine Drive at sunset)`}
-              value={cityRecs[i] || ""}
-              onChange={e => {
-                const next = [...cityRecs]; next[i] = e.target.value;
-                setCityRecs(next); save({ city_recs: next }, () => setCityRecs(cityRecs));
-              }}
-            />
-          ))}
+          <div className="profile-sec-title">Places Worth Exploring</div>
+          <div className="profile-sec-sub">Recommend up to 3 places everyone should experience.</div>
+          {[0, 1, 2].map(i => {
+            const raw = cityRecs[i];
+            const val = raw == null ? "" : typeof raw === "string" ? raw : typeof raw === "object" ? (raw.name || "") : String(raw);
+            return (
+              <input key={i} className="ob-input" style={{ marginTop: 10 }}
+                placeholder={`Place ${i + 1} (e.g. Marine Drive at sunset)`}
+                value={val}
+                onChange={e => {
+                  const next = [...cityRecs];
+                  next[i] = e.target.value;
+                  setCityRecs(next);
+                }}
+                onBlur={e => {
+                  const next = [...cityRecs];
+                  next[i] = e.target.value;
+                  save({ city_recs: next });
+                }} />
+            );
+          })}
         </div>
       </div>
 
-      {/* 7 Conversation starters */}
+      {/* 7 Thoughts */}
       <div className="profile-section">
         <div className="profile-sec-num">7</div>
         <div className="profile-sec-body">
-          <div className="profile-sec-title">Conversation starters <span className="profile-sec-count">{Object.keys(prompts).length} added</span></div>
-          <div className="profile-sec-sub">Pick up to 3 prompts and answer them — they appear in chat to help people start a conversation with you.</div>
-          {CONVERSATION_PROMPTS.map(q => {
+          <div className="profile-sec-title">Thoughts <span className="profile-sec-count">{Object.keys(prompts).length} added</span></div>
+          <div className="profile-sec-sub">Pick up to 3 prompts and answer them — they appear on your profile to help people connect with you.</div>
+          {THOUGHT_PROMPTS.map(q => {
             const answered = q in prompts;
             return (
               <div key={q} className="prompt-row">
                 <div className="prompt-q">{q}</div>
                 {answered ? (
                   <div className="prompt-answered">
-                    <textarea className="ob-input experience-textarea" style={{ marginTop: 6, fontSize: 13 }} rows={2} value={prompts[q]} onChange={e => { const next = { ...prompts, [q]: e.target.value }; setPrompts(next); save({ prompts: next }, () => setPrompts(prompts)); }} />
-                    <button className="prompt-remove" onClick={() => { const next = { ...prompts }; delete next[q]; setPrompts(next); save({ prompts: next }, () => setPrompts(prompts)); }}>Remove</button>
+                    <textarea className="ob-input experience-textarea" style={{ marginTop: 6, fontSize: 13 }} rows={2}
+                      value={prompts[q]}
+                      onChange={e => setPrompts(prev => ({ ...prev, [q]: e.target.value }))}
+                      onBlur={e => { const next = { ...prompts, [q]: e.target.value }; save({ prompts: next }); }} />
+                    <button className="prompt-remove" onClick={() => { const next = { ...prompts }; delete next[q]; setPrompts(next); save({ prompts: next }); }}>Remove</button>
                   </div>
                 ) : Object.keys(prompts).length < 3 ? (
-                  <button className="prompt-add-btn" onClick={() => { const next = { ...prompts, [q]: "" }; setPrompts(next); save({ prompts: next }, () => setPrompts(prompts)); }}>+ Answer this</button>
+                  <button className="prompt-add-btn" onClick={() => { const next = { ...prompts, [q]: "" }; setPrompts(next); save({ prompts: next }); }}>+ Answer this</button>
                 ) : null}
               </div>
             );
@@ -2622,22 +3745,8 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
 
       <button className="profile-signout" onClick={onSignOut}>Sign out</button>
 
-      {/* 8 Saved places */}
-      {((user.saved_food_places || []).filter(Boolean).length > 0) && (
-        <div className="profile-section" style={{ marginTop: 8 }}>
-          <div className="profile-sec-num">★</div>
-          <div className="profile-sec-body">
-            <div className="profile-sec-title">Saved food places <span className="profile-sec-count">{(user.saved_food_places || []).filter(Boolean).length} saved</span></div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
-              {(user.saved_food_places || []).filter(Boolean).map((name, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg2)", borderRadius: 10, padding: "10px 14px" }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>🍽️ {name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Blocked users section */}
+      <BlockedUsersSection userId={userId} />
     </div>
   );
 }
@@ -2646,19 +3755,49 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
 export default function App() {
   const { session, profile, loading, refreshProfile } = useAuth();
   const [localUser, setLocalUser] = useState(null);
-  const [tab, setTab] = useState("connections");
+  const [tab, setTab] = useState("home");
   const [messagesOpen, setMessagesOpen] = useState(false);
   const [tourStep, setTourStep] = useState(null);
   const [screen, setScreen] = useState("landing");
+  const [onboardingComplete, setOnboardingComplete] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Poll for pending requests + unread messages
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    const check = async () => {
+      try {
+        const [reqs, conns] = await Promise.all([
+          getPendingRequests(session.user.id),
+          getConnections(session.user.id),
+        ]);
+        const pendingN = (reqs || []).length;
+        // Count conversations with messages we haven't seen yet
+        const seenData = (() => { try { return JSON.parse(localStorage.getItem(`nm_seen_${session.user.id}`) || "{}"); } catch { return {}; } })();
+        const unreadConvs = (conns || []).filter(c => {
+          if (c.status === 'pending') return false;
+          const cnt = Array.isArray(c.messages) ? (c.messages[0]?.count ?? 0) : 0;
+          return cnt > 0 && cnt > (seenData[c.id] ?? 0);
+        }).length;
+        setPendingCount(pendingN);
+        setUnreadCount(pendingN + unreadConvs);
+      } catch {}
+    };
+    check();
+    const interval = setInterval(check, 15000);
+    return () => clearInterval(interval);
+  }, [session?.user?.id]);
 
   useEffect(() => {
-    const alreadySeen = localStorage.getItem("nearmet_tour_done") === "true";
+    const alreadySeen = localStorage.getItem(`nearmet_tour_${session?.user?.id}`) === "true";
     if (profile?.profile_complete && !alreadySeen && tourStep === null) setTourStep(0);
   }, [profile?.profile_complete]);
 
   const finishTour = async () => {
+    localStorage.setItem(`nearmet_tour_${session?.user?.id}`, "true");
     setTourStep(null);
-    localStorage.setItem("nearmet_tour_done", "true");
+    // legacy key removed
     if (session?.user?.id) {
       try { await updateProfile(session.user.id, { tour_completed: true }); await refreshProfile(); }
       catch (e) { console.error(e); }
@@ -2674,35 +3813,39 @@ export default function App() {
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f7f7f5" }}>
       <div style={{ textAlign: "center" }}>
         <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: "-0.04em", marginBottom: 12 }}>
-          <span style={{ color: "#1a2e1a" }}>Near</span><span style={{ color: "#2d6a2d" }}>Met</span>
+          <span style={{ color: "#581073" }}>Near</span><span style={{ color: "#581073" }}>Met</span>
         </div>
         <div style={{ fontSize: 13, color: "#999" }}>Loading…</div>
       </div>
     </div>
   );
 
-  // ── Supabase signed in + profile complete ──
-  if (session && profile?.profile_complete) {
+  // ── Supabase signed in + profile complete (or just finished onboarding) ──
+  if (session && (profile?.profile_complete || onboardingComplete)) {
+    // If onboardingComplete but profile not yet refreshed, build user from onboarding data
+    const profileData = profile?.profile_complete ? profile : profile || {};
     const user = {
-      city: profile.city || "mumbai",
-      name: profile.name || "User",
-      age: profile.age || null,
-      interests: profile.interests || [],
-      things: profile.city_wants || [],
-      cuisines: profile.cuisines || [],
-      budget: profile.budget || "flexible",
-      photo_urls: profile.photo_urls || [],
-      saved_food_places: profile.saved_food_places || [],
-      prompts: profile.prompts || {},
-      food_recs: profile.food_recs || ["", "", ""],
-      city_recs: profile.city_recs || ["", "", ""],
-      pronouns: profile.pronouns || "",
+      city: profileData.city || "mumbai",
+      name: profileData.name || session.user.email?.split("@")[0] || "User",
+      age: profileData.age || null,
+      interests: profileData.interests || [],
+      things: profileData.city_wants || [],
+      cuisines: profileData.cuisines || [],
+      budget: profileData.budget || "flexible",
+      photo_urls: profileData.photo_urls || [],
+      saved_food_places: profileData.saved_food_places || [],
+      saved_explore_places: profileData.saved_explore_places || [],
+      prompts: profileData.prompts || {},
+      food_recs: profileData.food_recs || ["", "", ""],
+      city_recs: profileData.city_recs || ["", "", ""],
+      pronouns: profileData.pronouns || "",
     };
     const nav = [
+      ["home", "🏠", "Home"],
       ["connections", "👥", "Connections"],
-      ["places", "📍", "Places to Explore"],
-      ["food", "🍽️", "Food Places"],
-      ["events", "🎉", "What's Happening"],
+      ["places", "📍", "Places"],
+      ["food", "🍽️", "Food"],
+      ["events", "🎉", "Events"],
     ];
     return (
       <div className="app-root">
@@ -2711,24 +3854,36 @@ export default function App() {
             <NearMetLogo size={26} />
             <div className="topnav-right">
               <span className="city-pill">📍 Mumbai</span>
-              <button className="topnav-msg-btn" onClick={() => setMessagesOpen(true)} title="Messages">💬</button>
-              <button className="topnav-msg-btn" title="Profile" onClick={() => setTab("profile")}>👤</button>
+              <button className="topnav-msg-btn" onClick={() => setMessagesOpen(true)} title="Messages" style={{ position: "relative" }}>
+                💬
+                {unreadCount > 0 && (
+                  <span style={{ position: "absolute", top: -4, right: -4, background: "#581073", color: "white", borderRadius: "50%", width: 16, height: 16, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>{unreadCount}</span>
+                )}
+              </button>
+              <button data-tour="profile-btn" className="topnav-msg-btn" title="Profile" onClick={() => setTab("profile")}>👤</button>
             </div>
           </div>
         </header>
         <nav className="section-tab-bar">
           {nav.map(([id, icon, lbl]) => (
-            <button key={id} className={`section-tab ${tab === id ? "active" : ""}`} onClick={() => setTab(id)}>
+            <button key={id} data-tour={`${id}-tab`} className={`section-tab ${tab === id ? "active" : ""}`} onClick={() => setTab(id)}>
               <span className="section-tab-icon">{icon}</span>
               <span className="section-tab-label">{lbl}</span>
             </button>
           ))}
         </nav>
-        {messagesOpen && <MessagesPanel userId={session.user.id} onClose={() => setMessagesOpen(false)} />}
+        {messagesOpen && <MessagesPanel userId={session.user.id} onClose={() => { setMessagesOpen(false); getPendingRequests(session.user.id).then(reqs => { setPendingCount((reqs||[]).length); setUnreadCount((reqs||[]).length); }).catch(()=>{}); }} onPendingChange={n => { setPendingCount(n); setUnreadCount(n); }} />}
         {tourStep !== null && <TourOverlay stepIndex={tourStep} onNext={() => { if (tourStep >= TOUR_STEPS.length - 1) finishTour(); else setTourStep(s => s + 1); }} onBack={() => setTourStep(s => Math.max(0, s - 1))} onSkip={finishTour} />}
         <main className="site-main">
+          {tab === "home" && <HomeScreen user={user} userId={session.user.id} city={user.city} onNavigate={setTab} onOpenProfile={() => setTab("profile")} />}
           {tab === "connections" && <ConnectionsScreen city={user.city} userId={session.user.id} me={user} />}
-          {tab === "places" && <PlacesToExploreScreen city={user.city} userId={session.user.id} userName={user.name} />}
+          {tab === "places" && <PlacesToExploreScreen city={user.city} userId={session.user.id} userName={user.name}
+            savedExplorePlaces={user.saved_explore_places || []}
+            onToggleExploreSave={async (placeId) => {
+              const cur = user.saved_explore_places || [];
+              const next = cur.includes(placeId) ? cur.filter(id => id !== placeId) : [...cur, placeId];
+              try { await updateProfile(session.user.id, { saved_explore_places: next }); await refreshProfile(); } catch (e) { console.error(e); }
+            }} />}
           {tab === "food" && <FoodScreen city={user.city} userCuisines={user.cuisines} userBudget={user.budget} userId={session.user.id} userName={user.name} savedPlaces={user.saved_food_places} onToggleSave={async name => { const cur = user.saved_food_places || []; const next = cur.includes(name) ? cur.filter(n => n !== name) : [...cur, name]; try { await updateProfile(session.user.id, { saved_food_places: next }); await refreshProfile(); } catch (e) { console.error(e); } }} />}
           {tab === "events" && <EventsScreen city={user.city} userId={session.user.id} userName={user.name} />}
           {tab === "profile" && <ProfileScreen user={user} userId={session.user.id} onSignOut={handleSignOut} onUpdateProfile={async updates => { await updateProfile(session.user.id, updates); await refreshProfile(); }} onReplayTour={() => setTourStep(0)} />}
@@ -2738,26 +3893,68 @@ export default function App() {
   }
 
   // ── Supabase signed in but onboarding not done ──
-  if (session) return (
-    <Onboarding initialCity={profile?.city} initialName={profile?.name} initialAge={profile?.age} initialPronouns={profile?.pronouns}
-      onShowSignIn={handleSignOut} onBackToLanding={handleSignOut}
+  if (session && !onboardingComplete && !profile?.profile_complete) return (
+    <Onboarding
+      initialCity={profile?.city || "mumbai"}
+      initialName={profile?.name}
+      initialAge={profile?.age}
+      initialPronouns={profile?.pronouns}
+      session={session}
+      onSignUp={async () => {}} // already signed up
+      onShowSignIn={handleSignOut}
+      onBackToLanding={handleSignOut}
       onDone={async u => {
-        try { await updateProfile(session.user.id, { city: u.city, name: u.name, interests: u.interests, city_wants: u.things, cuisines: u.cuisines, budget: u.budget, pronouns: u.pronouns || "", profile_complete: true, last_active: new Date().toISOString() }); await refreshProfile(); }
-        catch (e) { console.error(e); }
+        try {
+          await supabase.from('profiles').upsert({
+            id: session.user.id,
+            email: session.user.email,
+            city: u.city, name: u.name,
+            phone: u.phone || "",
+            gender: u.pronouns || "",
+            interests: u.interests, city_wants: u.things,
+            cuisines: u.cuisines, budget: u.budget,
+            prompts: u.prompts || {},
+            food_recs: u.food_recs || [],
+            city_recs: u.city_recs || [],
+            profile_complete: true,
+            last_active: new Date().toISOString(),
+          });
+          // Don't call refreshProfile() here — it causes a brief null flash
+          // that flickers back to the landing screen. Instead just set the
+          // flag and let the next auth tick pick up the new profile naturally.
+          setOnboardingComplete(true);
+          // Refresh profile in background — won't cause flicker since onboardingComplete is already true
+          setTimeout(() => refreshProfile(), 500);
+        }
+        catch (e) { console.error(e); setOnboardingComplete(true); }
       }} />
   );
 
   // ── Auth screens ──
-  if (screen === "signin") return <AuthPage mode="signin" onBack={() => setScreen("landing")} />;
-  if (screen === "signup") return <AuthPage mode="signup" onBack={() => setScreen("landing")} />;
+  if (screen === "signin") return <AuthPage mode="signin" onBack={() => setScreen("landing")} onCreateAccount={() => setScreen("signup")} />;
+  if (screen === "signup") return (
+    <Onboarding
+      initialCity="mumbai" initialName="" initialAge="" initialPronouns=""
+      session={null}
+      onSignUp={async (email, password, phone) => {
+        const { signUp } = await import("./lib/supabase.js");
+        const result = await signUp({ email, password, name: "", age: "", city: "mumbai", phone: phone || "" });
+        return result;
+      }}
+      onShowSignIn={() => setScreen("signin")}
+      onBackToLanding={() => setScreen("landing")}
+      onDone={() => setScreen("signin")}
+    />
+  );
 
   // ── Local demo mode ──
   if (localUser) {
     const nav = [
+      ["home", "🏠", "Home"],
       ["connections", "👥", "Connections"],
-      ["places", "📍", "Places to Explore"],
-      ["food", "🍽️", "Food Places"],
-      ["events", "🎉", "What's Happening"],
+      ["places", "📍", "Places"],
+      ["food", "🍽️", "Food"],
+      ["events", "🎉", "Events"],
     ];
     return (
       <div className="app-root">
@@ -2767,13 +3964,13 @@ export default function App() {
             <div className="topnav-right">
               <span className="city-pill">📍 Mumbai</span>
               <button className="topnav-msg-btn" disabled title="Sign in to use messaging">💬</button>
-              <button className="topnav-msg-btn" onClick={() => setTab("profile")}>👤</button>
+              <button data-tour="profile-btn" className="topnav-msg-btn" onClick={() => setTab("profile")}>👤</button>
             </div>
           </div>
         </header>
         <nav className="section-tab-bar">
           {nav.map(([id, icon, lbl]) => (
-            <button key={id} className={`section-tab ${tab === id ? "active" : ""}`} onClick={() => setTab(id)}>
+            <button key={id} data-tour={`${id}-tab`} className={`section-tab ${tab === id ? "active" : ""}`} onClick={() => setTab(id)}>
               <span className="section-tab-icon">{icon}</span>
               <span className="section-tab-label">{lbl}</span>
             </button>
@@ -2781,8 +3978,17 @@ export default function App() {
         </nav>
         {tourStep !== null && <TourOverlay stepIndex={tourStep} onNext={() => { if (tourStep >= TOUR_STEPS.length - 1) setTourStep(null); else setTourStep(s => s + 1); }} onBack={() => setTourStep(s => Math.max(0, s - 1))} onSkip={() => setTourStep(null)} />}
         <main className="site-main">
+          {tab === "home" && <HomeScreen user={localUser} userId={null} city={localUser.city} onNavigate={setTab} onOpenProfile={() => setTab("profile")} />}
           {tab === "connections" && <ConnectionsScreen city={localUser.city} userId={null} me={localUser} />}
-          {tab === "places" && <PlacesToExploreScreen city={localUser.city} userId={null} userName={localUser.name} />}
+          {tab === "places" && <PlacesToExploreScreen city={localUser.city} userId={null} userName={localUser.name}
+            savedExplorePlaces={localUser.saved_explore_places || []}
+            onToggleExploreSave={placeId => {
+              setLocalUser(u => {
+                const cur = u.saved_explore_places || [];
+                const next = cur.includes(placeId) ? cur.filter(id => id !== placeId) : [...cur, placeId];
+                return { ...u, saved_explore_places: next };
+              });
+            }} />}
           {tab === "food" && <FoodScreen city={localUser.city} userCuisines={localUser.cuisines || []} userBudget={localUser.budget || "flexible"} userId={null} userName={localUser.name} savedPlaces={localUser.saved_food_places || []} onToggleSave={name => { setLocalUser(u => { const cur = u.saved_food_places || []; const next = cur.includes(name) ? cur.filter(n => n !== name) : [...cur, name]; return { ...u, saved_food_places: next }; }); }} />}
           {tab === "events" && <EventsScreen city={localUser.city} userId={null} userName={localUser.name} />}
           {tab === "profile" && <ProfileScreen user={localUser} userId={null} onSignOut={() => { setLocalUser(null); setScreen("landing"); }} onUpdateProfile={async updates => { setLocalUser(u => ({ ...u, ...updates })); }} onReplayTour={() => setTourStep(0)} />}
@@ -2794,22 +4000,6 @@ export default function App() {
   // ── Onboarding (local) ──
   if (screen === "onboarding") return <Onboarding onShowSignIn={() => setScreen("signin")} onBackToLanding={() => setScreen("landing")} onDone={u => { setLocalUser(u); setTab("connections"); }} />;
 
-  // ── Landing ──
-  return (
-    <div className="ob-root">
-      <div className="ob-hero">
-        <div className="ob-hero-img" style={{ backgroundImage: `url(https://images.unsplash.com/photo-1529543544282-ea669407fca3?w=900&q=80)` }} />
-        <div className="ob-hero-overlay" />
-        <div className="ob-hero-content">
-          <NearMetLogo size={56} dark />
-          <p className="ob-hero-tagline">Explore your city.<br />Find genuine connections.</p>
-        </div>
-        <div className="ob-hero-bottom">
-          <button className="ob-cta-primary" onClick={() => setScreen("signup")}>Create an account</button>
-          <button className="ob-cta-secondary" onClick={() => setScreen("signin")}>I have an account</button>
-          <p className="ob-legal">By continuing you agree to our <span className="ob-link">Terms</span> &amp; <span className="ob-link">Privacy Policy</span>.</p>
-        </div>
-      </div>
-    </div>
-  );
+  // ── Landing ── Use AuthPage which has the new gradient design
+  return <AuthPage onCreateAccount={() => setScreen("signup")} onBack={() => {}} />;
 }

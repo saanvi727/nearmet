@@ -1,158 +1,127 @@
 import { useState } from 'react'
-import { signIn, signUp } from '../lib/supabase'
+import { signIn } from '../lib/supabase'
 
 function NearMetLogo({ size = 28, dark = false }) {
-  return (
-    <span style={{ fontSize: size, fontWeight: 800, letterSpacing: '-0.04em', fontFamily: 'Outfit, sans-serif' }}>
-      <span style={{ color: dark ? '#f5f5f0' : '#1a2e1a' }}>Near</span>
-      <span style={{ color: dark ? '#8aad6e' : '#2d6a2d' }}>Met</span>
-    </span>
-  )
+  const height = Math.round(size * 1.8);
+  const src = dark ? "/logo-dark.png" : "/logo-light.png";
+  return <img src={src} alt="NearMet" style={{ height, width: "auto", objectFit: "contain", display: "block", maxWidth: size * 7 }} />;
 }
 
-const CITIES = [
-  { id: 'nyc', flag: '🗽', name: 'New York City', sub: 'All 5 boroughs · Live now' },
-  { id: 'mumbai', flag: '🇮🇳', name: 'Mumbai', sub: 'All areas · Live now' },
-]
-
-export default function AuthPage({ onBack, mode: props_mode }) {
+export default function AuthPage({ onBack, mode: props_mode, onCreateAccount }) {
   const [mode, setMode] = useState(props_mode || 'landing')
-  const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [city, setCity] = useState('')
-  const [form, setForm] = useState({ name: '', age: '', email: '', phone: '', password: '', confirmPassword: '' })
+  const [signedUpEmail, setSignedUpEmail] = useState('')
+  const [form, setForm] = useState({ email: '', password: '' })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   async function handleSignIn(e) {
     e.preventDefault()
     setLoading(true); setError('')
-    try {
-      await signIn({ email: form.email, password: form.password })
-    } catch (err) {
-      setError(err.message || 'Sign in failed. Check your email and password.')
-    } finally { setLoading(false) }
+    try { await signIn({ email: form.email, password: form.password }) }
+    catch (err) { setError(err.message || 'Sign in failed. Check your email and password.') }
+    finally { setLoading(false) }
   }
 
-  async function handleSignUp(e) {
-    e.preventDefault()
-    if (form.password !== form.confirmPassword) { setError('Passwords do not match.'); return }
-    if (form.password.length < 8) { setError('Password must be at least 8 characters.'); return }
-    if (parseInt(form.age) < 18) { setError('You must be 18 or older.'); return }
-    setLoading(true); setError('')
-    try {
-      await signUp({ email: form.email, password: form.password, name: form.name, age: form.age, city, phone: form.phone })
-    } catch (err) {
-      setError(err.message || 'Sign up failed. Please try again.')
-    } finally { setLoading(false) }
-  }
-
+  // ── Landing ─────────────────────────────────────────────────────────────────
   if (mode === 'landing') return (
     <div className="ob-root">
-      <div className="ob-hero">
-        <div className="ob-hero-img" style={{ backgroundImage: `url(https://images.unsplash.com/photo-1529543544282-ea669407fca3?w=800&q=80)` }} />
-        <div className="ob-hero-overlay" />
-        <div className="ob-hero-content">
-          <NearMetLogo size={52} dark />
-          <p className="ob-hero-tagline">Explore your city.<br />Find genuine connections.</p>
-        </div>
-        <div className="ob-hero-bottom">
-          <button className="ob-cta-primary" onClick={() => setMode('signup')}>Create an account</button>
-          <button className="ob-cta-secondary" onClick={() => setMode('signin')}>I have an account</button>
-          <p className="ob-legal">By signing up you agree to our <span className="ob-link">Terms</span> &amp; <span className="ob-link">Privacy Policy</span>.</p>
-        </div>
-      </div>
-    </div>
-  )
+      <div className="ob-hero" style={{ position: "relative", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+        {/* Gradient background instead of dark food photo */}
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg, #1A1F3A 0%, #3D2E8A 40%, #5B4FD4 70%, #F47B6B 100%)", zIndex: 0 }} />
+        {/* Subtle pattern overlay */}
+        <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle at 20% 50%, rgba(255,255,255,0.04) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(244,123,107,0.15) 0%, transparent 40%)", zIndex: 1 }} />
 
-  if (mode === 'signin') return (
-    <div className="ob-step-wrap">
-      <div className="ob-step-progress"><div className="ob-progress-bar" style={{ width: '100%' }} /></div>
-      <div className="ob-step-body">
-        <div style={{ marginBottom: 20 }}><NearMetLogo size={32} /></div>
-        <h2 className="ob-step-title">Welcome back</h2>
-        <p className="ob-step-sub">Sign in to your NearMet account.</p>
-        <form onSubmit={handleSignIn}>
-          <div className="ob-form">
-            <div className="ob-field"><label className="ob-field-label">EMAIL</label><input className="ob-input" type="email" placeholder="you@example.com" value={form.email} onChange={e => set('email', e.target.value)} required /></div>
-            <div className="ob-field"><label className="ob-field-label">PASSWORD</label><input className="ob-input" type="password" placeholder="Your password" value={form.password} onChange={e => set('password', e.target.value)} required /></div>
+        <div style={{ position: "relative", zIndex: 2, flex: 1, display: "flex", flexDirection: "column" }}>
+          {/* Logo centred with backdrop so it reads on dark bg */}
+          <div style={{ padding: "48px 28px 0", display: "flex", justifyContent: "center" }}>
+            <div style={{ background: "rgba(255,255,255,0.92)", borderRadius: 20, padding: "14px 24px" }}>
+              <NearMetLogo size={52} />
+            </div>
           </div>
-          {error && <div className="auth-error">{error}</div>}
-          <button className="ob-save-btn" type="submit" disabled={loading}>{loading ? 'Signing in…' : 'Sign in →'}</button>
-        </form>
-        <button className="auth-switch" onClick={() => setMode('signup')}>Don't have an account? <span>Create one</span></button>
-      </div>
-      <div className="ob-step-nav"><button className="ob-btn-ghost" onClick={() => { if(onBack) onBack(); else setMode('landing'); }}>← Back</button></div>
-    </div>
-  )
 
-  // Sign up step 1 — city
-  if (mode === 'signup' && step === 1) return (
-    <div className="ob-step-wrap">
-      <div className="ob-step-progress"><div className="ob-progress-bar" style={{ width: '33%' }} /></div>
-      <div className="ob-step-body">
-        <div className="ob-step-label">STEP 1 OF 3</div>
-        <h2 className="ob-step-title">Which city are you in?</h2>
-        <div className="ob-city-list">
-          {CITIES.map(c => (
-            <button key={c.id} className={`ob-city-item ${city === c.id ? 'active' : ''}`} onClick={() => setCity(c.id)}>
-              <span className="ob-city-flag">{c.flag}</span>
-              <div><div className="ob-city-name">{c.name}</div><div className="ob-city-sub">{c.sub}</div></div>
-              <div className={`ob-radio ${city === c.id ? 'filled' : ''}`} />
+          {/* Hero text centred */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 28px 24px", textAlign: "center" }}>
+            <h1 style={{ fontSize: 36, fontWeight: 900, color: "white", letterSpacing: "-0.04em", lineHeight: 1.2, marginBottom: 16 }}>
+              Meet people.<br />Explore the city.<br /><span style={{ color: "#F47B6B" }}>Together.</span>
+            </h1>
+            <p style={{ fontSize: 16, color: "rgba(255,255,255,0.7)", lineHeight: 1.6, maxWidth: 320 }}>
+              Find people who want to do the same things as you, and explore the city together.
+            </p>
+          </div>
+
+          {/* Buttons bottom */}
+          <div style={{ padding: "0 24px 48px" }}>
+            <button onClick={() => onCreateAccount ? onCreateAccount() : setMode('signup')}
+              style={{ width: "100%", background: "#F47B6B", color: "white", border: "none", borderRadius: 14, padding: "16px", fontSize: 16, fontWeight: 700, cursor: "pointer", marginBottom: 12 }}>
+              Create an account
             </button>
-          ))}
+            <button onClick={() => setMode('signin')}
+              style={{ width: "100%", background: "rgba(255,255,255,0.12)", color: "white", border: "1.5px solid rgba(255,255,255,0.3)", borderRadius: 14, padding: "16px", fontSize: 16, fontWeight: 600, cursor: "pointer", marginBottom: 20 }}>
+              Login
+            </button>
+            <p style={{ textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 1.6 }}>
+              By continuing you agree to our <span style={{ color: "#F47B6B", cursor: "pointer" }}>Terms & Privacy Policy</span>.
+            </p>
+          </div>
         </div>
-      </div>
-      <div className="ob-step-nav">
-        <button className="ob-btn-ghost" onClick={() => setMode('landing')}>Back</button>
-        <button className="ob-btn-primary" disabled={!city} onClick={() => setStep(2)}>Next →</button>
       </div>
     </div>
   )
 
-  // Sign up step 2 — details
-  if (mode === 'signup' && step === 2) return (
-    <div className="ob-step-wrap">
-      <div className="ob-step-progress"><div className="ob-progress-bar" style={{ width: '66%' }} /></div>
-      <div className="ob-step-body">
-        <div className="ob-step-label">STEP 2 OF 3</div>
-        <h2 className="ob-step-title">Create your account</h2>
-        <div className="ob-form">
-          {[['Name', 'text', 'Your name', 'name'], ['Age', 'number', '18+', 'age'], ['Email', 'email', 'you@example.com', 'email'], ['Phone', 'tel', '+1 or +91', 'phone'], ['Password', 'password', 'At least 8 characters', 'password'], ['Confirm Password', 'password', 'Repeat password', 'confirmPassword']].map(([lbl, type, ph, key]) => (
-            <div key={key} className="ob-field"><label className="ob-field-label">{lbl.toUpperCase()}</label><input className="ob-input" type={type} placeholder={ph} value={form[key]} onChange={e => set(key, e.target.value)} /></div>
-          ))}
-        </div>
-        {error && <div className="auth-error">{error}</div>}
-      </div>
-      <div className="ob-step-nav">
-        <button className="ob-btn-ghost" onClick={() => setStep(1)}>Back</button>
-        <button className="ob-btn-primary" disabled={!form.name || !form.email || !form.password} onClick={() => setStep(3)}>Next →</button>
-      </div>
-    </div>
-  )
-
-  // Sign up step 3 — confirm
-  return (
-    <div className="ob-step-wrap">
-      <div className="ob-step-progress"><div className="ob-progress-bar" style={{ width: '100%' }} /></div>
-      <div className="ob-step-body">
-        <div className="ob-step-label">STEP 3 OF 3</div>
-        <h2 className="ob-step-title">Almost there</h2>
-        <div className="auth-confirm-card">
-          {[['City', CITIES.find(c => c.id === city)?.name], ['Name', form.name], ['Email', form.email], ['Age', form.age]].map(([l, v]) => (
-            <div key={l} className="auth-confirm-row"><span>{l}</span><strong>{v}</strong></div>
-          ))}
-        </div>
-        <p style={{ fontSize: 13, color: '#888', marginTop: 16, lineHeight: 1.6 }}>
-          By creating an account you confirm you are 18 or older and agree to our <span className="ob-link">Terms of Service</span> and <span className="ob-link">Privacy Policy</span>.
+  // ── Confirm email ────────────────────────────────────────────────────────────
+  if (mode === 'confirm') return (
+    <div style={{ minHeight: "100vh", background: "#fff", display: "flex", flexDirection: "column", padding: "48px 24px" }}>
+      <NearMetLogo size={36} />
+      <div style={{ marginTop: 40, textAlign: "center" }}>
+        <div style={{ fontSize: 56, marginBottom: 16 }}>📬</div>
+        <h2 style={{ fontSize: 24, fontWeight: 800, color: "#1A1F3A", marginBottom: 8 }}>Check your email</h2>
+        <p style={{ fontSize: 14, color: "#9090B0", lineHeight: 1.6 }}>
+          We sent a confirmation link to<br /><strong style={{ color: "#1A1F3A" }}>{signedUpEmail}</strong>
         </p>
-        {error && <div className="auth-error">{error}</div>}
+        <div style={{ marginTop: 24, background: "#F0EEFF", border: "1px solid #EEEAFF", borderRadius: 12, padding: "14px 16px", fontSize: 13, color: "#5B4FD4", textAlign: "left" }}>
+          <strong>Didn't get it?</strong> Check your spam folder.
+        </div>
+        <button onClick={() => setMode('signin')}
+          style={{ width: "100%", background: "#5B4FD4", color: "white", border: "none", borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 700, cursor: "pointer", marginTop: 24 }}>
+          Go to sign in →
+        </button>
       </div>
-      <div className="ob-step-nav">
-        <button className="ob-btn-ghost" onClick={() => setStep(2)}>Back</button>
-        <button className="ob-btn-primary" disabled={loading} onClick={handleSignUp}>{loading ? 'Creating account…' : 'Create account →'}</button>
+    </div>
+  )
+
+  // ── Sign in ──────────────────────────────────────────────────────────────────
+  return (
+    <div style={{ minHeight: "100vh", background: "#fff", display: "flex", flexDirection: "column" }}>
+      <div style={{ padding: "20px 20px 12px", borderBottom: "1px solid #F0EEFF", display: "flex", alignItems: "center", gap: 12 }}>
+        <button onClick={() => { if (onBack) onBack(); else setMode('landing'); }}
+          style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#4A4A6A" }}>←</button>
+        <NearMetLogo size={32} />
       </div>
-      <button className="auth-switch" style={{ padding: '0 28px 16px' }} onClick={() => setMode('signin')}>Already have an account? <span>Sign in</span></button>
+      <div style={{ flex: 1, padding: "28px 24px", maxWidth: 480, width: "100%", margin: "0 auto" }}>
+        <h2 style={{ fontSize: 28, fontWeight: 800, color: "#1A1F3A", marginBottom: 6 }}>Welcome back</h2>
+        <p style={{ fontSize: 14, color: "#9090B0", marginBottom: 28 }}>Sign in to your NearMet account.</p>
+        <form onSubmit={handleSignIn}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#9090B0", letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>EMAIL</label>
+              <input className="ob-input" type="email" placeholder="you@example.com" value={form.email} onChange={e => set('email', e.target.value)} required />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#9090B0", letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>PASSWORD</label>
+              <input className="ob-input" type="password" placeholder="Your password" value={form.password} onChange={e => set('password', e.target.value)} required />
+            </div>
+          </div>
+          {error && <div style={{ marginTop: 12, background: "#FEF0EE", border: "1px solid #F47B6B", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#C94E3A" }}>{error}</div>}
+          <button className="ob-save-btn" type="submit" disabled={loading} style={{ width: "100%", marginTop: 24 }}>
+            {loading ? 'Signing in…' : 'Sign in →'}
+          </button>
+        </form>
+        <button onClick={() => onCreateAccount ? onCreateAccount() : setMode('landing')}
+          style={{ width: "100%", marginTop: 16, textAlign: "center", fontSize: 14, color: "#9090B0", background: "none", border: "none", cursor: "pointer" }}>
+          Don't have an account? <span style={{ color: "#5B4FD4", fontWeight: 700 }}>Create one</span>
+        </button>
+      </div>
     </div>
   )
 }

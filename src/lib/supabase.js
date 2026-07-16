@@ -14,20 +14,26 @@ export async function signUp({ email, password, name, age, city, phone }) {
     options: { data: { name, age, city, phone } },
   })
   if (error) throw error
-  if (data.user) {
+  // Create profile immediately — works whether email confirm is on or off.
+  // If user.identities is empty, the email already exists.
+  if (data.user && data.user.identities?.length !== 0) {
     const { error: profileError } = await supabase.from('profiles').insert({
       id: data.user.id,
-      name,
-      age: parseInt(age),
-      city,
-      phone,
+      name: name || '',
+      age: parseInt(age) || null,
+      city: city || 'mumbai',
+      phone: phone || '',
       email,
       created_at: new Date().toISOString(),
     })
-    if (profileError) console.error('Profile create error:', profileError)
+    // Ignore duplicate key errors (profile may already exist)
+    if (profileError && profileError.code !== '23505') {
+      console.error('Profile create error:', profileError)
+    }
   }
   return data
 }
+
  
 export async function signIn({ email, password }) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password })
@@ -45,7 +51,7 @@ export async function getProfile(userId) {
     .from('profiles')
     .select('*')
     .eq('id', userId)
-    .single()
+    .maybeSingle() // returns null instead of 406 if no row exists
   if (error) throw error
   return data
 }
@@ -303,29 +309,57 @@ export async function submitThirdPlace(userId, placeData) {
 // ─── CONNECTION ───────────────────────────────────────────────────────────────
  
 export async function getPeople(city, userId) {
-  const { data: passed } = await supabase
-    .from('profile_passes')
-    .select('passed_id')
-    .eq('user_id', userId)
- 
-  const passedIds = (passed || []).map(p => p.passed_id)
- 
+  const [passedResult, myProfileResult] = await Promise.all([
+    supabase.from('profile_passes').select('passed_id').eq('user_id', userId),
+    supabase.from('profiles').select('interests,city_wants').eq('id', userId).single(),
+  ])
+
+  const passedIds = (passedResult.data || []).map(p => p.passed_id)
+  const me = myProfileResult.data || {}
+
   let query = supabase
     .from('profiles')
     .select('*')
     .eq('city', city)
     .eq('profile_complete', true)
     .neq('id', userId)
-    .order('last_active', { ascending: false })
-    .limit(20)
- 
+    .limit(60) // fetch more so we can sort by match score
+
   if (passedIds.length > 0) {
     query = query.not('id', 'in', `(${passedIds.join(',')})`)
   }
- 
+
   const { data, error } = await query
   if (error) throw error
-  return data
+
+  const myInterests = me.interests || []
+  const myThings = me.city_wants || []
+
+  // Normalise for flexible matching across old IDs and new label-based values
+  const norm = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+  const matches = (a, b) => norm(a) === norm(b)
+
+  // Score each person by overlap with the current user
+  const scored = (data || []).map(person => {
+    const sharedInterests = (person.interests || []).filter(i =>
+      myInterests.some(mi => matches(i, mi))
+    ).length
+    const sharedThings = (person.city_wants || []).filter(t =>
+      myThings.some(mt => matches(t, mt))
+    ).length
+    const hasPhoto = (person.photo_urls || []).filter(Boolean).length > 0 ? 1 : 0
+    const hasPrompts = Object.keys(person.prompts || {}).length > 0 ? 1 : 0
+    const score = (sharedThings * 3) + (sharedInterests * 2) + hasPhoto + hasPrompts
+    return { ...person, _score: score }
+  })
+
+  // Sort by score desc, then by last_active as tiebreaker
+  scored.sort((a, b) => {
+    if (b._score !== a._score) return b._score - a._score
+    return new Date(b.last_active || 0) - new Date(a.last_active || 0)
+  })
+
+  return scored.slice(0, 20)
 }
  
 export async function passProfile(userId, passedId) {
@@ -365,16 +399,17 @@ export async function getOrCreateConnection(userId, otherId) {
     .or(`and(user1_id.eq.${userId},user2_id.eq.${otherId}),and(user1_id.eq.${otherId},user2_id.eq.${userId})`)
     .maybeSingle()
   if (existing) return existing
- 
+
+  // New connection starts as 'pending' — recipient must accept before full chat opens
   const { data, error } = await supabase
     .from('connections')
-    .insert({ user1_id: userId, user2_id: otherId })
+    .insert({ user1_id: userId, user2_id: otherId, requester_id: userId, status: 'pending' })
     .select()
     .single()
   if (error) throw error
   return data
 }
- 
+
 export async function getConnections(userId) {
   const { data, error } = await supabase
     .from('connections')
@@ -383,6 +418,58 @@ export async function getConnections(userId) {
     .order('created_at', { ascending: false })
   if (error) throw error
   return data
+}
+
+export async function getPendingRequests(userId) {
+  const { data, error } = await supabase
+    .from('connections')
+    .select(`*, user1:profiles!user1_id(id,name,age,city,photo_urls,prompts,interests), user2:profiles!user2_id(id,name,age,city,photo_urls,prompts,interests)`)
+    .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+    .eq('status', 'pending')
+    .neq('requester_id', userId)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data
+}
+
+export async function acceptRequest(connectionId) {
+  const { error } = await supabase
+    .from('connections')
+    .update({ status: 'accepted' })
+    .eq('id', connectionId)
+  if (error) throw error
+}
+
+export async function rejectRequest(connectionId) {
+  const { error } = await supabase
+    .from('connections')
+    .delete()
+    .eq('id', connectionId)
+  if (error) throw error
+}
+
+// ─── BLOCK ────────────────────────────────────────────────────────────────────
+
+export async function blockUser(blockerId, blockedId) {
+  // Insert both directions so each user hides the other
+  await supabase.from('blocks').insert([
+    { blocker_id: blockerId, blocked_id: blockedId },
+    { blocker_id: blockedId, blocked_id: blockerId },
+  ]).select() // suppress duplicate errors
+
+  // Remove any connection between them
+  await supabase.from('connections').delete()
+    .or(`and(user1_id.eq.${blockerId},user2_id.eq.${blockedId}),and(user1_id.eq.${blockedId},user2_id.eq.${blockerId})`)
+}
+
+export async function getBlockedIds(userId) {
+  // Get IDs the user has blocked
+  const { data, error } = await supabase
+    .from('blocks')
+    .select('blocked_id')
+    .eq('blocker_id', userId)
+  if (error) throw error
+  return (data || []).map(b => b.blocked_id)
 }
  
 // ─── MESSAGES ─────────────────────────────────────────────────────────────────
