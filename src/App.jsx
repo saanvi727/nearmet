@@ -50,7 +50,7 @@ const PLACES_TO_EXPLORE = {
       tag: "Mumbai's favourite beach", address: "Juhu Beach, Juhu Tara Road, Juhu, Mumbai 400049",
       desc: "Mumbai's most famous beach — chaotic, colourful and completely alive. Best in the early mornings or at sunset when the vendors set up and the city exhales.",
       img: "/places-explore/juhu-beach/photo1.jpeg",
-      photos: ["/places-explore/juhu-beach/photo2.webp", "/places-explore/juhu-beach/photo3.webp", "/places-explore/juhu-beach/photo4.jpeg"],
+      photos: ["/places-explore/juhu-beach/photo2.webp", "/places-explore/juhu-beach/photo3.webp", "/places-explore/juhu-beach/photo4.webp"],
       tags: ["Beach", "Sunset", "Street food"] },
 
     { id: 2, name: "Versova Beach", area: "Andheri West", category: "Beach",
@@ -78,7 +78,7 @@ const PLACES_TO_EXPLORE = {
       tag: "Hidden gem", address: "Manori Gorai Road, Manori Village, Malad West, Mumbai 400095",
       desc: "A secluded beach village accessible by ferry — one of Mumbai's best kept secrets. Low footfall, fishing community, and a completely different pace of life from the city.",
       img: "/places-explore/manori-beach/photo1.jpg",
-      photos: ["/places-explore/manori-beach/photo2.avif", "/places-explore/manori-beach/photo3.jpg"],
+      photos: ["/places-explore/manori-beach/photo2.avif", "/places-explore/manori-beach/photo3.avif", "/places-explore/manori-beach/photo4.avif", "/places-explore/manori-beach/photo5.jpg"],
       tags: ["Beach", "Hidden gem", "Ferry ride"] },
 
     { id: 6, name: "Madh Island Beach", area: "Malad West", category: "Beach",
@@ -115,7 +115,7 @@ const PLACES_TO_EXPLORE = {
       tag: "The Queen's Necklace", address: "Netaji Subhash Chandra Bose Road, South Mumbai 400020",
       desc: "Mumbai's beloved 3.6 km sea-facing promenade. At night the street lights curve into a perfect arc — giving it the name Queen's Necklace. Best experienced at sunset or late at night.",
       img: "/places-explore/marine-drive/photo1.jpg",
-      photos: ["/places-explore/marine-drive/photo2.jpeg", "/places-explore/marine-drive/photo3.jpeg", "/places-explore/marine-drive/photo4.jpeg"],
+      photos: ["/places-explore/marine-drive/photo2.jpeg", "/places-explore/marine-drive/photo3.jpeg", "/places-explore/marine-drive/photo4.webp"],
       tags: ["Promenade", "Sunset", "Night walk"] },
 
     // ── PARKS & NATURE ────────────────────────────────────────────────────────
@@ -124,7 +124,7 @@ const PLACES_TO_EXPLORE = {
       tag: "Forest inside the city", address: "Sanjay Gandhi National Park, Borivali East, Mumbai 400066",
       desc: "A 104 sq km forest sitting inside one of the world's most densely populated cities. Home to leopards, the ancient Kanheri Caves, butterflies, and miles of trekking trails.",
       img: "/places-explore/sanjay-gandhi-np/photo1.avif",
-      photos: ["/places-explore/sanjay-gandhi-np/photo2.jpg", "/places-explore/sanjay-gandhi-np/photo3.jpg", "/places-explore/sanjay-gandhi-np/photo4.jpeg"],
+      photos: ["/places-explore/sanjay-gandhi-np/photo2.jpg", "/places-explore/sanjay-gandhi-np/photo3.jpeg", "/places-explore/sanjay-gandhi-np/photo4.avif"],
       tags: ["Nature", "Trekking", "Borivali"] },
 
     { id: 12, name: "Malabar Hill Elevated Nature Trail", area: "Malabar Hill", category: "Nature",
@@ -209,7 +209,7 @@ const PLACES_TO_EXPLORE = {
       tag: "Modern and contemporary art", address: "Jahangir Public Hall, Mahatma Gandhi Road, Fort, Mumbai 400032",
       desc: "Mumbai's home for modern and contemporary Indian art, opened in 1996. Rotating exhibitions alongside a permanent collection of paintings and sculptures from prominent Indian artists.",
       img: "/places-explore/ngma-mumbai/photo1.jpg",
-      photos: ["/places-explore/ngma-mumbai/photo2.jpg", "/places-explore/ngma-mumbai/photo3.jpg", "/places-explore/ngma-mumbai/photo4.jpg"],
+      photos: ["/places-explore/ngma-mumbai/photo2.jpg", "/places-explore/ngma-mumbai/photo3.jpg", "/places-explore/ngma-mumbai/photo4.jfif"],
       tags: ["Museum", "Modern art", "Fort"] },
 
     { id: 23, name: "Framji Dadabhoy Alpaiwalla Museum", area: "Malabar Hill", category: "Museum",
@@ -582,6 +582,80 @@ function StepDots({ total, current }) {
   );
 }
 
+const STEP_4B = 41;
+const FOOD_TAGS = ["Worth the Meal", "Budget Friendly", "Better with company", "Solo Friendly", "Photo Worthy", "Hidden Gem"];
+const PLACE_TAGS = ["Beautiful Views", "Photo Worthy", "Hidden Gem", "Peaceful Escape", "Better with company", "Solo Friendly", "Sunset Spot", "Rich History", "Nature Escape"];
+
+function RecForm({ rec, idx, setter, tags, placeholder, exampleText }) {
+  const toggle = (tag) => setter(p => {
+    const n = [...p]; const cur = n[idx].tags || [];
+    n[idx] = { ...n[idx], tags: cur.includes(tag) ? cur.filter(t => t !== tag) : [...cur, tag] };
+    return n;
+  });
+  // Local state for text fields so typing doesn't re-render parent
+  const [localName, setLocalName] = useState(rec.name || "");
+  const [localLocation, setLocalLocation] = useState(rec.location || "");
+  const [localBecause, setLocalBecause] = useState(rec.because || "");
+
+  // Sync if rec changes externally
+  useEffect(() => { setLocalName(rec.name || ""); }, [rec.name]);
+  useEffect(() => { setLocalLocation(rec.location || ""); }, [rec.location]);
+  useEffect(() => { setLocalBecause(rec.because || ""); }, [rec.because]);
+
+  const commitName = (val) => setter(p => { const n = [...p]; n[idx] = { ...n[idx], name: val }; return n; });
+  const commitLocation = (val) => setter(p => { const n = [...p]; n[idx] = { ...n[idx], location: val }; return n; });
+  const commitBecause = (val) => setter(p => { const n = [...p]; n[idx] = { ...n[idx], because: val }; return n; });
+
+  return (
+    <div style={{ background: "#fff", border: "1px solid #E8D5F0", borderRadius: 16, padding: 16, marginBottom: 12 }}>
+      <div style={{ marginBottom: 10 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#2F2F33", marginBottom: 6 }}>Name</div>
+        <input className="ob-input" placeholder={placeholder} value={localName}
+          onChange={e => setLocalName(e.target.value)}
+          onBlur={e => commitName(e.target.value)} />
+      </div>
+      <div style={{ marginBottom: 10 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#2F2F33", marginBottom: 6 }}>Location</div>
+        <input className="ob-input" placeholder="Enter location" value={localLocation}
+          onChange={e => setLocalLocation(e.target.value)}
+          onBlur={e => commitLocation(e.target.value)} />
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#2F2F33", marginBottom: 6 }}>This place is worth visiting because...</div>
+        <textarea className="ob-input" rows={2} style={{ resize: "none" }} placeholder={exampleText} value={localBecause}
+          onChange={e => setLocalBecause(e.target.value)}
+          onBlur={e => commitBecause(e.target.value)} />
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#2F2F33", marginBottom: 4 }}>What makes this place special?</div>
+        <div style={{ fontSize: 12, color: "#9090B0", marginBottom: 10 }}>Select the options that best describe this place.</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+          {tags.map(tag => {
+            const sel = (rec.tags || []).includes(tag);
+            return (
+              <button key={tag} type="button" onClick={() => toggle(tag)}
+                style={{ border: "1.5px solid " + (sel ? "#581073" : "#E8D5F0"), borderRadius: 10, padding: "8px 6px", fontSize: 12, fontWeight: 600, color: sel ? "#581073" : "#4A4A6A", background: sel ? "#F5E8F9" : "#F8F8FC", cursor: "pointer", textAlign: "center" }}>
+                {tag}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#2F2F33", marginBottom: 4 }}>Photos <span style={{ color: "#9090B0", fontWeight: 400 }}>(Optional)</span></div>
+        <div style={{ fontSize: 12, color: "#9090B0", marginBottom: 8 }}>Help others discover this place by adding a photo.</div>
+        <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: "2px dashed #E8D5F0", borderRadius: 12, padding: 20, cursor: "pointer", background: "#F8F8FC" }}>
+          {rec.photo ? <img src={URL.createObjectURL(rec.photo)} alt="" style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 8 }} /> : (
+            <><div style={{ width: 40, height: 40, borderRadius: "50%", background: "#F5E8F9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#581073", marginBottom: 8 }}>+</div><span style={{ fontSize: 13, color: "#581073", fontWeight: 600 }}>Add Photo</span></>
+          )}
+          <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) setter(p => { const n = [...p]; n[idx] = { ...n[idx], photo: f }; return n; }); }} />
+        </label>
+        <div style={{ fontSize: 11, color: "#9090B0", marginTop: 6 }}>You can always add more later.</div>
+      </div>
+    </div>
+  );
+}
+
 function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initialName, initialAge, initialPronouns, session, onSignUp }) {
   const skipBasics = !!initialName;
   // Step 1: account (email/pw) — skipped if session exists
@@ -631,7 +705,6 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
     { name: "", location: "", because: "" },
     { name: "", location: "", because: "" },
   ]);
-  const STEP_4B = 41; // using 41 as "4b"
 
   const toggleEnjoy = (item) => setSelEnjoy(p =>
     p.includes(item) ? p.filter(x => x !== item) : p.length < 5 ? [...p, item] : p
@@ -965,61 +1038,6 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
   );
 
   // ── Step 4: Place recommendations (skippable) ──────────────────────────────────
-  const FOOD_TAGS = ["Worth the Meal", "Budget Friendly", "Better with company", "Solo Friendly", "Photo Worthy", "Hidden Gem"];
-  const PLACE_TAGS = ["Beautiful Views", "Photo Worthy", "Hidden Gem", "Peaceful Escape", "Better with company", "Solo Friendly", "Sunset Spot", "Rich History", "Nature Escape"];
-
-  const RecForm = ({ rec, idx, setter, tags, placeholder, exampleText }) => {
-    const toggle = (tag) => setter(p => {
-      const n = [...p]; const cur = n[idx].tags || [];
-      n[idx] = { ...n[idx], tags: cur.includes(tag) ? cur.filter(t => t !== tag) : [...cur, tag] };
-      return n;
-    });
-    return (
-      <div style={{ background: "#fff", border: "1px solid #E8D5F0", borderRadius: 16, padding: 16, marginBottom: 12 }}>
-        <div style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#2F2F33", marginBottom: 6 }}>Name</div>
-          <input className="ob-input" placeholder={placeholder} value={rec.name}
-            onChange={e => setter(p => { const n = [...p]; n[idx] = { ...n[idx], name: e.target.value }; return n; })} />
-        </div>
-        <div style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#2F2F33", marginBottom: 6 }}>Location</div>
-          <input className="ob-input" placeholder="Enter location" value={rec.location}
-            onChange={e => setter(p => { const n = [...p]; n[idx] = { ...n[idx], location: e.target.value }; return n; })} />
-        </div>
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#2F2F33", marginBottom: 6 }}>This place is worth visiting because...</div>
-          <textarea className="ob-input" rows={2} style={{ resize: "none" }} placeholder={exampleText} value={rec.because}
-            onChange={e => setter(p => { const n = [...p]; n[idx] = { ...n[idx], because: e.target.value }; return n; })} />
-        </div>
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#2F2F33", marginBottom: 4 }}>What makes this place special?</div>
-          <div style={{ fontSize: 12, color: "#9090B0", marginBottom: 10 }}>Select the options that best describe this place.</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-            {tags.map(tag => {
-              const sel = (rec.tags || []).includes(tag);
-              return (
-                <button key={tag} type="button" onClick={() => toggle(tag)}
-                  style={{ border: "1.5px solid " + (sel ? "#581073" : "#E8D5F0"), borderRadius: 10, padding: "8px 6px", fontSize: 12, fontWeight: 600, color: sel ? "#581073" : "#4A4A6A", background: sel ? "#F5E8F9" : "#F8F8FC", cursor: "pointer", textAlign: "center" }}>
-                  {tag}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#2F2F33", marginBottom: 4 }}>Photos <span style={{ color: "#9090B0", fontWeight: 400 }}>(Optional)</span></div>
-          <div style={{ fontSize: 12, color: "#9090B0", marginBottom: 8 }}>Help others discover this place by adding a photo.</div>
-          <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: "2px dashed #E8D5F0", borderRadius: 12, padding: 20, cursor: "pointer", background: "#F8F8FC" }}>
-            {rec.photo ? <img src={URL.createObjectURL(rec.photo)} alt="" style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 8 }} /> : (
-              <><div style={{ width: 40, height: 40, borderRadius: "50%", background: "#F5E8F9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#581073", marginBottom: 8 }}>+</div><span style={{ fontSize: 13, color: "#581073", fontWeight: 600 }}>Add Photo</span></>
-            )}
-            <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) setter(p => { const n = [...p]; n[idx] = { ...n[idx], photo: f }; return n; }); }} />
-          </label>
-          <div style={{ fontSize: 11, color: "#9090B0", marginTop: 6 }}>You can always add more later.</div>
-        </div>
-      </div>
-    );
-  };
 
   // ── Step 4: Food Spots (skippable) ────────────────────────────────────────────
   if (step === 4) return (
@@ -1094,7 +1112,24 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
       <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#F5E8F9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, marginTop: 32, marginBottom: 16 }}>✓</div>
       <h1 style={{ fontSize: 26, fontWeight: 800, color: "#2F2F33", textAlign: "center", marginBottom: 8 }}>Your NearMet profile is ready.</h1>
       <p style={{ fontSize: 14, color: "#9090B0", textAlign: "center", lineHeight: 1.6, marginBottom: 32 }}>Time to meet like-minded people and create lasting memories.</p>
-      <button className="ob-btn-primary ob-btn-full" style={{ maxWidth: 340 }} onClick={() => onDone(buildDonePayload())}>
+      <button className="ob-btn-primary ob-btn-full" style={{ maxWidth: 340 }} onClick={async () => {
+        const payload = buildDonePayload();
+        // Upload any rec photos that are File objects
+        const uploadIfFile = async (rec, bucket, path) => {
+          if (!rec.photo || typeof rec.photo !== "object" || !rec.photo.name) return rec;
+          try {
+            const ext = rec.photo.name.split(".").pop();
+            const filePath = `${path}/${Date.now()}.${ext}`;
+            const { error } = await supabase.storage.from(bucket).upload(filePath, rec.photo, { upsert: true });
+            if (error) return rec;
+            const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
+            return { ...rec, photoUrl: data.publicUrl, photo: null };
+          } catch { return rec; }
+        };
+        payload.food_recs = await Promise.all((payload.food_recs || []).map(r => uploadIfFile(r, "place-photos", "food-recs")));
+        payload.city_recs = await Promise.all((payload.city_recs || []).map(r => uploadIfFile(r, "place-photos", "city-recs")));
+        onDone(payload);
+      }}>
         Enter NearMet →
       </button>
     </div>
@@ -1397,6 +1432,28 @@ function formatInterest(id) {
 }
 
 // ─── FULL PROFILE VIEW ─────────────────────────────────────────────────────────
+function flattenRec(r) {
+  let val = r;
+  let attempts = 0;
+  while (attempts < 10) {
+    attempts++;
+    if (val == null) return { name: "", location: "", because: "", tags: [] };
+    if (typeof val === "string") {
+      if (!val.startsWith("{")) return { name: val, location: "", because: "", tags: [] };
+      try { val = JSON.parse(val); } catch(e) { return { name: val, location: "", because: "", tags: [] }; }
+    } else if (typeof val === "object" && !Array.isArray(val)) {
+      let name = val.name || "";
+      if (typeof name === "string" && name.startsWith("{")) {
+        try { name = JSON.parse(name).name || ""; } catch(e) {}
+      }
+      return { name, location: val.location || "", because: val.because || "", tags: Array.isArray(val.tags) ? val.tags : [] };
+    } else {
+      return { name: "", location: "", because: "", tags: [] };
+    }
+  }
+  return { name: "", location: "", because: "", tags: [] };
+}
+
 function FullProfileView({ person, city, onBack, onMessage, connecting, me }) {
   const cd = CITIES[city] || CITIES.mumbai;
   const photos = (person.photo_urls || []).filter(Boolean);
@@ -1499,12 +1556,15 @@ function FullProfileView({ person, city, onBack, onMessage, connecting, me }) {
             <div className="pv-section-title">🍽️ Food picks in {cd.label}</div>
             <div className="pv-recs-grid">
               {foodRecs.filter(Boolean).map((r, i) => {
-                const rec = typeof r === "object" ? r : { name: r };
+                const rec = flattenRec(r);
+                if (!rec.name) return null;
                 return (
                   <div key={i} className="pv-rec-item">
                     <div className="pv-rec-name">{rec.name}</div>
                     {rec.location && <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>📍 {rec.location}</div>}
                     {rec.because && <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 4, lineHeight: 1.5, fontStyle: "italic" }}>"{rec.because}"</div>}
+                    {rec.tags?.length > 0 && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>{rec.tags.map(t => <span key={t} style={{ background: "var(--purple-lt)", color: "var(--purple)", borderRadius: 999, padding: "2px 8px", fontSize: 10, fontWeight: 600 }}>{t}</span>)}</div>}
+                    {rec.photoUrl && <img src={rec.photoUrl} alt={rec.name} style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 8, marginTop: 8 }} />}
                   </div>
                 );
               })}
@@ -1518,12 +1578,15 @@ function FullProfileView({ person, city, onBack, onMessage, connecting, me }) {
             <div className="pv-section-title">📍 City favourites</div>
             <div className="pv-recs-grid">
               {cityRecs.filter(Boolean).map((r, i) => {
-                const rec = typeof r === "object" ? r : { name: r };
+                const rec = flattenRec(r);
+                if (!rec.name) return null;
                 return (
                   <div key={i} className="pv-rec-item">
                     <div className="pv-rec-name">{rec.name}</div>
                     {rec.location && <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>📍 {rec.location}</div>}
                     {rec.because && <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 4, lineHeight: 1.5, fontStyle: "italic" }}>"{rec.because}"</div>}
+                    {rec.tags?.length > 0 && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>{rec.tags.map(t => <span key={t} style={{ background: "var(--purple-lt)", color: "var(--purple)", borderRadius: 999, padding: "2px 8px", fontSize: 10, fontWeight: 600 }}>{t}</span>)}</div>}
+                    {rec.photoUrl && <img src={rec.photoUrl} alt={rec.name} style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 8, marginTop: 8 }} />}
                   </div>
                 );
               })}
@@ -1668,8 +1731,8 @@ function HomeScreen({ user, userId, city, onNavigate, onOpenProfile }) {
             {topPeople.map((person, i) => {
               const myInterests = user.interests || [];
               const myThings = user.things || user.city_wants || [];
-              const sharedInts = sharedInterests(person.interests, myInterests);
-              const sharedThings = sharedInterests(person.city_wants, myThings);
+              const sharedInts = (person.interests || []).filter(x => myInterests.includes(x));
+              const sharedThings = (person.city_wants || []).filter(x => myThings.includes(x));
               const allShared = [...new Set([...sharedThings, ...sharedInts])].slice(0, 3);
               const photo = (person.photo_urls || []).filter(Boolean)[0];
               const initials = (person.name || "?").slice(0, 2).toUpperCase();
@@ -1686,7 +1749,7 @@ function HomeScreen({ user, userId, city, onNavigate, onOpenProfile }) {
                     {allShared.length > 0 && (
                       <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 5 }}>
                         {allShared.map(t => (
-                          <span key={t} style={{ background: "var(--coral-lt)", color: "var(--coral-dk)", border: "1px solid var(--coral)", borderRadius: 999, padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>{formatInterest(t)} ✦</span>
+                          <span key={t} style={{ background: "var(--coral-lt)", color: "var(--coral-dk)", border: "1px solid var(--coral)", borderRadius: 999, padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>{t} ✦</span>
                         ))}
                       </div>
                     )}
@@ -2945,7 +3008,6 @@ function ShareFoodExperienceForm({ cd, userId, userName, onDone }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
-  const FOOD_TAGS = ["Worth the Meal", "Budget Friendly", "Better with company", "Solo Friendly", "Photo Worthy", "Hidden Gem"];
   const toggleTag = t => setTags(p => p.includes(t) ? p.filter(x => x !== t) : [...p, t]);
 
   const handleSubmit = async () => {
@@ -3008,7 +3070,6 @@ function SubmitFoodPlaceForm({ city, userId, userName, onSubmitted }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
-  const FOOD_TAGS = ["Worth the Meal", "Budget Friendly", "Better with company", "Solo Friendly", "Photo Worthy", "Hidden Gem"];
   const toggleTag = t => setTags(p => p.includes(t) ? p.filter(x => x !== t) : [...p, t]);
 
   const handleSubmit = async () => {
@@ -3478,14 +3539,36 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
   const [selInterests, setSelInterests] = useState(user.interests || []);
   const [prompts, setPrompts] = useState(user.prompts || {});
   const [photos, setPhotos] = useState(user.photo_urls || []);
-  const flatRec = r => r == null ? "" : typeof r === "string" ? r : typeof r === "object" ? (r.name || "") : String(r);
+  const normalizeRec = r => {
+    let val = r;
+    let attempts = 0;
+    while (attempts < 10) {
+      attempts++;
+      if (val == null) return { name: "", location: "", because: "", tags: [] };
+      if (typeof val === "string") {
+        if (!val.startsWith("{")) return { name: val, location: "", because: "", tags: [] };
+        try { val = JSON.parse(val); } catch(e) { return { name: val, location: "", because: "", tags: [] }; }
+      } else if (typeof val === "object" && !Array.isArray(val)) {
+        let name = val.name || "";
+        // If name is itself a JSON string, unwrap it
+        if (typeof name === "string" && name.startsWith("{")) {
+          try { name = JSON.parse(name).name || ""; } catch(e) { /* keep name as-is */ }
+        }
+        return { name, location: val.location || "", because: val.because || "", tags: Array.isArray(val.tags) ? val.tags : [], photoUrl: val.photoUrl || val.photo_url || "" };
+      } else {
+        return { name: "", location: "", because: "", tags: [] };
+      }
+    }
+    return { name: "", location: "", because: "", tags: [] };
+  };
+
   const [foodRecs, setFoodRecs] = useState(() => {
     const arr = user.food_recs || [];
-    return [flatRec(arr[0]), flatRec(arr[1]), flatRec(arr[2])];
+    return [normalizeRec(arr[0]), normalizeRec(arr[1]), normalizeRec(arr[2])];
   });
   const [cityRecs, setCityRecs] = useState(() => {
     const arr = user.city_recs || [];
-    return [flatRec(arr[0]), flatRec(arr[1]), flatRec(arr[2])];
+    return [normalizeRec(arr[0]), normalizeRec(arr[1]), normalizeRec(arr[2])];
   });
   const [uploadingSlot, setUploadingSlot] = useState(null);
   const [saveError, setSaveError] = useState("");
@@ -3498,11 +3581,11 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
   useEffect(() => { setPrompts(user.prompts || {}); }, [user.prompts]);
   useEffect(() => {
     const arr = user.food_recs || [];
-    setFoodRecs([flatRec(arr[0]), flatRec(arr[1]), flatRec(arr[2])]);
+    setFoodRecs([normalizeRec(arr[0]), normalizeRec(arr[1]), normalizeRec(arr[2])]);
   }, [user.food_recs]);
   useEffect(() => {
     const arr = user.city_recs || [];
-    setCityRecs([flatRec(arr[0]), flatRec(arr[1]), flatRec(arr[2])]);
+    setCityRecs([normalizeRec(arr[0]), normalizeRec(arr[1]), normalizeRec(arr[2])]);
   }, [user.city_recs]);
 
   const save = async (updates, revert) => {
@@ -3547,7 +3630,7 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
           <div className="profile-sec-title">Basic info</div>
           <div className="profile-basic-grid">
             <EditableField label="Name" value={user.name} icon="👤" onSave={v => save({ name: v })} />
-            <EditableField label="Age" value={user.age} type="number" icon="📅" onSave={v => { const n = parseInt(v); if (n >= 18) save({ age: n }); }} />
+            <EditableField label="Age" value={user.age ? String(user.age) : ""} type="number" icon="📅" onSave={v => { const n = parseInt(v); if (!isNaN(n) && n >= 18 && n <= 100) save({ age: n }); }} />
             <div className="profile-field">
               <label>City</label>
               <div className="profile-field-val profile-field-editable" onClick={() => setCityPickerOpen(o => !o)}>{cd.label} 📍 <span className="profile-field-edit-hint">✏️</span></div>
@@ -3666,22 +3749,21 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
           <div className="profile-sec-title">Food Spots</div>
           <div className="profile-sec-sub">Recommend up to 3 food spots others should experience.</div>
           {[0, 1, 2].map(i => {
-            const raw = foodRecs[i];
-            const val = raw == null ? "" : typeof raw === "string" ? raw : typeof raw === "object" ? (raw.name || "") : String(raw);
+            const rec = normalizeRec(foodRecs[i]);
             return (
-              <input key={i} className="ob-input" style={{ marginTop: 10 }}
-                placeholder={`Food spot ${i + 1} (e.g. Nandan Coffee, Kala Ghoda)`}
-                value={val}
-                onChange={e => {
-                  const next = [...foodRecs];
-                  next[i] = e.target.value;
-                  setFoodRecs(next);
+              <RecForm key={i} rec={rec} idx={i}
+                setter={updater => {
+                  setFoodRecs(prev => {
+                    const arr = prev.map(r => normalizeRec(r));
+                    const next = typeof updater === 'function' ? updater(arr) : updater;
+                    save({ food_recs: next });
+                    return next;
+                  });
                 }}
-                onBlur={e => {
-                  const next = [...foodRecs];
-                  next[i] = e.target.value;
-                  save({ food_recs: next });
-                }} />
+                tags={FOOD_TAGS}
+                placeholder="Enter food spot name"
+                exampleText={`Example: "The ramen is delicious and budget friendly."`}
+              />
             );
           })}
         </div>
@@ -3694,22 +3776,21 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
           <div className="profile-sec-title">Places Worth Exploring</div>
           <div className="profile-sec-sub">Recommend up to 3 places everyone should experience.</div>
           {[0, 1, 2].map(i => {
-            const raw = cityRecs[i];
-            const val = raw == null ? "" : typeof raw === "string" ? raw : typeof raw === "object" ? (raw.name || "") : String(raw);
+            const rec = normalizeRec(cityRecs[i]);
             return (
-              <input key={i} className="ob-input" style={{ marginTop: 10 }}
-                placeholder={`Place ${i + 1} (e.g. Marine Drive at sunset)`}
-                value={val}
-                onChange={e => {
-                  const next = [...cityRecs];
-                  next[i] = e.target.value;
-                  setCityRecs(next);
+              <RecForm key={i} rec={rec} idx={i}
+                setter={updater => {
+                  setCityRecs(prev => {
+                    const arr = prev.map(r => normalizeRec(r));
+                    const next = typeof updater === 'function' ? updater(arr) : updater;
+                    save({ city_recs: next });
+                    return next;
+                  });
                 }}
-                onBlur={e => {
-                  const next = [...cityRecs];
-                  next[i] = e.target.value;
-                  save({ city_recs: next });
-                }} />
+                tags={PLACE_TAGS}
+                placeholder="Enter place name"
+                exampleText={`Example: "...watching the sunset while enjoying tea feels peaceful."`}
+              />
             );
           })}
         </div>
@@ -3909,6 +3990,7 @@ export default function App() {
             id: session.user.id,
             email: session.user.email,
             city: u.city, name: u.name,
+            age: u.age ? parseInt(u.age) : null,
             phone: u.phone || "",
             gender: u.pronouns || "",
             interests: u.interests, city_wants: u.things,
