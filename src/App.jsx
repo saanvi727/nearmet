@@ -28,12 +28,11 @@ import {
 import { supabase } from "./lib/supabase.js";
 
 // ─── LOGO ────────────────────────────────────────────────────────────────────
-function NearMetLogo({ size = 28, dark = false }) {
+function NearMetLogo({ size = 28 }) {
   const height = Math.round(size * 1.8);
-  const src = dark ? "/logo-dark.png" : "/logo-light.png";
   return (
     <img
-      src={src}
+      src="/logo.png"
       alt="NearMet"
       style={{ height, width: "auto", objectFit: "contain", display: "block", maxWidth: size * 7 }}
     />
@@ -468,11 +467,32 @@ const INTEREST_OPTIONS = [
 ];
 
 const THINGS_OPTIONS = [
-  "Attend a live music gig", "Explore hidden bookstores", "Try a new restaurant", "Join a running club",
-  "Visit an art gallery", "Attend a comedy show", "Go hiking", "Take a cooking class",
-  "Watch a play", "Plan a road trip", "Join a sports team", "Attend a film screening",
-  "Try pottery or a craft class", "Go to a food festival", "Explore street art",
-  "Attend a rooftop event", "Join a book club", "Try open mic night",
+  "Attend a live music gig",
+  "Explore hidden food spots",
+  "Join a running club",
+  "Visit an art gallery",
+  "Visit a museum",
+  "Attend a comedy show",
+  "Go on a hike",
+  "Go on a road trip",
+  "Play a sport",
+  "Watch the latest movie in a theatre",
+  "Join a pottery workshop",
+  "Try rock climbing",
+  "Go thrift shopping",
+  "Attend a house party",
+  "Attend a Shayari event",
+  "Join a book club",
+  "Learn salsa dancing",
+  "Explore historical monuments",
+  "Go stargazing",
+  "Go camping",
+  "Volunteer for a cause",
+  "Sing karaoke",
+  "Go clubbing",
+  "Watch the sunrise or sunset",
+  "Watch a theatre performance",
+  "Exchange perspectives on meaningful topics",
 ];
 
 const CUISINE_OPTIONS = [
@@ -645,10 +665,18 @@ function RecForm({ rec, idx, setter, tags, placeholder, exampleText }) {
         <div style={{ fontSize: 13, fontWeight: 600, color: "#2F2F33", marginBottom: 4 }}>Photos <span style={{ color: "#9090B0", fontWeight: 400 }}>(Optional)</span></div>
         <div style={{ fontSize: 12, color: "#9090B0", marginBottom: 8 }}>Help others discover this place by adding a photo.</div>
         <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: "2px dashed #E8D5F0", borderRadius: 12, padding: 20, cursor: "pointer", background: "#F8F8FC" }}>
-          {rec.photo ? <img src={URL.createObjectURL(rec.photo)} alt="" style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 8 }} /> : (
+          {rec.photoUrl && typeof rec.photoUrl === "string" && rec.photoUrl.startsWith("http") ? (
+            <img src={rec.photoUrl} alt="" style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 8 }} />
+          ) : rec.photo && rec.photo instanceof File ? (
+            <img src={URL.createObjectURL(rec.photo)} alt="" style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 8 }} />
+          ) : (
             <><div style={{ width: 40, height: 40, borderRadius: "50%", background: "#F5E8F9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#581073", marginBottom: 8 }}>+</div><span style={{ fontSize: 13, color: "#581073", fontWeight: 600 }}>Add Photo</span></>
           )}
-          <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) setter(p => { const n = [...p]; n[idx] = { ...n[idx], photo: f }; return n; }); }} />
+          <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => {
+            const f = e.target.files?.[0];
+            if (!f) return;
+            setter(p => { const n = [...p]; n[idx] = { ...n[idx], photo: f, photoUrl: "" }; return n; });
+          }} />
         </label>
         <div style={{ fontSize: 11, color: "#9090B0", marginTop: 6 }}>You can always add more later.</div>
       </div>
@@ -666,11 +694,11 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
   const [step, setStep] = useState(
     skipBasics ? 3 :  // returning user with name → skip to interests
     session ? 2 :     // has session but no name → start at name/age
-    0                 // fresh signup → start at city
+    1                 // fresh signup → start at email/password
   );
   const [signupEmail, setSignupEmail] = useState(""); // for confirm screen
   const [showConfirm, setShowConfirm] = useState(false);
-  const [city, setCity] = useState(initialCity || "mumbai");
+  const city = "mumbai"; // Single city launch
 
   // Step 1
   const [email, setEmail] = useState("");
@@ -695,16 +723,8 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
   const [thoughts, setThoughts] = useState({});
 
   // Step 4
-  const [foodRecs, setFoodRecs] = useState([
-    { name: "", location: "", because: "" },
-    { name: "", location: "", because: "" },
-    { name: "", location: "", because: "" },
-  ]);
-  const [placeRecs, setPlaceRecs] = useState([
-    { name: "", location: "", because: "" },
-    { name: "", location: "", because: "" },
-    { name: "", location: "", because: "" },
-  ]);
+  const [foodRecs, setFoodRecs] = useState([{ name: "", location: "", because: "", tags: [], photo: null }]);
+  const [placeRecs, setPlaceRecs] = useState([{ name: "", location: "", because: "", tags: [], photo: null }]);
 
   const toggleEnjoy = (item) => setSelEnjoy(p =>
     p.includes(item) ? p.filter(x => x !== item) : p.length < 5 ? [...p, item] : p
@@ -755,55 +775,10 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
           Click the link in the email to verify your account, then come back and sign in.
         </p>
         <div style={{ background: "#F5E8F9", border: "1px solid #F5E8F9", borderRadius: 12, padding: "14px 16px", fontSize: 13, color: "#581073", textAlign: "left", marginBottom: 24 }}>
-          <strong>Didn't get it?</strong> Check your spam folder. The email comes from your Supabase project.
+          <strong>Didn't get it?</strong> Check your spam folder. The email is sent from hello@nearmet.com
         </div>
         <button className="ob-btn-primary ob-btn-full" onClick={onShowSignIn}>
           Go to sign in →
-        </button>
-      </div>
-    </div>
-  );
-
-  // ── Step 0: City picker ───────────────────────────────────────────────────────
-  if (step === 0) return (
-    <div style={{ minHeight: "100vh", background: "#F8F8FC", display: "flex", flexDirection: "column" }}>
-      <div style={headerStyle}>
-        <button onClick={() => { if (onBackToLanding) onBackToLanding(); }} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", marginRight: 12, color: "#4A4A6A" }}>←</button>
-        <NearMetLogo size={32} />
-      </div>
-      <div style={{ flex: 1, padding: "32px 24px 24px", maxWidth: 480, width: "100%", margin: "0 auto" }}>
-        <h2 style={{ fontSize: 28, fontWeight: 800, color: "#2F2F33", letterSpacing: "-0.03em", marginBottom: 6 }}>Which city are you in?</h2>
-        <p style={{ fontSize: 14, color: "#9090B0", marginBottom: 28 }}>NearMet is launching in Mumbai first, with more cities coming soon.</p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {[
-            { id: "mumbai", flag: "🇮🇳", name: "Mumbai", sub: "All areas · Live now", live: true },
-            { id: "nyc", flag: "🗽", name: "New York City", sub: "Coming soon", live: false },
-            { id: "la", flag: "🌴", name: "Los Angeles", sub: "Coming soon", live: false },
-            { id: "dubai", flag: "🌆", name: "Dubai", sub: "Coming soon", live: false },
-          ].map(ct => (
-            <div key={ct.id}
-              onClick={() => ct.live && setCity(ct.id)}
-              style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px", background: city === ct.id ? "#F5E8F9" : "#fff", border: "1.5px solid " + (city === ct.id ? "#581073" : "#E8D5F0"), borderRadius: 16, opacity: ct.live ? 1 : 0.4, cursor: ct.live ? "pointer" : "not-allowed" }}>
-              <span style={{ fontSize: 28 }}>{ct.flag}</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: "#2F2F33" }}>{ct.name}</div>
-                <div style={{ fontSize: 12, color: city === ct.id ? "#581073" : "#9090B0", marginTop: 2 }}>{ct.sub}</div>
-              </div>
-              {ct.live && (
-                <div style={{ width: 20, height: 20, borderRadius: "50%", background: city === ct.id ? "#581073" : "transparent", border: "2px solid " + (city === ct.id ? "#581073" : "#C8C0E0"), display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  {city === ct.id && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "white" }} />}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-      <div style={{ padding: "12px 24px 28px", maxWidth: 480, width: "100%", margin: "0 auto" }}>
-        <button className="ob-btn-primary ob-btn-full" disabled={!city} onClick={() => setStep(session ? 2 : 1)}>
-          Get started →
-        </button>
-        <button onClick={onShowSignIn} style={{ width: "100%", marginTop: 12, textAlign: "center", fontSize: 14, color: "#9090B0", background: "none", border: "none", cursor: "pointer" }}>
-          Already have an account? <span style={{ color: "#581073", fontWeight: 700 }}>Sign in</span>
         </button>
       </div>
     </div>
@@ -813,12 +788,12 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
   if (step === 1) return (
     <div style={{ minHeight: "100vh", background: "#fff", display: "flex", flexDirection: "column" }}>
       <div style={headerStyle}>
-        <button onClick={() => setStep(0)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", marginRight: 12, color: "#4A4A6A" }}>←</button>
+        <button onClick={() => { if (onBackToLanding) onBackToLanding(); }} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", marginRight: 12, color: "#4A4A6A" }}>←</button>
         <NearMetLogo size={32} />
       </div>
       <div style={{ flex: 1, padding: "28px 24px", maxWidth: 480, width: "100%", margin: "0 auto" }}>
-        <h2 style={{ fontSize: 28, fontWeight: 800, color: "#2F2F33", marginBottom: 6 }}>Create your account</h2>
-        <p style={{ fontSize: 14, color: "#9090B0", marginBottom: 28 }}>You'll set up your profile right after.</p>
+        <h2 style={{ fontSize: 28, fontWeight: 800, color: "#2F2F33", marginBottom: 6 }}>Join NearMet</h2>
+        <p style={{ fontSize: 14, color: "#9090B0", marginBottom: 28 }}>Create your account to get started.</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#9090B0", letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>EMAIL</label>
@@ -838,7 +813,10 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
               <div style={{ background: "var(--bg)", border: "1.5px solid var(--border)", borderRadius: 10, padding: "12px 14px", fontSize: 14, fontWeight: 600, color: "var(--text2)", flexShrink: 0 }}>🇮🇳 +91</div>
               <input className="ob-input" type="tel" placeholder="10-digit mobile number" value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))} style={{ flex: 1 }} />
             </div>
-            <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 5 }}>Used to help people connect. Never shown publicly.</div>
+            <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 8, display: "flex", alignItems: "center", gap: 6, background: "var(--bg2)", borderRadius: 8, padding: "8px 12px" }}>
+              <span>🔒</span>
+              <span>Your contact details are never visible to other users.</span>
+            </div>
           </div>
         </div>
         {signupError && <div style={{ marginTop: 12, background: "#FFF0EE", border: "1px solid #FF9A8B", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#C94E3A" }}>{signupError}</div>}
@@ -851,14 +829,22 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
             try {
               const result = await onSignUp(email, password, phone);
               setSignupEmail(email);
-              // If session returned immediately, email confirmation is OFF — skip confirm screen
-              // AuthContext will pick up the session and move to onboarding step 2
+              // result.session is only set when email confirmation is OFF
+              // If session is null/undefined, email confirmation is ON — show confirm screen
               if (result?.session) {
                 setStep(2);
               } else {
                 setShowConfirm(true);
               }
-            } catch (e) { setSignupError(e.message || "Sign up failed."); }
+            } catch (e) {
+              // If error contains "already registered", show a cleaner message
+              const msg = e.message || "";
+              if (msg.toLowerCase().includes("already registered") || msg.toLowerCase().includes("already exists")) {
+                setSignupError("An account with this email already exists. Please sign in instead.");
+              } else {
+                setSignupError(msg || "Sign up failed. Please try again.");
+              }
+            }
             finally { setSignupLoading(false); }
           }}>
           {signupLoading ? "Creating account…" : "Create account →"}
@@ -879,7 +865,7 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
       </div>
       <div style={{ flex: 1, padding: "28px 24px", maxWidth: 480, width: "100%", margin: "0 auto" }}>
         <h2 style={{ fontSize: 28, fontWeight: 800, color: "#2F2F33", marginBottom: 6 }}>Welcome to NearMet</h2>
-        <p style={{ fontSize: 14, color: "#9090B0", marginBottom: 28 }}>Tell us a little about yourself.</p>
+        <p style={{ fontSize: 14, color: "#9090B0", marginBottom: 28 }}>Let's get to know you.</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#9090B0", letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>NAME</label>
@@ -887,12 +873,12 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: "#9090B0", letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>AGE</label>
-              <input className="ob-input" type="number" placeholder="18+" value={age} onChange={e => setAge(e.target.value)} />
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#9090B0", letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>AGE <span style={{ color: "var(--coral)" }}>*</span></label>
+              <input className="ob-input" type="number" placeholder="Your age" value={age} onChange={e => setAge(e.target.value)} />
             </div>
             <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: "#9090B0", letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>COLLEGE / WORK</label>
-              <input className="ob-input" placeholder="Where you study or work" value={college} onChange={e => setCollege(e.target.value)} />
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#9090B0", letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>COLLEGE</label>
+              <input className="ob-input" placeholder="Your college name" value={college} onChange={e => setCollege(e.target.value)} />
             </div>
           </div>
           <div>
@@ -908,10 +894,11 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
           </div>
         </div>
         <button className="ob-btn-primary ob-btn-full" style={{ marginTop: 28 }}
-          disabled={!name.trim()}
+          disabled={!name.trim() || !age || parseInt(age) < 18}
           onClick={() => setStep(3)}>
           Continue →
         </button>
+        {age && parseInt(age) < 18 && <p style={{ textAlign: "center", fontSize: 12, color: "var(--coral-dk)", marginTop: 8 }}>You must be 18 or older to join NearMet.</p>}
       </div>
       <StepDots total={3} current={0} />
     </div>
@@ -923,11 +910,10 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
       <div style={headerStyle}>
         <button onClick={() => setStep(2)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", marginRight: 12, color: "#4A4A6A" }}>←</button>
         <NearMetLogo size={32} />
-        <button onClick={() => setStep(5)} style={{ marginLeft: "auto", fontSize: 14, fontWeight: 600, color: "#9090B0", background: "none", border: "none", cursor: "pointer" }}>Skip</button>
       </div>
       <div style={{ flex: 1, padding: "28px 24px", maxWidth: 480, width: "100%", margin: "0 auto", overflowY: "auto" }}>
         <h2 style={{ fontSize: 28, fontWeight: 800, color: "#2F2F33", marginBottom: 4 }}>Let's Get to Know You</h2>
-        <p style={{ fontSize: 14, color: "#9090B0", marginBottom: 28 }}>You can always come back to fill these in later.</p>
+        <p style={{ fontSize: 14, color: "#9090B0", marginBottom: 28 }}>You can update or change these anytime.</p>
 
         {/* Photos */}
         <div style={{ fontSize: 16, fontWeight: 700, color: "#2F2F33", marginBottom: 6 }}>Photos</div>
@@ -975,7 +961,7 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
 
         {/* Things I Want to Experience */}
         <div style={{ fontSize: 16, fontWeight: 700, color: "#2F2F33", marginBottom: 4, marginTop: 8 }}>Things I Want to Experience</div>
-        <p style={{ fontSize: 13, color: "#9090B0", marginBottom: 4 }}>Write up to 3 things you've genuinely been wanting to do.</p>
+        <p style={{ fontSize: 13, color: "#9090B0", marginBottom: 4 }}>Choose up to 3 things you've genuinely been wanting to do.</p>
         <p style={{ fontSize: 13, color: "#9090B0", marginBottom: 14 }}>Choose from the list or add your own.</p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
           {THINGS_OPTIONS.map(t => {
@@ -1015,7 +1001,7 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
 
         {/* More About You (prompts) */}
         <div style={{ fontSize: 16, fontWeight: 700, color: "#2F2F33", marginBottom: 4, marginTop: 16 }}>More About You</div>
-        <p style={{ fontSize: 13, color: "#9090B0", marginBottom: 14 }}>Help others get to know you better through three prompts.</p>
+        
         {[0, 1, 2].map(i => (
           <div key={i} style={{ marginBottom: 14 }}>
             <select className="ob-input" style={{ marginBottom: 8, appearance: "auto" }}
@@ -1024,7 +1010,17 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
               {THOUGHT_PROMPTS.map((p, idx) => <option key={idx} value={idx}>{p}</option>)}
             </select>
             <textarea className="ob-input" rows={2} style={{ resize: "none" }}
-              placeholder="Write your answer..."
+              placeholder={(() => {
+                const examples = {
+                  "If I could get people together for one thing it would be...": "e.g. To play football on the weekend / Organize a cleanliness drive",
+                  "One thing I've always wanted to do in Mumbai is...": "e.g. Watch the sunrise at Marine Drive / Explore hidden food spots",
+                  "Recently I've been fascinated by...": "e.g. How ancient civilizations built structures that have stood for centuries",
+                  "A topic I could spend hours hearing different perspectives on is...": "e.g. How travel changes the way we see the world, or what success really means",
+                  "Something I watched, read or experienced recently that has stayed with me is...": "e.g. Watching Dead Poets Society and being reminded to make the most of every moment",
+                  "I'm hoping to meet people who...": "e.g. Love exploring new places and are always excited to try something new",
+                };
+                return examples[THOUGHT_PROMPTS[selectedPrompts[i]]] || "Write your answer...";
+              })()}
               value={thoughts[i] || ""}
               onChange={e => setThoughts(p => ({ ...p, [i]: e.target.value }))} />
           </div>
@@ -1032,7 +1028,14 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
       </div>
       <div style={{ padding: "12px 24px 20px", background: "#fff", borderTop: "1px solid #F5E8F9" }}>
         <StepDots total={3} current={1} />
-        <button className="ob-btn-primary ob-btn-full" onClick={() => setStep(4)}>Continue →</button>
+        <button className="ob-btn-primary ob-btn-full"
+          disabled={photos.filter(Boolean).length === 0}
+          onClick={() => setStep(4)}>
+          Continue →
+        </button>
+        {photos.filter(Boolean).length === 0 && (
+          <p style={{ textAlign: "center", fontSize: 12, color: "var(--coral-dk)", marginTop: 8 }}>Please add at least 1 photo to continue.</p>
+        )}
       </div>
     </div>
   );
@@ -1058,10 +1061,20 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
           </div>
         </div>
         {foodRecs.map((rec, i) => (
-          <RecForm key={"f"+i} rec={rec} idx={i} setter={setFoodRecs} tags={FOOD_TAGS}
-            placeholder="Enter food spot name"
-            exampleText={`Example: "The ramen is delicious, the portions are generous and it's affordable."`} />
+          <div key={"f"+i} style={{ position: "relative" }}>
+            <RecForm rec={rec} idx={i} setter={setFoodRecs} tags={FOOD_TAGS}
+              placeholder="Enter food spot name"
+              exampleText={`Example: "The ramen is delicious, the portions are generous and it's affordable."`} />
+            {foodRecs.length > 1 && (
+              <button type="button" onClick={() => setFoodRecs(p => p.filter((_, j) => j !== i))}
+                style={{ position: "absolute", top: 12, right: 12, fontSize: 18, color: "#C94E3A", background: "none", border: "none", cursor: "pointer", lineHeight: 1 }}>×</button>
+            )}
+          </div>
         ))}
+        <button type="button" onClick={() => setFoodRecs(p => [...p, { name: "", location: "", because: "", tags: [], photo: null }])}
+          style={{ fontSize: 13, fontWeight: 600, color: "var(--purple)", background: "none", border: "1.5px solid var(--purple)", borderRadius: 10, padding: "8px 16px", cursor: "pointer", marginTop: 4 }}>
+          + Add another food spot
+        </button>
       </div>
       <div style={{ padding: "12px 24px 20px", background: "#fff", borderTop: "1px solid #F5E8F9" }}>
         <StepDots total={4} current={2} />
@@ -1090,10 +1103,20 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
           </div>
         </div>
         {placeRecs.map((rec, i) => (
-          <RecForm key={"p"+i} rec={rec} idx={i} setter={setPlaceRecs} tags={PLACE_TAGS}
-            placeholder="Enter place name"
-            exampleText={`Example: "...watching the sunset while enjoying tea feels peaceful."`} />
+          <div key={"p"+i} style={{ position: "relative" }}>
+            <RecForm rec={rec} idx={i} setter={setPlaceRecs} tags={PLACE_TAGS}
+              placeholder="Enter place name"
+              exampleText={`Example: "...watching the sunset while enjoying tea feels peaceful."`} />
+            {placeRecs.length > 1 && (
+              <button type="button" onClick={() => setPlaceRecs(p => p.filter((_, j) => j !== i))}
+                style={{ position: "absolute", top: 12, right: 12, fontSize: 18, color: "#C94E3A", background: "none", border: "none", cursor: "pointer", lineHeight: 1 }}>×</button>
+            )}
+          </div>
         ))}
+        <button type="button" onClick={() => setPlaceRecs(p => [...p, { name: "", location: "", because: "", tags: [], photo: null }])}
+          style={{ fontSize: 13, fontWeight: 600, color: "var(--purple)", background: "none", border: "1.5px solid var(--purple)", borderRadius: 10, padding: "8px 16px", cursor: "pointer", marginTop: 4 }}>
+          + Add another place
+        </button>
       </div>
       <div style={{ padding: "12px 24px 20px", background: "#fff", borderTop: "1px solid #F5E8F9" }}>
         <StepDots total={4} current={3} />
@@ -1114,7 +1137,25 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
       <p style={{ fontSize: 14, color: "#9090B0", textAlign: "center", lineHeight: 1.6, marginBottom: 32 }}>Time to meet like-minded people and create lasting memories.</p>
       <button className="ob-btn-primary ob-btn-full" style={{ maxWidth: 340 }} onClick={async () => {
         const payload = buildDonePayload();
-        // Upload any rec photos that are File objects
+
+        // Upload profile photos first
+        const uploadedPhotoUrls = await Promise.all(
+          photos.map(async (photo, slot) => {
+            if (!photo || !(photo instanceof File)) return null;
+            try {
+              const { data: { session: s } } = await supabase.auth.getSession();
+              if (!s?.user) return null;
+              const ext = photo.name?.split('.').pop() || 'jpg';
+              const path = `${s.user.id}/photo_${slot}.${ext}`;
+              await supabase.storage.from('profile-photos').upload(path, photo, { upsert: true, contentType: `image/${ext}` });
+              const { data } = supabase.storage.from('profile-photos').getPublicUrl(path);
+              return data.publicUrl;
+            } catch { return null; }
+          })
+        );
+        payload.photo_urls = uploadedPhotoUrls.filter(Boolean);
+
+        // Upload rec photos
         const uploadIfFile = async (rec, bucket, path) => {
           if (!rec.photo || typeof rec.photo !== "object" || !rec.photo.name) return rec;
           try {
@@ -1460,15 +1501,16 @@ function FullProfileView({ person, city, onBack, onMessage, connecting, me }) {
   const [idx, setIdx] = useState(0);
   const interests = person.interests || [];
   const things = person.city_wants || person.things || [];
-  const foodRecs = person.food_recs || [];
-  const cityRecs = person.city_recs || [];
+  const priv = person.privacy_settings || {};
+  const foodRecs = priv.hide_food_recs ? [] : (person.food_recs || []);
+  const cityRecs = priv.hide_city_recs ? [] : (person.city_recs || []);
   const myInterests = me?.interests || [];
   const myThings = me?.things || me?.city_wants || [];
 
-  const prompts = person.prompts
+  const prompts = priv.hide_prompts ? [] : (person.prompts
     ? Array.isArray(person.prompts) ? person.prompts.filter(p => p.a)
       : Object.entries(person.prompts).filter(([, ans]) => ans?.trim()).map(([q, a]) => ({ q, a }))
-    : [];
+    : []);
 
   return (
     <div className="pv-fullscreen">
@@ -1492,8 +1534,8 @@ function FullProfileView({ person, city, onBack, onMessage, connecting, me }) {
 
       <div className="pv-content">
         <div className="pv-name-row">
-          <div className="pv-name">{person.name}{person.age ? `, ${person.age}` : ""}
-            {(person.gender || person.pronouns) ? <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text3)", marginLeft: 8 }}>· {person.gender || person.pronouns}</span> : ""}
+          <div className="pv-name">{person.name}{!priv.hide_age && person.age ? `, ${person.age}` : ""}
+            {!priv.hide_gender && (person.gender || person.pronouns) ? <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text3)", marginLeft: 8 }}>· {person.gender || person.pronouns}</span> : ""}
           </div>
         </div>
         <div className="pv-city">📍 {cd.label}</div>
@@ -1631,6 +1673,7 @@ function HomeScreen({ user, userId, city, onNavigate, onOpenProfile }) {
     (user.food_recs || []).filter(Boolean).length > 0,
     (user.city_recs || []).filter(Boolean).length > 0,
     Object.values(user.prompts || {}).filter(Boolean).length > 0,
+    !!(user.age),
   ];
   const filledCount = sections.filter(Boolean).length;
   const total = sections.length;
@@ -1731,11 +1774,11 @@ function HomeScreen({ user, userId, city, onNavigate, onOpenProfile }) {
             {topPeople.map((person, i) => {
               const myInterests = user.interests || [];
               const myThings = user.things || user.city_wants || [];
-              const sharedInts = (person.interests || []).filter(x => myInterests.includes(x));
-              const sharedThings = (person.city_wants || []).filter(x => myThings.includes(x));
-              const allShared = [...new Set([...sharedThings, ...sharedInts])].slice(0, 3);
+              const sharedInts = sharedInterests(person.interests, myInterests);
+              const sharedThings = sharedInterests(person.city_wants, myThings);
               const photo = (person.photo_urls || []).filter(Boolean)[0];
               const initials = (person.name || "?").slice(0, 2).toUpperCase();
+              const hasShared = sharedInts.length > 0 || sharedThings.length > 0;
               return (
                 <div key={person.id}
                   style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 14px", borderBottom: i < topPeople.length - 1 ? "1px solid var(--border)" : "none", cursor: "pointer" }}
@@ -1746,10 +1789,13 @@ function HomeScreen({ user, userId, city, onNavigate, onOpenProfile }) {
                   }
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>{person.name}{person.age ? `, ${person.age}` : ""}</div>
-                    {allShared.length > 0 && (
+                    {hasShared && (
                       <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 5 }}>
-                        {allShared.map(t => (
+                        {sharedThings.slice(0, 2).map(t => (
                           <span key={t} style={{ background: "var(--coral-lt)", color: "var(--coral-dk)", border: "1px solid var(--coral)", borderRadius: 999, padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>{t} ✦</span>
+                        ))}
+                        {sharedInts.slice(0, Math.max(0, 3 - Math.min(sharedThings.length, 2))).map(t => (
+                          <span key={t} style={{ background: "var(--coral-lt)", color: "var(--coral-dk)", border: "1px solid var(--coral)", borderRadius: 999, padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>{formatInterest(t)} ✦</span>
                         ))}
                       </div>
                     )}
@@ -3207,7 +3253,7 @@ function EventDetailView({ event, onBack, userId, onToggleInterest, isInterested
 }
 
 function CreateEventForm({ city, userId, userName, onDone }) {
-  const [form, setForm] = useState({ name: "", category: "House Party", location: "", event_date: "", description: "", contact_info: "", payment_info: "", entry_fee: "" });
+  const [form, setForm] = useState({ name: "", category: "House Party", location: "", event_date: "", event_time: "", description: "", contact_email: "", contact_phone: "", payment_info: "", entry_fee: "" });
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -3218,7 +3264,7 @@ function CreateEventForm({ city, userId, userName, onDone }) {
 
   const handleSubmit = async () => {
     if (!userId) { setError("Sign in to post an event."); return; }
-    if (!form.name.trim() || !form.location.trim() || !form.event_date.trim()) { setError("Event name, location, and date/time are required."); return; }
+    if (!form.name.trim() || !form.location.trim() || !form.event_date.trim()) { setError("Event name, location, and date are required."); return; }
     setSubmitting(true); setError("");
     try {
       let photoUrl = null;
@@ -3228,9 +3274,9 @@ function CreateEventForm({ city, userId, userName, onDone }) {
         name: form.name.trim(),
         category: form.category,
         location: form.location.trim(),
-        event_date: form.event_date.trim(),
+        event_date: form.event_date + (form.event_time ? " " + form.event_time : ""),
         description: form.description.trim(),
-        contact_info: form.contact_info.trim(),
+        contact_info: [form.contact_email.trim(), form.contact_phone.trim()].filter(Boolean).join(' | '),
         payment_info: form.payment_info.trim(),
         entry_fee: form.entry_fee.trim(),
         photo_url: photoUrl,
@@ -3269,10 +3315,24 @@ function CreateEventForm({ city, userId, userName, onDone }) {
       </select>
 
       <input className="ob-input" style={{ marginBottom: 10 }} placeholder="Location*" value={form.location} onChange={e => set("location", e.target.value)} />
-      <input className="ob-input" style={{ marginBottom: 10 }} placeholder="Date & time* (e.g. Sat 12 Jul, 8 PM)" value={form.event_date} onChange={e => set("event_date", e.target.value)} />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text3)", marginBottom: 5 }}>DATE *</div>
+          <input className="ob-input" type="date" style={{ margin: 0 }} value={form.event_date} onChange={e => set("event_date", e.target.value)} />
+        </div>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text3)", marginBottom: 5 }}>TIME</div>
+          <input className="ob-input" type="time" style={{ margin: 0 }} value={form.event_time} onChange={e => set("event_time", e.target.value)} />
+        </div>
+      </div>
       <textarea className="ob-input experience-textarea" rows={3} style={{ marginBottom: 10 }} placeholder="What's it about? Who should come?" value={form.description} onChange={e => set("description", e.target.value)} />
       <input className="ob-input" style={{ marginBottom: 10 }} placeholder="Entry fee (e.g. ₹500, or leave blank if free)" value={form.entry_fee} onChange={e => set("entry_fee", e.target.value)} />
-      <input className="ob-input" style={{ marginBottom: 10 }} placeholder="Contact info (phone, Instagram, etc.)" value={form.contact_info} onChange={e => set("contact_info", e.target.value)} />
+      <div style={{ marginBottom: 10 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text3)", marginBottom: 5 }}>CONTACT EMAIL</div>
+        <input className="ob-input" style={{ margin: 0, marginBottom: 8 }} type="email" placeholder="your@email.com" value={form.contact_email} onChange={e => set("contact_email", e.target.value)} />
+        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text3)", marginBottom: 5 }}>PHONE NUMBER <span style={{ fontWeight: 400 }}>(optional)</span></div>
+        <input className="ob-input" style={{ margin: 0 }} type="tel" placeholder="+91 xxxxx xxxxx" value={form.contact_phone} onChange={e => set("contact_phone", e.target.value)} />
+      </div>
       <input className="ob-input" style={{ marginBottom: 12 }} placeholder="Payment info (UPI ID, link, etc. — optional)" value={form.payment_info} onChange={e => set("payment_info", e.target.value)} />
 
       <button className="filter-apply" disabled={submitting} onClick={handleSubmit}>{submitting ? "Posting…" : "Post event"}</button>
@@ -3515,7 +3575,7 @@ function BlockedUsersSection({ userId }) {
 }
 
 
-function EditableField({ label, value, onSave, type = "text", icon }) {
+function EditableField({ label, value, onSave, type = "text" }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   useEffect(() => { setDraft(value); }, [value]);
@@ -3526,7 +3586,10 @@ function EditableField({ label, value, onSave, type = "text", icon }) {
       {editing ? (
         <input className="profile-field-input" type={type} value={draft} autoFocus onChange={e => setDraft(e.target.value)} onBlur={commit} onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(value); setEditing(false); } }} />
       ) : (
-        <div className="profile-field-val profile-field-editable" onClick={() => setEditing(true)}>{value || "—"} {icon} <span className="profile-field-edit-hint">✏️</span></div>
+        <div className="profile-field-val profile-field-editable" onClick={() => setEditing(true)}>
+          <span>{value || <span style={{ color: "var(--text3)" }}>Tap to add</span>}</span>
+          <span style={{ fontSize: 12, color: "var(--purple)", fontWeight: 600, marginLeft: 8 }}>Edit</span>
+        </div>
       )}
     </div>
   );
@@ -3537,7 +3600,18 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
   const [cuisines, setCuisines] = useState(user.cuisines || []);
   const [things, setThings] = useState(user.things || []);
   const [selInterests, setSelInterests] = useState(user.interests || []);
+  const interestsSaveTimer = useRef(null);
+  const saveInterests = (next) => {
+    // Debounce — wait 800ms after last change before saving
+    if (interestsSaveTimer.current) clearTimeout(interestsSaveTimer.current);
+    interestsSaveTimer.current = setTimeout(() => save({ interests: next }), 800);
+  };
   const [prompts, setPrompts] = useState(user.prompts || {});
+  const [privacy, setPrivacy] = useState(user.privacy_settings || {
+    hide_age: false, hide_gender: false, hide_college: false,
+    hide_food_recs: false, hide_city_recs: false, hide_prompts: false,
+  });
+  const savePrivacy = (next) => { setPrivacy(next); save({ privacy_settings: next }); };
   const [photos, setPhotos] = useState(user.photo_urls || []);
   const normalizeRec = r => {
     let val = r;
@@ -3564,11 +3638,13 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
 
   const [foodRecs, setFoodRecs] = useState(() => {
     const arr = user.food_recs || [];
-    return [normalizeRec(arr[0]), normalizeRec(arr[1]), normalizeRec(arr[2])];
+    const normalized = arr.map(r => normalizeRec(r)).filter(r => r.name || r.location || r.because || r.tags?.length);
+    return normalized.length > 0 ? normalized : [{ name: "", location: "", because: "", tags: [] }];
   });
   const [cityRecs, setCityRecs] = useState(() => {
     const arr = user.city_recs || [];
-    return [normalizeRec(arr[0]), normalizeRec(arr[1]), normalizeRec(arr[2])];
+    const normalized = arr.map(r => normalizeRec(r)).filter(r => r.name || r.location || r.because || r.tags?.length);
+    return normalized.length > 0 ? normalized : [{ name: "", location: "", because: "", tags: [] }];
   });
   const [uploadingSlot, setUploadingSlot] = useState(null);
   const [saveError, setSaveError] = useState("");
@@ -3577,15 +3653,16 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
   useEffect(() => { setCuisines(user.cuisines || []); }, [user.cuisines]);
   useEffect(() => { setPhotos(user.photo_urls || []); }, [user.photo_urls]);
   useEffect(() => { setThings(user.things || []); }, [user.things]);
-  useEffect(() => { setSelInterests(user.interests || []); }, [user.interests]);
   useEffect(() => { setPrompts(user.prompts || {}); }, [user.prompts]);
   useEffect(() => {
     const arr = user.food_recs || [];
-    setFoodRecs([normalizeRec(arr[0]), normalizeRec(arr[1]), normalizeRec(arr[2])]);
+    const normalized = arr.map(r => normalizeRec(r)).filter(r => r.name || r.location || r.because || r.tags?.length);
+    setFoodRecs(normalized.length > 0 ? normalized : [{ name: "", location: "", because: "", tags: [] }]);
   }, [user.food_recs]);
   useEffect(() => {
     const arr = user.city_recs || [];
-    setCityRecs([normalizeRec(arr[0]), normalizeRec(arr[1]), normalizeRec(arr[2])]);
+    const normalized = arr.map(r => normalizeRec(r)).filter(r => r.name || r.location || r.because || r.tags?.length);
+    setCityRecs(normalized.length > 0 ? normalized : [{ name: "", location: "", because: "", tags: [] }]);
   }, [user.city_recs]);
 
   const save = async (updates, revert) => {
@@ -3630,7 +3707,7 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
           <div className="profile-sec-title">Basic info</div>
           <div className="profile-basic-grid">
             <EditableField label="Name" value={user.name} icon="👤" onSave={v => save({ name: v })} />
-            <EditableField label="Age" value={user.age ? String(user.age) : ""} type="number" icon="📅" onSave={v => { const n = parseInt(v); if (!isNaN(n) && n >= 18 && n <= 100) save({ age: n }); }} />
+            <EditableField label="Age" value={user.age ? String(user.age) : ""} type="number" onSave={v => { const n = parseInt(v); if (!isNaN(n) && n >= 18 && n <= 100) save({ age: n }); }} />
             <div className="profile-field">
               <label>City</label>
               <div className="profile-field-val profile-field-editable" onClick={() => setCityPickerOpen(o => !o)}>{cd.label} 📍 <span className="profile-field-edit-hint">✏️</span></div>
@@ -3681,9 +3758,63 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
         </div>
       </div>
 
-      {/* 3 Things I Want to Experience */}
+      {/* 3 What I Enjoy */}
       <div className="profile-section">
         <div className="profile-sec-num">3</div>
+        <div className="profile-sec-body">
+          <div className="profile-sec-title">What I Enjoy <span className="profile-sec-count">{selInterests.length}/5 selected</span></div>
+          <div className="profile-sec-sub">Choose up to 5 and rank by what you enjoy most. Update anytime as your interests change.</div>
+
+          {/* Show selected items at top so users can see + remove them */}
+          {selInterests.length > 0 && (
+            <div style={{ marginTop: 12, marginBottom: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text3)", marginBottom: 8, letterSpacing: ".05em", textTransform: "uppercase" }}>Selected (tap to remove)</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {selInterests.map((sub, rank) => (
+                  <button key={sub} type="button"
+                    onClick={() => { const next = selInterests.filter(i => i !== sub); setSelInterests(next); saveInterests(next); }}
+                    style={{ border: "1.5px solid var(--purple)", borderRadius: 999, padding: "7px 14px", fontSize: 12, fontWeight: 700, color: "white", background: "var(--purple)", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                    #{rank + 1} {formatInterest(sub)} <span style={{ opacity: 0.7, fontSize: 14 }}>×</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* All options to add from */}
+          {selInterests.length < 5 && (
+            <>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text3)", marginBottom: 8, letterSpacing: ".05em", textTransform: "uppercase" }}>Add more</div>
+              {Object.entries(ENJOY_OPTIONS).map(([cat, subs]) => (
+                <div key={cat} style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)", marginBottom: 8 }}>{cat}</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                    {subs.length === 0 ? (
+                      !selInterests.includes(cat) && (
+                        <button type="button"
+                          style={{ border: "1.5px solid var(--border)", borderRadius: 999, padding: "6px 14px", fontSize: 12, fontWeight: 600, color: "var(--text2)", background: "var(--white)", cursor: "pointer" }}
+                          onClick={() => { const next = [...selInterests, cat]; setSelInterests(next); saveInterests(next); }}>
+                          {cat}
+                        </button>
+                      )
+                    ) : subs.filter(s => !selInterests.includes(s)).map(sub => (
+                      <button key={sub} type="button"
+                        style={{ border: "1.5px solid var(--border)", borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 600, color: "var(--text2)", background: "var(--white)", cursor: "pointer" }}
+                        onClick={() => { const next = [...selInterests, sub]; setSelInterests(next); saveInterests(next); }}>
+                        {sub}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* 4 Things I Want to Experience */}
+      <div className="profile-section">
+        <div className="profile-sec-num">4</div>
         <div className="profile-sec-body">
           <div className="profile-sec-title">Things I Want to Experience <span className="profile-sec-count">{things.length}/5 added</span></div>
           <div className="profile-sec-sub">Choose up to 5. This powers your matches — people who want the same things will find you.</div>
@@ -3711,9 +3842,9 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
         </div>
       </div>
 
-      {/* 4 Cuisine prefs */}
+      {/* 5 Cuisine prefs */}
       <div className="profile-section">
-        <div className="profile-sec-num">4</div>
+        <div className="profile-sec-num">5</div>
         <div className="profile-sec-body">
           <div className="profile-sec-title">Food preferences <span className="profile-sec-count">{cuisines.length} added</span></div>
           <div className="profile-sec-sub">Powers your food recommendations.</div>
@@ -3742,63 +3873,109 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
         </div>
       </div>
 
-      {/* 5 Food recs */}
-      <div className="profile-section">
-        <div className="profile-sec-num">5</div>
-        <div className="profile-sec-body">
-          <div className="profile-sec-title">Food Spots</div>
-          <div className="profile-sec-sub">Recommend up to 3 food spots others should experience.</div>
-          {[0, 1, 2].map(i => {
-            const rec = normalizeRec(foodRecs[i]);
-            return (
-              <RecForm key={i} rec={rec} idx={i}
-                setter={updater => {
-                  setFoodRecs(prev => {
-                    const arr = prev.map(r => normalizeRec(r));
-                    const next = typeof updater === 'function' ? updater(arr) : updater;
-                    save({ food_recs: next });
-                    return next;
-                  });
-                }}
-                tags={FOOD_TAGS}
-                placeholder="Enter food spot name"
-                exampleText={`Example: "The ramen is delicious and budget friendly."`}
-              />
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 6 City recs */}
+      {/* 6 Food recs */}
       <div className="profile-section">
         <div className="profile-sec-num">6</div>
         <div className="profile-sec-body">
-          <div className="profile-sec-title">Places Worth Exploring</div>
-          <div className="profile-sec-sub">Recommend up to 3 places everyone should experience.</div>
-          {[0, 1, 2].map(i => {
-            const rec = normalizeRec(cityRecs[i]);
-            return (
-              <RecForm key={i} rec={rec} idx={i}
-                setter={updater => {
-                  setCityRecs(prev => {
+          <div className="profile-sec-title">Food Spots</div>
+          <div className="profile-sec-sub">Recommend food spots others should experience.</div>
+          {foodRecs.map((rec, i) => (
+            <div key={i} style={{ position: "relative" }}>
+              <RecForm rec={normalizeRec(rec)} idx={i}
+                setter={async updater => {
+                  setFoodRecs(prev => {
                     const arr = prev.map(r => normalizeRec(r));
-                    const next = typeof updater === 'function' ? updater(arr) : updater;
-                    save({ city_recs: next });
+                    const next = typeof updater === "function" ? updater(arr) : updater;
+                    const uploadAndSave = async () => {
+                      const uploaded = await Promise.all(next.map(async r => {
+                        if (r.photo instanceof File) {
+                          try {
+                            const ext = r.photo.name.split(".").pop();
+                            const path = `food-recs/${userId}/${Date.now()}.${ext}`;
+                            await supabase.storage.from("place-photos").upload(path, r.photo, { upsert: true });
+                            const { data } = supabase.storage.from("place-photos").getPublicUrl(path);
+                            return { ...r, photoUrl: data.publicUrl, photo: null };
+                          } catch { return r; }
+                        }
+                        return r;
+                      }));
+                      save({ food_recs: uploaded });
+                      setFoodRecs(uploaded);
+                    };
+                    uploadAndSave();
                     return next;
                   });
                 }}
-                tags={PLACE_TAGS}
-                placeholder="Enter place name"
-                exampleText={`Example: "...watching the sunset while enjoying tea feels peaceful."`}
-              />
-            );
-          })}
+                tags={FOOD_TAGS} placeholder="Enter food spot name"
+                exampleText={`Example: "The ramen is delicious and budget friendly."`} />
+              {foodRecs.length > 1 && (
+                <button type="button" onClick={() => {
+                  const next = foodRecs.filter((_, j) => j !== i);
+                  setFoodRecs(next); save({ food_recs: next });
+                }} style={{ position: "absolute", top: 12, right: 12, fontSize: 20, color: "#C94E3A", background: "none", border: "none", cursor: "pointer", lineHeight: 1 }}>×</button>
+              )}
+            </div>
+          ))}
+          <button type="button" onClick={() => setFoodRecs(p => [...p, { name: "", location: "", because: "", tags: [] }])}
+            style={{ fontSize: 13, fontWeight: 600, color: "var(--purple)", background: "none", border: "1.5px solid var(--purple)", borderRadius: 10, padding: "8px 16px", cursor: "pointer", marginTop: 8 }}>
+            + Add another food spot
+          </button>
         </div>
       </div>
 
-      {/* 7 Thoughts */}
+      {/* 7 City recs */}
       <div className="profile-section">
         <div className="profile-sec-num">7</div>
+        <div className="profile-sec-body">
+          <div className="profile-sec-title">Places Worth Exploring</div>
+          <div className="profile-sec-sub">Recommend places everyone should experience.</div>
+          {cityRecs.map((rec, i) => (
+            <div key={i} style={{ position: "relative" }}>
+              <RecForm rec={normalizeRec(rec)} idx={i}
+                setter={async updater => {
+                  setCityRecs(prev => {
+                    const arr = prev.map(r => normalizeRec(r));
+                    const next = typeof updater === "function" ? updater(arr) : updater;
+                    const uploadAndSave = async () => {
+                      const uploaded = await Promise.all(next.map(async r => {
+                        if (r.photo instanceof File) {
+                          try {
+                            const ext = r.photo.name.split(".").pop();
+                            const path = `city-recs/${userId}/${Date.now()}.${ext}`;
+                            await supabase.storage.from("place-photos").upload(path, r.photo, { upsert: true });
+                            const { data } = supabase.storage.from("place-photos").getPublicUrl(path);
+                            return { ...r, photoUrl: data.publicUrl, photo: null };
+                          } catch { return r; }
+                        }
+                        return r;
+                      }));
+                      save({ city_recs: uploaded });
+                      setCityRecs(uploaded);
+                    };
+                    uploadAndSave();
+                    return next;
+                  });
+                }}
+                tags={PLACE_TAGS} placeholder="Enter place name"
+                exampleText={`Example: "...watching the sunset while enjoying tea feels peaceful."`} />
+              {cityRecs.length > 1 && (
+                <button type="button" onClick={() => {
+                  const next = cityRecs.filter((_, j) => j !== i);
+                  setCityRecs(next); save({ city_recs: next });
+                }} style={{ position: "absolute", top: 12, right: 12, fontSize: 20, color: "#C94E3A", background: "none", border: "none", cursor: "pointer", lineHeight: 1 }}>×</button>
+              )}
+            </div>
+          ))}
+          <button type="button" onClick={() => setCityRecs(p => [...p, { name: "", location: "", because: "", tags: [] }])}
+            style={{ fontSize: 13, fontWeight: 600, color: "var(--purple)", background: "none", border: "1.5px solid var(--purple)", borderRadius: 10, padding: "8px 16px", cursor: "pointer", marginTop: 8 }}>
+            + Add another place
+          </button>
+        </div>
+      </div>
+
+      {/* 8 Thoughts */}
+      <div className="profile-section">
+        <div className="profile-sec-num">8</div>
         <div className="profile-sec-body">
           <div className="profile-sec-title">Thoughts <span className="profile-sec-count">{Object.keys(prompts).length} added</span></div>
           <div className="profile-sec-sub">Pick up to 3 prompts and answer them — they appear on your profile to help people connect with you.</div>
@@ -3821,6 +3998,31 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* Privacy Settings */}
+      <div className="profile-section">
+        <div className="profile-sec-num">🔒</div>
+        <div className="profile-sec-body">
+          <div className="profile-sec-title">Privacy Settings</div>
+          <div className="profile-sec-sub">Control what other users can see on your profile.</div>
+          {[
+            { key: "hide_age", label: "Hide my age" },
+            { key: "hide_gender", label: "Hide my gender" },
+            { key: "hide_college", label: "Hide my college / workplace" },
+            { key: "hide_food_recs", label: "Hide my food recommendations" },
+            { key: "hide_city_recs", label: "Hide my places worth exploring" },
+            { key: "hide_prompts", label: "Hide my thoughts / prompts" },
+          ].map(({ key, label }) => (
+            <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid var(--border)" }}>
+              <span style={{ fontSize: 14, color: "var(--text)" }}>{label}</span>
+              <div onClick={() => savePrivacy({ ...privacy, [key]: !privacy[key] })}
+                style={{ width: 44, height: 24, borderRadius: 999, background: privacy[key] ? "var(--purple)" : "#E0E0E0", cursor: "pointer", position: "relative", transition: "background .2s", flexShrink: 0 }}>
+                <div style={{ position: "absolute", top: 3, left: privacy[key] ? 23 : 3, width: 18, height: 18, borderRadius: "50%", background: "white", transition: "left .2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -3993,6 +4195,7 @@ export default function App() {
             age: u.age ? parseInt(u.age) : null,
             phone: u.phone || "",
             gender: u.pronouns || "",
+            photo_urls: u.photo_urls || [],
             interests: u.interests, city_wants: u.things,
             cuisines: u.cuisines, budget: u.budget,
             prompts: u.prompts || {},
