@@ -466,6 +466,8 @@ const INTEREST_OPTIONS = [
   { id: "workshops", label: "Workshops", icon: "✏️" }, { id: "outdoors", label: "Outdoors", icon: "🌿" },
 ];
 
+const MUMBAI_HOODS = ['Bandra West', 'Pali Hill', 'Juhu', 'Santacruz', 'Vile Parle', 'Andheri West', 'Andheri East', 'Churchgate', 'Colaba', 'Fort', 'Kala Ghoda', 'Lower Parel', 'Dadar', 'Chowpatty', 'Marine Lines', 'Marine Drive', 'Worli', 'Powai', 'Malad', 'Borivali', 'Goregaon', 'Kandivali', 'Thane', 'Navi Mumbai', 'CST'];
+
 const THINGS_OPTIONS = [
   "Attend a live music gig",
   "Explore hidden food spots",
@@ -711,6 +713,7 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
   // Step 2
   const [name, setName] = useState(initialName || "");
   const [college, setCollege] = useState("");
+  const [location, setLocation] = useState("");
   const [age, setAge] = useState(initialAge ? String(initialAge) : "");
   const [gender, setGender] = useState(initialPronouns || "");
   const [genderOther, setGenderOther] = useState("");
@@ -746,6 +749,7 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
       return acc;
     }, {}),
     phone,
+    location,
     food_recs: foodRecs.filter(r => r.name.trim()),
     city_recs: placeRecs.filter(r => r.name.trim()),
   });
@@ -880,6 +884,13 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
               <label style={{ fontSize: 11, fontWeight: 700, color: "#9090B0", letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>COLLEGE</label>
               <input className="ob-input" placeholder="Your college name" value={college} onChange={e => setCollege(e.target.value)} />
             </div>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9090B0", letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>YOUR AREA IN MUMBAI</label>
+            <select className="ob-input" value={location} onChange={e => setLocation(e.target.value)} style={{ appearance: "auto" }}>
+              <option value="">Select your neighbourhood...</option>
+              {MUMBAI_HOODS.map(h => <option key={h} value={h}>{h}</option>)}
+            </select>
+          </div>
           </div>
           <div>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#9090B0", letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 8 }}>GENDER</label>
@@ -1534,6 +1545,7 @@ function FullProfileView({ person, city, onBack, onMessage, connecting, me }) {
 
       <div className="pv-content">
         <div className="pv-name-row">
+          {!priv.hide_location && person.location && <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 4 }}>📍 {person.location}</div>}
           <div className="pv-name">{person.name}{!priv.hide_age && person.age ? `, ${person.age}` : ""}
             {!priv.hide_gender && (person.gender || person.pronouns) ? <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text3)", marginLeft: 8 }}>· {person.gender || person.pronouns}</span> : ""}
           </div>
@@ -2009,9 +2021,11 @@ function ProfileSlideshow({ photos, name }) {
 
 function ConnectionsScreen({ city, userId, me }) {
   const [subTab, setSubTab] = useState("foryou"); // "foryou" | "byactivity"
+  const [locationFilter, setLocationFilter] = useState("All");
 
   // For You state
   const [people, setPeople] = useState([]);
+  const [allPeopleConn, setAllPeopleConn] = useState([]);
   const [blockedIds, setBlockedIds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -2037,7 +2051,9 @@ function ConnectionsScreen({ city, userId, me }) {
       .then(([data, blocked]) => {
         if (!active) return;
         setBlockedIds(blocked || []);
-        setPeople((data || []).filter(p => !(blocked || []).includes(p.id)));
+        const filtered = (data || []).filter(p => !(blocked || []).includes(p.id));
+        setAllPeopleConn(filtered);
+        setPeople(filtered);
         setIdx(0);
       })
       .catch(e => { console.error(e); if (active) setLoadError("Couldn't load people right now."); })
@@ -2045,8 +2061,10 @@ function ConnectionsScreen({ city, userId, me }) {
     return () => { active = false; };
   }, [city, userId, reloadKey]);
 
-  // Use local seed people when no real users exist (demo)
-  const displayPeople = people;
+  // Apply location filter
+  const displayPeople = locationFilter === "All"
+    ? people
+    : people.filter(p => p.location === locationFilter);
 
   // Build By Activity groups from local seed (+ real users when available)
   const allPeople = [...people];
@@ -2152,6 +2170,16 @@ function ConnectionsScreen({ city, userId, me }) {
       {/* FOR YOU TAB */}
       {subTab === "foryou" && (
         <div>
+          {/* Location filter */}
+          <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 12, scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}>
+            {["All", ...MUMBAI_HOODS].map(h => (
+              <button key={h} onClick={() => { setLocationFilter(h); setIdx(0); }}
+                style={{ flexShrink: 0, padding: "6px 14px", borderRadius: 999, fontSize: 12, fontWeight: 600, border: `1.5px solid ${locationFilter === h ? "var(--purple)" : "var(--border)"}`, background: locationFilter === h ? "var(--purple)" : "var(--white)", color: locationFilter === h ? "white" : "var(--text2)", cursor: "pointer", whiteSpace: "nowrap" }}>
+                {h}
+              </button>
+            ))}
+          </div>
+
           {loading && !userId && null}
           {loadError && <div className="conn-empty"><p>{loadError}</p></div>}
 
@@ -2185,7 +2213,7 @@ function ConnectionsScreen({ city, userId, me }) {
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 6 }}>
                   <div>
                     <div style={{ fontSize: 22, fontWeight: 800 }}>{current.name}, {current.age}{current.pronouns ? <span style={{fontSize:13,fontWeight:500,color:"var(--text3)",marginLeft:8}}>· {current.pronouns}</span> : ""}</div>
-                    <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 2 }}>📍 {cd.label}</div>
+                    <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 2 }}>📍 {current.location || cd.label}</div>
                   </div>
                 </div>
 
@@ -3609,7 +3637,7 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
   const [prompts, setPrompts] = useState(user.prompts || {});
   const [privacy, setPrivacy] = useState(user.privacy_settings || {
     hide_age: false, hide_gender: false, hide_college: false,
-    hide_food_recs: false, hide_city_recs: false, hide_prompts: false,
+    hide_location: false, hide_food_recs: false, hide_city_recs: false, hide_prompts: false,
   });
   const savePrivacy = (next) => { setPrivacy(next); save({ privacy_settings: next }); };
   const [photos, setPhotos] = useState(user.photo_urls || []);
@@ -3707,6 +3735,13 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
           <div className="profile-sec-title">Basic info</div>
           <div className="profile-basic-grid">
             <EditableField label="Name" value={user.name} icon="👤" onSave={v => save({ name: v })} />
+            <div className="profile-field">
+              <label>Your area in Mumbai</label>
+              <select className="profile-field-input" value={user.location || ""} onChange={e => save({ location: e.target.value })} style={{ appearance: "auto", cursor: "pointer" }}>
+                <option value="">Select neighbourhood...</option>
+                {MUMBAI_HOODS.map(h => <option key={h} value={h}>{h}</option>)}
+              </select>
+            </div>
             <EditableField label="Age" value={user.age ? String(user.age) : ""} type="number" onSave={v => { const n = parseInt(v); if (!isNaN(n) && n >= 18 && n <= 100) save({ age: n }); }} />
             <div className="profile-field">
               <label>City</label>
@@ -4011,6 +4046,7 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour 
             { key: "hide_age", label: "Hide my age" },
             { key: "hide_gender", label: "Hide my gender" },
             { key: "hide_college", label: "Hide my college / workplace" },
+            { key: "hide_location", label: "Hide my location / neighbourhood" },
             { key: "hide_food_recs", label: "Hide my food recommendations" },
             { key: "hide_city_recs", label: "Hide my places worth exploring" },
             { key: "hide_prompts", label: "Hide my thoughts / prompts" },
@@ -4122,6 +4158,7 @@ export default function App() {
       food_recs: profileData.food_recs || ["", "", ""],
       city_recs: profileData.city_recs || ["", "", ""],
       pronouns: profileData.pronouns || "",
+      location: profileData.location || "",
     };
     const nav = [
       ["home", "🏠", "Home"],
@@ -4195,6 +4232,7 @@ export default function App() {
             age: u.age ? parseInt(u.age) : null,
             phone: u.phone || "",
             gender: u.pronouns || "",
+            location: u.location || "",
             photo_urls: u.photo_urls || [],
             interests: u.interests, city_wants: u.things,
             cuisines: u.cuisines, budget: u.budget,
