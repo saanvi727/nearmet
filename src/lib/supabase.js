@@ -571,3 +571,104 @@ export async function getCommunityEventInterestCount(eventId) {
   if (error) throw error
   return count || 0
 }
+
+// ─── PASSPORT (personal food/places/activities record + anonymous community feed) ──
+// passport_entries: id, user_id, city, category ('food'|'places'|'activities'),
+// place_name, location, photo_url, note, tags (text[]), created_at.
+// The community feed reads from passport_entries_public — a view that never
+// exposes user_id, so entries are genuinely anonymous to other users.
+
+export async function uploadPassportPhoto(userId, file) {
+  const compressed = await compressImage(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.82 })
+  const path = `passport/${userId}/${Date.now()}.jpg`
+  const { error } = await supabase.storage
+    .from('place-photos')
+    .upload(path, compressed, { upsert: false, contentType: 'image/jpeg' })
+  if (error) throw error
+  const { data } = supabase.storage.from('place-photos').getPublicUrl(path)
+  return data.publicUrl
+}
+
+export async function addPassportEntry(userId, city, category, { placeName, location, photoUrl, note, tags }) {
+  const { data, error } = await supabase
+    .from('passport_entries')
+    .insert({
+      user_id: userId,
+      city,
+      category,
+      place_name: placeName,
+      location: location || null,
+      photo_url: photoUrl || null,
+      note: note || null,
+      tags: tags || [],
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function getPassportFeed(city, category, limit = 20) {
+  const { data, error } = await supabase
+    .from('passport_entries_public')
+    .select('*')
+    .eq('city', city)
+    .eq('category', category)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error) throw error
+  return data
+}
+
+export async function getMyPassportEntries(userId, category) {
+  let query = supabase.from('passport_entries').select('*').eq('user_id', userId)
+  if (category) query = query.eq('category', category)
+  const { data, error } = await query.order('created_at', { ascending: false })
+  if (error) throw error
+  return data
+}
+
+export async function getMyPassportCounts(userId) {
+  const { data, error } = await supabase.from('passport_entries').select('category').eq('user_id', userId)
+  if (error) throw error
+  const counts = { food: 0, places: 0, activities: 0 }
+  ;(data || []).forEach(r => { if (counts[r.category] != null) counts[r.category]++ })
+  return counts
+}
+
+export async function togglePassportSave(userId, entryId) {
+  const { data: existing } = await supabase
+    .from('passport_saves')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('entry_id', entryId)
+    .maybeSingle()
+
+  if (existing) {
+    await supabase.from('passport_saves').delete().eq('id', existing.id)
+    return false
+  } else {
+    await supabase.from('passport_saves').insert({ user_id: userId, entry_id: entryId })
+    return true
+  }
+}
+
+export async function getPassportSavedIds(userId) {
+  const { data, error } = await supabase.from('passport_saves').select('entry_id').eq('user_id', userId)
+  if (error) throw error
+  return (data || []).map(r => r.entry_id)
+}
+
+export async function deletePassportEntry(entryId) {
+  const { error } = await supabase.from('passport_entries').delete().eq('id', entryId)
+  if (error) throw error
+}
+
+export async function getMyInterestedEvents(userId) {
+  const { data, error } = await supabase
+    .from('community_event_interests')
+    .select('event:community_events(*)')
+    .eq('user_id', userId)
+  if (error) throw error
+  return (data || []).map(r => r.event).filter(Boolean)
+}
