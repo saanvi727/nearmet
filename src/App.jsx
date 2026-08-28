@@ -581,6 +581,14 @@ const FUN_TALKING_ABOUT = [
 ];
 
 const GENDER_OPTIONS = ["Man", "Woman", "Non-binary", "Prefer not to say", "Other"];
+const SECURITY_QUESTIONS = [
+  "What was the name of your first pet?",
+  "What was the make of your first car?",
+  "What is your mother's maiden name?",
+  "What was the name of your first school?",
+  "What city were you born in?",
+  "What was your childhood nickname?",
+];
 
 // Shared nav dot indicator at bottom
 function StepDots({ total, current }) {
@@ -714,6 +722,8 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
   const [confirmPw, setConfirmPw] = useState("");
   const [signupLoading, setSignupLoading] = useState(false);
   const [signupError, setSignupError] = useState("");
+  const [securityQuestion, setSecurityQuestion] = useState(SECURITY_QUESTIONS[0]);
+  const [securityAnswer, setSecurityAnswer] = useState("");
 
   // Step 2
   const [name, setName] = useState(initialName || "");
@@ -810,13 +820,25 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
             <label style={{ fontSize: 11, fontWeight: 700, color: "#9090B0", letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>CONFIRM PASSWORD</label>
             <input className="ob-input" type="password" placeholder="Repeat your password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} />
           </div>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9090B0", letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>SECURITY QUESTION</label>
+            <select className="ob-input" style={{ appearance: "auto" }} value={securityQuestion} onChange={e => setSecurityQuestion(e.target.value)}>
+              {SECURITY_QUESTIONS.map(q => <option key={q} value={q}>{q}</option>)}
+            </select>
+            <div style={{ fontSize: 12, color: "#9090B0", marginTop: 6 }}>Used to reset your password if you forget it — no email link needed.</div>
+          </div>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9090B0", letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>YOUR ANSWER</label>
+            <input className="ob-input" placeholder="Your answer" value={securityAnswer} onChange={e => setSecurityAnswer(e.target.value)} />
+          </div>
         </div>
         {signupError && <div style={{ marginTop: 12, background: "#FFF0EE", border: "1px solid #FF9A8B", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#C94E3A" }}>{signupError}</div>}
         <button className="ob-btn-primary ob-btn-full" style={{ marginTop: 24 }}
-          disabled={signupLoading || !email || !password}
+          disabled={signupLoading || !email || !password || !securityAnswer.trim()}
           onClick={async () => {
             if (password !== confirmPw) { setSignupError("Passwords do not match."); return; }
             if (password.length < 8) { setSignupError("Password must be at least 8 characters."); return; }
+            if (!securityAnswer.trim()) { setSignupError("Please answer your security question — it's used to reset your password later."); return; }
             setSignupLoading(true); setSignupError("");
             try {
               const result = await onSignUp(email, password);
@@ -1197,16 +1219,23 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
 
         try {
           // Upload the single profile photo using the same function as the profile screen
-          const { uploadProfilePhoto: uploadPhoto } = await import("./lib/supabase.js");
+          const { uploadProfilePhoto: uploadPhoto, setSecurityQuestion: saveSecurityQuestionRpc } = await import("./lib/supabase.js");
+          const userId = session?.user?.id || (await supabase.auth.getSession()).data?.session?.user?.id;
+
           let photoUrls = [];
           if (photo instanceof File) {
-            const userId = session?.user?.id || (await supabase.auth.getSession()).data?.session?.user?.id;
             if (!userId) throw new Error("We couldn't find your account — please try again.");
             const url = await uploadPhoto(userId, photo, 0);
             if (!url) throw new Error("Your photo didn't upload — please try again.");
             photoUrls = [url];
           }
           payload.photo_urls = photoUrls;
+
+          // Save the security question for password recovery, if not already set
+          if (userId && securityAnswer.trim()) {
+            try { await saveSecurityQuestionRpc(securityQuestion, securityAnswer.trim()); }
+            catch (e) { console.error("Saving security question failed:", e); } // non-fatal — don't block onboarding
+          }
 
           // Upload rec photos
           const uploadIfFile = async (rec, bucket, path) => {
@@ -2218,7 +2247,10 @@ function ConnectionsScreen({ city, userId, me }) {
                     onClick={() => setIdx(i => Math.max(0, i - 1))}>
                     ← Back
                   </button>
-                  <button style={{ flex: 1, border: "1.5px solid var(--border)", borderRadius: 12, padding: "11px", fontSize: 13, fontWeight: 600, color: "var(--text2)", background: "var(--white)", cursor: "pointer" }} onClick={() => { setIdx(i => Math.min(displayPeople.length - 1, i + 1)); }}>
+                  <button
+                    style={{ flex: 1, border: "1.5px solid var(--border)", borderRadius: 12, padding: "11px", fontSize: 13, fontWeight: 600, color: idx >= displayPeople.length - 1 ? "var(--text3)" : "var(--text2)", background: "var(--white)", cursor: idx >= displayPeople.length - 1 ? "default" : "pointer", opacity: idx >= displayPeople.length - 1 ? 0.5 : 1 }}
+                    disabled={idx >= displayPeople.length - 1}
+                    onClick={() => setIdx(i => Math.min(displayPeople.length - 1, i + 1))}>
                     Next →
                   </button>
                 </div>
@@ -3808,6 +3840,76 @@ function EventsScreen({ city, userId, userName }) {
 }
 
 // ─── BLOCKED USERS SECTION ───────────────────────────────────────────────────
+function AccountRecoverySection({ userId }) {
+  const [question, setQuestion] = useState(SECURITY_QUESTIONS[0]);
+  const [answer, setAnswer] = useState("");
+  const [hasExisting, setHasExisting] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    supabase.from('profiles').select('security_question').eq('id', userId).maybeSingle()
+      .then(({ data }) => {
+        if (!active) return;
+        if (data?.security_question) { setQuestion(data.security_question); setHasExisting(true); }
+      }).catch(e => console.error(e));
+    return () => { active = false; };
+  }, [userId]);
+
+  const handleSave = async () => {
+    if (!answer.trim()) { setError("Enter an answer."); return; }
+    setSaving(true); setError("");
+    try {
+      const { setSecurityQuestion } = await import("./lib/supabase.js");
+      await setSecurityQuestion(question, answer.trim());
+      setHasExisting(true); setEditing(false); setAnswer(""); setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (e) { setError(e.message || "Couldn't save — please try again."); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="profile-section">
+      <div className="profile-sec-num">🔑</div>
+      <div className="profile-sec-body">
+        <div className="profile-sec-title">Account Recovery</div>
+        <div className="profile-sec-sub">Set a security question so you can reset your password without an email link.</div>
+
+        {hasExisting && !editing ? (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 10, background: "var(--bg2)", borderRadius: 10, padding: "12px 14px" }}>
+            <div>
+              <div style={{ fontSize: 12, color: "var(--text3)", marginBottom: 2 }}>Your security question</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{question}</div>
+            </div>
+            <button onClick={() => setEditing(true)} style={{ fontSize: 13, fontWeight: 700, color: "var(--purple)", background: "none", border: "none", cursor: "pointer", flexShrink: 0 }}>Change</button>
+          </div>
+        ) : (
+          <div style={{ marginTop: 10 }}>
+            <select className="ob-input" style={{ appearance: "auto", marginBottom: 10 }} value={question} onChange={e => setQuestion(e.target.value)}>
+              {SECURITY_QUESTIONS.map(q => <option key={q} value={q}>{q}</option>)}
+            </select>
+            <input className="ob-input" placeholder="Your answer" value={answer} onChange={e => setAnswer(e.target.value)} />
+            {error && <div style={{ marginTop: 8, fontSize: 12, color: "var(--coral-dk)" }}>{error}</div>}
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              {hasExisting && (
+                <button onClick={() => { setEditing(false); setAnswer(""); setError(""); }} style={{ flex: 1, background: "var(--bg2)", color: "var(--text2)", border: "none", borderRadius: 10, padding: "10px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Cancel</button>
+              )}
+              <button disabled={saving} onClick={handleSave} style={{ flex: 1, background: "var(--purple)", color: "white", border: "none", borderRadius: 10, padding: "10px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                {saving ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        )}
+        {saved && <div style={{ marginTop: 10, fontSize: 12, color: "var(--purple)", fontWeight: 700 }}>✓ Saved</div>}
+      </div>
+    </div>
+  );
+}
+
 function BlockedUsersSection({ userId }) {
   const [blocked, setBlocked] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -4284,6 +4386,9 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour,
         </div>
       </div>
 
+      {/* Account Recovery — set/update security question for password reset */}
+      <AccountRecoverySection userId={userId} />
+
       {/* Privacy Settings */}
       <div className="profile-section">
         <div className="profile-sec-num">🔒</div>
@@ -4326,6 +4431,126 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour,
 }
 
 // ─── APP ROOT ─────────────────────────────────────────────────────────────────
+// ─── FORGOT PASSWORD (security question flow, no email link needed) ───────────
+function ForgotPasswordFlow({ onDone, onBack }) {
+  const [step, setStep] = useState("email"); // email | answer | newpw | done
+  const [email, setEmail] = useState("");
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const headerStyle = { display: "flex", alignItems: "center", padding: "16px 20px 12px", borderBottom: "1px solid #F5E8F9" };
+  const labelStyle = { fontSize: 11, fontWeight: 700, color: "#9090B0", letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 6 };
+  const errorBox = <div style={{ marginTop: 12, background: "#FFF0EE", border: "1px solid #FF9A8B", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#C94E3A" }}>{error}</div>;
+
+  const handleFindQuestion = async () => {
+    if (!email.trim()) { setError("Enter your email."); return; }
+    setLoading(true); setError("");
+    try {
+      const { getSecurityQuestion } = await import("./lib/supabase.js");
+      const q = await getSecurityQuestion(email.trim());
+      if (!q) { setError("We couldn't find a security question for that email — make sure it's the email you signed up with."); return; }
+      setQuestion(q);
+      setStep("answer");
+    } catch (e) { setError(e.message || "Something went wrong. Please try again."); }
+    finally { setLoading(false); }
+  };
+
+  const handleVerifyAnswer = async () => {
+    if (!answer.trim()) { setError("Enter your answer."); return; }
+    setLoading(true); setError("");
+    try {
+      const { verifySecurityAnswer } = await import("./lib/supabase.js");
+      const ok = await verifySecurityAnswer(email.trim(), answer.trim());
+      if (!ok) { setError("That answer doesn't match — please try again."); return; }
+      setStep("newpw");
+    } catch (e) { setError(e.message || "Something went wrong. Please try again."); }
+    finally { setLoading(false); }
+  };
+
+  const handleReset = async () => {
+    if (newPw.length < 8) { setError("Password must be at least 8 characters."); return; }
+    if (newPw !== confirmPw) { setError("Passwords do not match."); return; }
+    setLoading(true); setError("");
+    try {
+      const { resetPasswordWithSecurityAnswer } = await import("./lib/supabase.js");
+      const ok = await resetPasswordWithSecurityAnswer(email.trim(), answer.trim(), newPw);
+      if (!ok) { setError("Couldn't reset your password — please start over."); return; }
+      setStep("done");
+    } catch (e) { setError(e.message || "Something went wrong. Please try again."); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#fff", display: "flex", flexDirection: "column" }}>
+      <div style={headerStyle}>
+        <button onClick={onBack} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", marginRight: 12, color: "#4A4A6A" }}>←</button>
+        <NearMetLogo size={32} />
+      </div>
+      <div style={{ flex: 1, padding: "28px 24px", maxWidth: 420, width: "100%", margin: "0 auto" }}>
+        {step === "email" && (
+          <>
+            <h2 style={{ fontSize: 24, fontWeight: 800, color: "#2F2F33", marginBottom: 6 }}>Reset your password</h2>
+            <p style={{ fontSize: 14, color: "#9090B0", marginBottom: 24 }}>Enter the email you signed up with — we'll ask you your security question instead of sending a link.</p>
+            <label style={labelStyle}>EMAIL</label>
+            <input className="ob-input" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleFindQuestion()} />
+            {error && errorBox}
+            <button className="ob-btn-primary ob-btn-full" style={{ marginTop: 20 }} disabled={loading} onClick={handleFindQuestion}>
+              {loading ? "Checking…" : "Continue →"}
+            </button>
+          </>
+        )}
+        {step === "answer" && (
+          <>
+            <h2 style={{ fontSize: 24, fontWeight: 800, color: "#2F2F33", marginBottom: 6 }}>Answer your security question</h2>
+            <p style={{ fontSize: 15, color: "#2F2F33", fontWeight: 600, marginBottom: 24 }}>{question}</p>
+            <label style={labelStyle}>YOUR ANSWER</label>
+            <input className="ob-input" placeholder="Your answer" value={answer} onChange={e => setAnswer(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleVerifyAnswer()} />
+            {error && errorBox}
+            <button className="ob-btn-primary ob-btn-full" style={{ marginTop: 20 }} disabled={loading} onClick={handleVerifyAnswer}>
+              {loading ? "Checking…" : "Continue →"}
+            </button>
+          </>
+        )}
+        {step === "newpw" && (
+          <>
+            <h2 style={{ fontSize: 24, fontWeight: 800, color: "#2F2F33", marginBottom: 6 }}>Set a new password</h2>
+            <p style={{ fontSize: 14, color: "#9090B0", marginBottom: 24 }}>Choose a new password for your account.</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <label style={labelStyle}>NEW PASSWORD</label>
+                <input className="ob-input" type="password" placeholder="At least 8 characters" value={newPw} onChange={e => setNewPw(e.target.value)} />
+              </div>
+              <div>
+                <label style={labelStyle}>CONFIRM PASSWORD</label>
+                <input className="ob-input" type="password" placeholder="Repeat new password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleReset()} />
+              </div>
+            </div>
+            {error && errorBox}
+            <button className="ob-btn-primary ob-btn-full" style={{ marginTop: 20 }} disabled={loading} onClick={handleReset}>
+              {loading ? "Resetting…" : "Reset password →"}
+            </button>
+          </>
+        )}
+        {step === "done" && (
+          <>
+            <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#F5E8F9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, margin: "0 auto 20px" }}>✓</div>
+            <h2 style={{ fontSize: 24, fontWeight: 800, color: "#2F2F33", marginBottom: 8, textAlign: "center" }}>Password reset!</h2>
+            <p style={{ fontSize: 14, color: "#9090B0", marginBottom: 24, textAlign: "center" }}>You can now sign in with your new password.</p>
+            <button className="ob-btn-primary ob-btn-full" onClick={onDone}>Back to sign in →</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const { session, profile, loading, refreshProfile } = useAuth();
   const [localUser, setLocalUser] = useState(null);
@@ -4526,7 +4751,8 @@ export default function App() {
   );
 
   // ── Auth screens ──
-  if (screen === "signin") return <AuthPage mode="signin" onBack={() => setScreen("landing")} onCreateAccount={() => setScreen("signup")} />;
+  if (screen === "signin") return <AuthPage mode="signin" onBack={() => setScreen("landing")} onCreateAccount={() => setScreen("signup")} onForgotPassword={() => setScreen("forgotpw")} />;
+  if (screen === "forgotpw") return <ForgotPasswordFlow onDone={() => setScreen("signin")} onBack={() => setScreen("signin")} />;
   if (screen === "signup") return (
     <Onboarding
       initialCity="mumbai" initialName="" initialAge="" initialPronouns=""
@@ -4597,5 +4823,5 @@ export default function App() {
   if (screen === "onboarding") return <Onboarding onShowSignIn={() => setScreen("signin")} onBackToLanding={() => setScreen("landing")} onDone={u => { setLocalUser(u); setTab("connections"); }} />;
 
   // ── Landing ── Use AuthPage which has the new gradient design
-  return <AuthPage onCreateAccount={() => setScreen("signup")} onBack={() => {}} />;
+  return <AuthPage onCreateAccount={() => setScreen("signup")} onBack={() => {}} onForgotPassword={() => setScreen("forgotpw")} />;
 }

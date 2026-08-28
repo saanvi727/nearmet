@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import heic2any from 'heic2any'
  
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -72,10 +73,27 @@ export async function updateProfile(userId, updates) {
 // maxWidth/maxHeight: resize if larger (preserves aspect ratio)
 // quality: JPEG quality 0–1
 // Returns a Blob ready to upload, always as image/jpeg.
+// iPhones default to saving photos as HEIC/HEIF, which browsers cannot decode
+// natively via <img>/Canvas. Convert to JPEG first so compressImage below can
+// always work with a format every browser understands.
+async function toDecodableBlob(file) {
+  const isHeic = file.type === 'image/heic' || file.type === 'image/heif' ||
+    /\.hei[cf]$/i.test(file.name || '')
+  if (!isHeic) return file
+  try {
+    const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 })
+    // heic2any returns an array if the HEIC container holds multiple images (e.g. Live Photos)
+    return Array.isArray(converted) ? converted[0] : converted
+  } catch (e) {
+    throw new Error('This photo format (HEIC) could not be converted — please try a JPEG or PNG instead.')
+  }
+}
+
 async function compressImage(file, { maxWidth = 1200, maxHeight = 1200, quality = 0.82 } = {}) {
+  const decodableFile = await toDecodableBlob(file)
   return new Promise((resolve, reject) => {
     const img = new Image()
-    const url = URL.createObjectURL(file)
+    const url = URL.createObjectURL(decodableFile)
     img.onload = () => {
       URL.revokeObjectURL(url)
       let { width, height } = img
@@ -92,7 +110,7 @@ async function compressImage(file, { maxWidth = 1200, maxHeight = 1200, quality 
         else reject(new Error('Canvas compression failed'))
       }, 'image/jpeg', quality)
     }
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load failed')); }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load failed — please try a different photo (JPEG or PNG work best).')); }
     img.src = url
   })
 }
@@ -671,4 +689,24 @@ export async function getMyInterestedEvents(userId) {
     .eq('user_id', userId)
   if (error) throw error
   return (data || []).map(r => r.event).filter(Boolean)
+}
+
+export async function setSecurityQuestion(question, answer) {
+  const { error } = await supabase.rpc('set_security_question', { p_question: question, p_answer: answer })
+  if (error) throw error
+}
+export async function getSecurityQuestion(email) {
+  const { data, error } = await supabase.rpc('get_security_question', { p_email: email })
+  if (error) throw error
+  return data
+}
+export async function verifySecurityAnswer(email, answer) {
+  const { data, error } = await supabase.rpc('verify_security_answer', { p_email: email, p_answer: answer })
+  if (error) throw error
+  return !!data
+}
+export async function resetPasswordWithSecurityAnswer(email, answer, newPassword) {
+  const { data, error } = await supabase.rpc('reset_password_with_security_answer', { p_email: email, p_answer: answer, p_new_password: newPassword })
+  if (error) throw error
+  return !!data
 }

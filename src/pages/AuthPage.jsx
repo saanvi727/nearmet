@@ -100,7 +100,7 @@ const FEATURES = [
   { Icon: CalendarIcon, text: "Create events and build memories" },
 ];
 
-export default function AuthPage({ onBack, mode: props_mode, onCreateAccount }) {
+export default function AuthPage({ onBack, mode: props_mode, onCreateAccount, onForgotPassword }) {
   const [mode, setMode] = useState(props_mode || 'landing')
   const [accepted, setAccepted] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -593,6 +593,12 @@ By creating an account or using NearMet, you acknowledge that you have read and 
             <div>
               <label style={{ fontSize: 11, fontWeight: 700, color: "#9090B0", letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>PASSWORD</label>
               <input className="ob-input" type="password" placeholder="Your password" value={form.password} onChange={e => set('password', e.target.value)} required />
+              {onForgotPassword && (
+                <button type="button" onClick={onForgotPassword}
+                  style={{ background: "none", border: "none", padding: 0, marginTop: 8, fontSize: 13, fontWeight: 600, color: "#581073", cursor: "pointer" }}>
+                  Forgot password?
+                </button>
+              )}
             </div>
           </div>
           {error && <div style={{ marginTop: 12, background: "#FFF0EE", border: "1px solid #FF9A8B", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#C94E3A" }}>{error}</div>}

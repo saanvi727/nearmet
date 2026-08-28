@@ -10,11 +10,30 @@ export function AuthProvider({ children }) {
   const loadingProfile = useRef(false) // prevent concurrent loads
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    async function init() {
+      // If this page load is a Supabase auth redirect using the PKCE flow
+      // (email confirmation / magic link), the URL will contain a `?code=...`
+      // param that still needs to be exchanged for a session — getSession()
+      // alone does NOT do this automatically.
+      const params = new URLSearchParams(window.location.search)
+      const code = params.get('code')
+      if (code) {
+        try {
+          await supabase.auth.exchangeCodeForSession(code)
+        } catch (e) {
+          console.error('Failed to exchange auth code for session:', e)
+        } finally {
+          // Clean the code param out of the URL so a refresh doesn't retry it
+          window.history.replaceState({}, '', window.location.pathname)
+        }
+      }
+
+      const { data: { session } } = await supabase.auth.getSession()
       setSession(session)
       if (session?.user) loadProfile(session.user.id)
       else setLoading(false)
-    })
+    }
+    init()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
