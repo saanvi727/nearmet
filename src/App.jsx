@@ -11,6 +11,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState, useEffect, useRef } from "react";
+import posthog from "posthog-js";
 import "./App.css";
 import { useAuth } from "./context/AuthContext.jsx";
 import AuthPage from "./pages/AuthPage.jsx";
@@ -1251,6 +1252,11 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
           };
           payload.food_recs = await Promise.all((payload.food_recs || []).map(r => uploadIfFile(r, "place-photos", "food-recs")));
           payload.city_recs = await Promise.all((payload.city_recs || []).map(r => uploadIfFile(r, "place-photos", "city-recs")));
+          posthog.capture("onboarding_completed", {
+            has_photo: photoUrls.length > 0,
+            interests_count: (payload.interests || []).length,
+            things_count: (payload.things || []).length,
+          });
           await onDone(payload);
         } catch (e) {
           console.error("Onboarding finish failed:", e);
@@ -1308,7 +1314,12 @@ function ChatView({ connectionId, person, userId, onBack, onBlocked }) {
   const sendChatMessage = async () => {
     if (!chatInput.trim()) return;
     const text = chatInput.trim(); setChatInput(""); setChatError("");
-    try { const msg = await sendMessage(connectionId, userId, text); setChatMsgs(p => [...p, msg]); }
+    const isFirstMessage = chatMsgs.length === 0;
+    try {
+      const msg = await sendMessage(connectionId, userId, text);
+      setChatMsgs(p => [...p, msg]);
+      posthog.capture("message_sent", { is_first_message: isFirstMessage, connection_id: connectionId });
+    }
     catch (e) { console.error(e); setChatError("Couldn't send that — please try again."); }
   };
 
@@ -2019,6 +2030,23 @@ function ConnectionsScreen({ city, userId, me }) {
     ? people
     : people.filter(p => p.location === locationFilter);
 
+  // Preload the next few profiles' photos so "Next" feels instant instead of
+  // waiting on a fresh network request each click. The browser caches these
+  // via a plain Image() prefetch, so by the time the <img> src actually
+  // switches to one of these URLs, it's already sitting in HTTP cache.
+  useEffect(() => {
+    if (!displayPeople.length) return;
+    const preloadCount = 3;
+    for (let i = 1; i <= preloadCount; i++) {
+      const next = displayPeople[idx + i];
+      if (!next) continue;
+      const url = (next.photo_urls || next.photos || []).filter(Boolean)[0];
+      if (!url) continue;
+      const img = new Image();
+      img.src = url;
+    }
+  }, [idx, displayPeople]);
+
   // Build By Activity groups from local seed (+ real users when available)
   const allPeople = [...people];
   const activityGroups = {};
@@ -2149,7 +2177,7 @@ function ConnectionsScreen({ city, userId, me }) {
                 {(() => {
                   const photo = (current.photo_urls || current.photos || []).filter(Boolean)[0];
                   return photo
-                    ? <img src={photo} alt={current.name} style={{ width: 220, height: 220, borderRadius: "50%", objectFit: "cover", border: "4px solid white", boxShadow: "0 4px 20px rgba(88,16,115,0.2)" }} onContextMenu={e => e.preventDefault()} draggable={false} />
+                    ? <img src={photo} alt={current.name} fetchpriority="high" loading="eager" decoding="async" style={{ width: 220, height: 220, borderRadius: "50%", objectFit: "cover", border: "4px solid white", boxShadow: "0 4px 20px rgba(88,16,115,0.2)" }} onContextMenu={e => e.preventDefault()} draggable={false} />
                     : <div style={{ width: 220, height: 220, borderRadius: "50%", background: "var(--purple)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 56, fontWeight: 800, color: "white" }}>{(current.name || "?").slice(0, 2).toUpperCase()}</div>;
                 })()}
               </div>
@@ -2831,6 +2859,7 @@ function ShareExperienceForm({ category, city, userId, onDone, prefillName, pref
       let photoUrl = null;
       if (photoFile) photoUrl = await uploadPassportPhoto(userId, photoFile);
       await addPassportEntry(userId, city, category, { placeName: placeName.trim(), location: location.trim(), photoUrl, note: note.trim(), tags });
+      posthog.capture("passport_entry_added", { category, has_photo: !!photoUrl, tag_count: tags.length });
       setDone(true);
       setTimeout(onDone, 1200);
     } catch (e) { console.error(e); setError("Couldn't save that — please try again."); }
@@ -2919,6 +2948,7 @@ function PassportSection({ category, city, userId, userName, onOpenEntry, hideFe
         const was = eventInterested;
         setEventInterested(!was);
         setEventInterestCount(c => c + (was ? -1 : 1));
+        if (!was) posthog.capture("event_interest_marked", { event_id: openEventItem.id });
         if (!userId) return;
         try { await toggleCommunityEventInterest(userId, openEventItem.id); }
         catch (e) { console.error(e); setEventInterested(was); setEventInterestCount(c => c + (was ? 1 : -1)); }
@@ -3719,6 +3749,7 @@ function EventsScreen({ city, userId, userName }) {
     const wasInterested = !!interested[eventId];
     setInterested(p => ({ ...p, [eventId]: !wasInterested }));
     setInterestCounts(p => ({ ...p, [eventId]: (p[eventId] || 0) + (wasInterested ? -1 : 1) }));
+    if (!wasInterested) posthog.capture("event_interest_marked", { event_id: eventId });
     if (!userId) return;
     try { await toggleCommunityEventInterest(userId, eventId); }
     catch (e) {
@@ -4760,6 +4791,14 @@ export default function App() {
       onSignUp={async (email, password, phone) => {
         const { signUp } = await import("./lib/supabase.js");
         const result = await signUp({ email, password, name: "", age: "", city: "mumbai", phone: phone || "" });
+        // Supabase deliberately does NOT throw an error for an already-registered email when
+        // "Confirm email" is on (this prevents attackers from using signup to check which
+        // emails have accounts). Instead it silently "succeeds" but returns an empty
+        // identities array for an existing account. Detect that here and surface a real error.
+        if (result?.user && Array.isArray(result.user.identities) && result.user.identities.length === 0) {
+          throw new Error("An account with this email already exists. Please sign in instead.");
+        }
+        posthog.capture("signup_completed", { email_confirmed_immediately: !!result?.session });
         return result;
       }}
       onShowSignIn={() => setScreen("signin")}

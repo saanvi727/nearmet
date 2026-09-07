@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { supabase, getProfile } from '../lib/supabase'
+import posthog from 'posthog-js'
 
 const AuthContext = createContext(null)
 
@@ -30,16 +31,25 @@ export function AuthProvider({ children }) {
 
       const { data: { session } } = await supabase.auth.getSession()
       setSession(session)
-      if (session?.user) loadProfile(session.user.id)
-      else setLoading(false)
+      if (session?.user) {
+        posthog.identify(session.user.id, { email: session.user.email })
+        loadProfile(session.user.id)
+      } else {
+        setLoading(false)
+      }
     }
     init()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setSession(session)
-        if (session?.user) await loadProfile(session.user.id)
-        else { setProfile(null); setLoading(false) }
+        if (session?.user) {
+          posthog.identify(session.user.id, { email: session.user.email })
+          await loadProfile(session.user.id)
+        } else {
+          posthog.reset()
+          setProfile(null); setLoading(false)
+        }
       }
     )
     return () => subscription.unsubscribe()

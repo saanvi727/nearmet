@@ -116,8 +116,10 @@ async function compressImage(file, { maxWidth = 1200, maxHeight = 1200, quality 
 }
  
 export async function uploadProfilePhoto(userId, file, slot) {
-  // Profile photos: max 800px, quality 0.80 — shown at small sizes, high compression fine
-  const compressed = await compressImage(file, { maxWidth: 800, maxHeight: 800, quality: 0.80 })
+  // Profile photos: the largest place this is ever displayed is a 220px circle
+  // (Connections "For You" card) — 500px gives comfortable headroom for 2x-DPI
+  // screens without shipping 800px images that get downscaled visually every time.
+  const compressed = await compressImage(file, { maxWidth: 500, maxHeight: 500, quality: 0.80 })
   const path = `${userId}/photo_${slot}.jpg`
   const { error } = await supabase.storage
     .from('profile-photos')
