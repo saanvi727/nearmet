@@ -85,7 +85,7 @@ async function toDecodableBlob(file) {
     // heic2any returns an array if the HEIC container holds multiple images (e.g. Live Photos)
     return Array.isArray(converted) ? converted[0] : converted
   } catch (e) {
-    throw new Error('This photo format (HEIC) could not be converted — please try a JPEG or PNG instead.')
+    throw new Error('This photo format (HEIC) could not be converted — please try a JPEG or PNG instead.', { cause: e })
   }
 }
 
@@ -343,7 +343,7 @@ export async function getPeople(city, userId) {
     .eq('city', city)
     .eq('profile_complete', true)
     .neq('id', userId)
-    .limit(60) // fetch more so we can sort by match score
+    .limit(100) // fetch more so we can sort by match score
 
   if (passedIds.length > 0) {
     query = query.not('id', 'in', `(${passedIds.join(',')})`)
@@ -379,7 +379,7 @@ export async function getPeople(city, userId) {
     return new Date(b.last_active || 0) - new Date(a.last_active || 0)
   })
 
-  return scored.slice(0, 20)
+  return scored.slice(0, 50)
 }
  
 export async function passProfile(userId, passedId) {
