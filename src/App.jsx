@@ -10,7 +10,7 @@
 //                         submissions require approval before going live
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import posthog from "posthog-js";
 import "./App.css";
 import { useAuth } from "./context/AuthContext.jsx";
@@ -29,6 +29,11 @@ import {
   getMyPassportCounts, togglePassportSave, getPassportSavedIds,
   getMyPassportEntries, getMyInterestedEvents,
 } from "./lib/supabase.js";
+import {
+  buildPin, getMoment, fetchWeather, cityClock, dateKeyOf, activityPhrase,
+  loadPinState, savePinState, loadDismissed, addDismissed, loadRecentStops, serializePin, pinStopKey,
+  findFollowup, findGap, dismissGap, readSearches, recordSearch, clearSearchHistory,
+} from "./lib/pinEngine.js";
 import { supabase } from "./lib/supabase.js";
 
 // ─── LOGO ────────────────────────────────────────────────────────────────────
@@ -238,7 +243,7 @@ const PLACES_TO_EXPLORE = {
 // ─── TOUR ─────────────────────────────────────────────────────────────────────
 const TOUR_STEPS = [
   { selector: null, title: "Welcome to NearMet 👋", body: "NearMet connects you with people in Mumbai who want to do the same things as you. Let's take a quick tour.", center: true },
-  { selector: "[data-tour='home-tab']", title: "Home", body: "Your daily dashboard. See top matches, things you want to experience, and a fresh 'Try something new today' section that rotates daily." },
+  { selector: "[data-tour='home-tab']", title: "Home", body: "Start with Today's Pin: a plan for right now, built around the weather, your interests and people who want to do the same thing. Below it: top matches and a fresh 'Try something new today' section." },
   { selector: "[data-tour='connections-tab']", title: "Connections", body: "Browse people matched to your interests, or switch to 'Things to Experience Today' to find people who want to do the same activities as you." },
   { selector: "[data-tour='places-tab']", title: "Places to Explore", body: "Swipe through what people are experiencing around Mumbai, search or filter by category, then save your favourites to My Passport." },
   { selector: "[data-tour='food-tab']", title: "Food Places", body: "Browse real food experiences shared anonymously by the community, filter by neighbourhood, and save spots you want to try." },
@@ -1273,8 +1278,8 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
 
 
 // ─── CHAT VIEW ────────────────────────────────────────────────────────────────
-function ChatView({ connectionId, person, userId, onBack, onBlocked }) {
-  const [chatInput, setChatInput] = useState("");
+function ChatView({ connectionId, person, userId, onBack, onBlocked, initialDraft, source }) {
+  const [chatInput, setChatInput] = useState(initialDraft || "");
   const [chatMsgs, setChatMsgs] = useState([]);
   const [chatLoading, setChatLoading] = useState(true);
   const [chatError, setChatError] = useState("");
@@ -1318,7 +1323,7 @@ function ChatView({ connectionId, person, userId, onBack, onBlocked }) {
     try {
       const msg = await sendMessage(connectionId, userId, text);
       setChatMsgs(p => [...p, msg]);
-      posthog.capture("message_sent", { is_first_message: isFirstMessage, connection_id: connectionId });
+      posthog.capture("message_sent", { is_first_message: isFirstMessage, connection_id: connectionId, ...(source ? { source } : {}) });
     }
     catch (e) { console.error(e); setChatError("Couldn't send that — please try again."); }
   };
@@ -1503,6 +1508,11 @@ function MessagesPanel({ userId, onClose, onPendingChange }) {
                     <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>Wants to connect with you</div>
                   </div>
                 </div>
+                {c.intro_note && (
+                  <div style={{ background: "var(--purple-lt)", borderRadius: 12, padding: "10px 12px", fontSize: 13, color: "var(--text)", lineHeight: 1.5, marginBottom: 12 }}>
+                    “{c.intro_note}”
+                  </div>
+                )}
                 {(requester.interests || []).length > 0 && (
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
                     {(requester.interests || []).slice(0, 4).map(i => {
@@ -1739,21 +1749,390 @@ function FullProfileView({ person, city, onBack, onMessage, connecting, me }) {
   );
 }
 
+// ─── TODAY'S PIN ──────────────────────────────────────────────────────────────
+// One plan a day, built from the hour, the weather, what you save / search /
+// like, and the people who'd enjoy the same thing — ending in a person and a
+// memory. The planning itself lives in lib/pinEngine.js; this is just the card.
+const PIN_ROLE_LABEL = { start: "Start here", main: "The main stop", finish: "Finish with" };
+const PIN_MAX_INVITES = 3;
+
+function TodaysPin({ user, userId, city, people, peopleReady, onOpenStop, onOpenActivity, onInvite, onBrowsePeople }) {
+  const cd = CITIES[city] || CITIES.mumbai;
+  const food = cd.food || [];
+  const places = PLACES_TO_EXPLORE[city] || [];
+  const uid = userId || "anon";
+
+  const [now] = useState(() => new Date());
+  const [weather, setWeather] = useState(undefined); // undefined = still loading, null = unavailable
+  const [tick, setTick] = useState(0);
+  const [sheet, setSheet] = useState(null);          // null | "invite" | "followup" | "gap"
+  const [drafts, setDrafts] = useState({});
+  const [sendState, setSendState] = useState({});
+
+  const dateKey = dateKeyOf(cityClock(city, now));
+  const first = p => (p?.name || "").split(" ")[0] || "them";
+  const track = (name, props) => { try { posthog.capture(name, props); } catch { /* analytics must never block the UI */ } };
+
+  useEffect(() => {
+    let alive = true;
+    fetchWeather(city).then(w => { if (alive) setWeather(w || null); });
+    return () => { alive = false; };
+  }, [city]);
+
+  const ready = weather !== undefined && peopleReady;
+  const moment = useMemo(() => (weather === undefined ? null : getMoment({ city, now, weather })), [city, now, weather]);
+
+  // Saved on this device only. Read every render — it's tiny.
+  const state = loadPinState(uid, dateKey);
+  const frozen = state.status !== "shown" && state.snapshot ? state.snapshot : null;
+  const userKey = JSON.stringify([user.interests, user.things, user.saved_food_places, user.saved_explore_places, user.cuisines, user.budget, user.location]);
+
+  const livePin = useMemo(() => {
+    if (!ready || frozen) return null;
+    return buildPin({
+      userId: uid, city, dateKey, variant: state.variant, moment, user, food, places, people,
+      searches: readSearches(uid), dismissed: loadDismissed(uid), recent: loadRecentStops(uid, dateKey),
+      activities: THINGS_LIST, funQuestions: FUN_TALKING_ABOUT.map(t => t.question), scoreFood: scoreFoodPlace,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, !!frozen, state.variant, tick, moment, userKey, people]);
+
+  // Once you've said "I'm going" or sent an invite, the plan is frozen for the day.
+  const view = frozen
+    ? { ...frozen, companions: frozen.companions.map(c => ({ ...c, person: people.find(p => p.id === c.id) || { id: c.id, name: c.name, photo_urls: c.photo ? [c.photo] : [] } })) }
+    : livePin;
+
+  useEffect(() => {
+    if (!view) return;
+    const st = loadPinState(uid, dateKey);
+    const patch = { stopKeys: view.stops.map(pinStopKey) };
+    if (!st.shownVariants.includes(view.variant)) {
+      patch.shownVariants = [...st.shownVariants, view.variant];
+      track("pin_shown", { part: view.moment.part, stops: view.stops.length, companions: view.companions.length, group: view.companions.length >= 2, has_wildcard: !!view.wildcard, variant: view.variant, committed: !!frozen });
+    }
+    savePinState(uid, dateKey, patch);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view?.key]);
+
+  const followup = userId ? findFollowup(uid, dateKey) : null;
+  const gap = userId ? findGap(uid) : null;
+  useEffect(() => { if (followup) track("pin_followup_shown", {}); /* eslint-disable-next-line */ }, [followup?.dateKey]);
+  useEffect(() => { if (gap) track("pin_gap_shown", { kind: gap.kind }); /* eslint-disable-next-line */ }, [gap?.q]);
+
+  if (!ready) return (
+    <div style={{ background: "var(--bg2)", borderRadius: 20, padding: "22px 18px", marginBottom: 28, fontSize: 13, color: "var(--text3)" }}>
+      📍 Planning your day…
+    </div>
+  );
+  if (!view) return null;
+
+  const invitedIds = state.invitedIds || [];
+  const canInvite = invitedIds.length < PIN_MAX_INVITES;
+
+  const commit = (status, extra = {}) => {
+    const st = loadPinState(uid, dateKey);
+    const snap = st.snapshot || serializePin(livePin);
+    if (!snap) return;
+    savePinState(uid, dateKey, {
+      status: st.status === "invited" || status === "invited" ? "invited" : "going",
+      stop: snap.mainStop, snapshot: snap, stopKeys: snap.stops.map(pinStopKey), ...extra,
+    });
+    setTick(t => t + 1);
+  };
+  const goSolo = () => { commit("going"); track("pin_going", { had_companions: view.companions.length > 0 }); };
+  const changedMind = () => { savePinState(uid, dateKey, { status: "shown", snapshot: null, stop: null }); setTick(t => t + 1); };
+  const swap = () => {
+    addDismissed(uid, [...view.stops.map(pinStopKey), ...(view.wildcard ? [`act:${view.wildcard.activity}`] : [])]);
+    savePinState(uid, dateKey, { variant: state.variant + 1 });
+    track("pin_swapped", { variant_from: state.variant });
+    setTick(t => t + 1);
+  };
+  const openStop = s => {
+    const item = s.item || (s.kind === "food" ? food : places).find(x => x.id === s.id);
+    if (!item) return;
+    track("pin_stop_opened", { kind: s.kind, role: s.role });
+    onOpenStop({ kind: s.kind, item });
+  };
+  const sendInvite = async c => {
+    const text = (drafts[c.person.id] ?? c.opener).trim();
+    if (!text) return;
+    setSendState(p => ({ ...p, [c.person.id]: { s: "sending" } }));
+    const res = await onInvite(c.person, text);
+    if (res.ok) {
+      setSendState(p => ({ ...p, [c.person.id]: { s: "sent", msg: res.message } }));
+      const st = loadPinState(uid, dateKey);
+      commit("invited", { invitedIds: [...new Set([...(st.invitedIds || []), c.person.id])] });
+      track("pin_invite_sent", { group: view.companions.length >= 2, opened_chat: !!res.opened });
+      if (res.opened) setSheet(null);
+    } else {
+      setSendState(p => ({ ...p, [c.person.id]: { s: "error", msg: res.message } }));
+    }
+  };
+
+  const avatar = (person, size = 34, overlap = false) => {
+    const photo = (person.photo_urls || []).filter(Boolean)[0];
+    const base = { width: size, height: size, borderRadius: "50%", border: "2px solid white", flexShrink: 0, marginLeft: overlap ? -10 : 0 };
+    return photo
+      ? <img key={person.id} src={photo} alt="" loading="lazy" decoding="async" style={{ ...base, objectFit: "cover" }} />
+      : <div key={person.id} style={{ ...base, background: "var(--purple-lt)", color: "var(--purple)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.36, fontWeight: 800 }}>{(person.name || "?").slice(0, 2).toUpperCase()}</div>;
+  };
+
+  const names = view.companions.map(c => first(c.person));
+  const nameText = names.length <= 2 ? names.join(" and ") : `${names[0]}, ${names[1]} +${names.length - 2}`;
+  const acts = view.companions.map(c => c.sharedActivity || c.sharedThing).filter(Boolean);
+  const topAct = [...acts].sort((a, b) => acts.filter(x => x === b).length - acts.filter(x => x === a).length)[0];
+  const summary = view.companions.length === 1
+    ? (topAct ? `${nameText} also wants to ${activityPhrase(topAct)}` : `${nameText} shares your interests`)
+    : (topAct ? `${nameText} are up for plans like this` : `${nameText} share your interests`);
+  const askLabel = view.companions.length === 1 ? `Ask ${names[0]}` : `Invite ${view.companions.length} people`;
+
+  const wildcardVia = view.wildcard?.viaInterest
+    ? (user.interests || []).find(i => i.toLowerCase().replace(/[^a-z0-9]/g, "") === view.wildcard.viaInterest)
+    : null;
+
+  const smallBtn = (primary) => ({
+    flex: 1, borderRadius: 12, padding: "12px 10px", fontSize: 14, fontWeight: 700, cursor: "pointer",
+    background: primary ? "var(--purple)" : "var(--white)", color: primary ? "white" : "var(--text2)",
+    border: primary ? "none" : "1.5px solid var(--border)",
+  });
+  const sheetClose = <button style={{ background: "none", border: "none", fontSize: 22, color: "var(--text3)", cursor: "pointer", padding: 0, lineHeight: 1 }} onClick={() => setSheet(null)}>×</button>;
+
+  return (
+    <div style={{ marginBottom: 28 }}>
+      {/* Yesterday's plan: close the loop with a Passport stamp */}
+      {followup && (
+        <div style={{ background: "var(--purple-lt)", borderRadius: 16, padding: "14px 16px", marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: "var(--purple)", letterSpacing: ".08em" }}>📍 YOUR LAST PIN</div>
+          <div style={{ fontSize: 15, fontWeight: 800, margin: "4px 0 2px" }}>How was {followup.stop.name}?</div>
+          <div style={{ fontSize: 12, color: "var(--text2)", marginBottom: 10, lineHeight: 1.5 }}>Add it to your Passport — it's shared anonymously and helps the next person.</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button style={smallBtn(true)} onClick={() => setSheet("followup")}>Add to my Passport</button>
+            <button style={smallBtn(false)} onClick={() => { savePinState(uid, followup.dateKey, { followupDone: true }); track("pin_followup_skipped", {}); setTick(t => t + 1); }}>Didn't go</button>
+          </div>
+        </div>
+      )}
+
+      {/* The pin */}
+      <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 20, overflow: "hidden", boxShadow: "var(--shadow)" }}>
+        <div style={{ background: "linear-gradient(135deg, #581073 0%, #8B2FA8 100%)", color: "white", padding: "16px 18px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".12em", opacity: 0.85 }}>📍 TODAY'S PIN</div>
+            <div style={{ fontSize: 20 }}>{view.moment.emoji}</div>
+          </div>
+          <div style={{ fontSize: 17, fontWeight: 800, marginTop: 6, letterSpacing: "-0.02em" }}>{view.moment.label}</div>
+        </div>
+
+        {state.status !== "shown" && (
+          <div style={{ background: "var(--purple-lt)", color: "var(--purple)", fontSize: 12, fontWeight: 700, padding: "9px 18px" }}>
+            ✓ You're in{state.status === "invited" ? ` — ${invitedIds.length} invite${invitedIds.length === 1 ? "" : "s"} sent` : ""}. We'll ask how it went.
+          </div>
+        )}
+
+        <div style={{ padding: "8px 18px 0" }}>
+          {view.stops.map((s, i) => (
+            <div key={pinStopKey(s)} onClick={() => openStop(s)} style={{ display: "flex", gap: 12, padding: "10px 0", cursor: "pointer" }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 26, flexShrink: 0 }}>
+                <div style={{ width: 26, height: 26, borderRadius: "50%", background: s.role === "main" ? "var(--purple)" : "var(--purple-lt)", color: s.role === "main" ? "white" : "var(--purple)", fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>{i + 1}</div>
+                {i < view.stops.length - 1 && <div style={{ flex: 1, width: 2, background: "var(--border)", marginTop: 4 }} />}
+              </div>
+              <div style={{ width: 56, height: 56, borderRadius: 12, overflow: "hidden", background: "var(--bg2)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>
+                {s.img ? <img src={s.img} alt="" loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (s.kind === "food" ? "🍽️" : "📍")}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: "var(--text3)", letterSpacing: ".08em", textTransform: "uppercase" }}>{PIN_ROLE_LABEL[s.role]}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", marginTop: 1 }}>{s.name}</div>
+                <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>{s.line}</div>
+              </div>
+              <span style={{ color: "var(--text3)", fontSize: 18, alignSelf: "center" }}>›</span>
+            </div>
+          ))}
+        </div>
+
+        {view.wildcard && (
+          <div onClick={() => { track("pin_wildcard_opened", {}); onOpenActivity(view.wildcard.activity); }}
+            style={{ margin: "6px 18px 0", display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 14, background: "var(--coral-lt)", border: "1.5px dashed var(--coral)", cursor: "pointer" }}>
+            <div style={{ fontSize: 22 }}>{ACTIVITY_ICONS[view.wildcard.activity] || "✨"}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: "var(--coral-dk)", letterSpacing: ".1em" }}>✨ WILDCARD</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>{view.wildcard.activity}</div>
+              <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 1 }}>
+                {view.wildcard.peopleCount} {view.wildcard.peopleCount === 1 ? "person" : "people"} in {cd.label} want{view.wildcard.peopleCount === 1 ? "s" : ""} this{wildcardVia ? ` — you're into ${formatInterest(wildcardVia)}` : ""}
+              </div>
+            </div>
+            <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
+          </div>
+        )}
+
+        <div style={{ padding: "16px 18px 0" }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--text)", marginBottom: 8 }}>Go with someone</div>
+          {view.companions.length === 0 ? (
+            <div style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.5 }}>
+              No one on your list is up for this yet — go solo, or{" "}
+              <button onClick={onBrowsePeople} style={{ background: "none", border: "none", padding: 0, color: "var(--purple)", fontWeight: 700, cursor: "pointer", fontSize: 13 }}>browse people</button>.
+            </div>
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ display: "flex", paddingLeft: 10 }}>{view.companions.map((c, i) => avatar(c.person, 36, true))}</div>
+              <div style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.4 }}>{summary}</div>
+            </div>
+          )}
+        </div>
+
+        <div style={{ padding: "14px 18px 4px", display: "flex", gap: 10 }}>
+          {view.companions.length > 0 && (
+            <button style={smallBtn(true)} onClick={() => { setSheet("invite"); track("pin_invite_started", { companions: view.companions.length }); }}>{askLabel}</button>
+          )}
+          {state.status === "shown" && <button style={smallBtn(view.companions.length === 0)} onClick={goSolo}>{view.companions.length === 0 ? "I'm in" : "Go solo"}</button>}
+        </div>
+        <div style={{ textAlign: "center", padding: "6px 18px 0" }}>
+          {state.status === "shown" && <button onClick={swap} style={{ background: "none", border: "none", color: "var(--text3)", fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "6px 10px" }}>↻ Different pin</button>}
+          {state.status === "going" && <button onClick={changedMind} style={{ background: "none", border: "none", color: "var(--text3)", fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "6px 10px" }}>Changed your mind?</button>}
+        </div>
+
+        <div style={{ padding: "8px 18px 16px" }}>
+          <div style={{ fontSize: 12, color: "var(--text2)", fontStyle: "italic", lineHeight: 1.5 }}>{view.reasonLine}</div>
+          <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 6, lineHeight: 1.5 }}>Opening hours aren't verified yet — double-check before you head out.</div>
+        </div>
+      </div>
+
+      {/* A search that came up empty -> invite the user to fill the gap */}
+      {gap && (
+        <div style={{ marginTop: 14, background: "var(--bg2)", borderRadius: 16, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ fontSize: 24 }}>🔎</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>You searched for “{gap.q}” and we came up empty.</div>
+            <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 2 }}>Know a spot? Drop a pin and help the next person.</div>
+          </div>
+          <button onClick={() => setSheet("gap")} style={{ background: "var(--purple)", color: "white", border: "none", borderRadius: 10, padding: "8px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Drop a pin</button>
+          <button onClick={() => { dismissGap(uid, gap); track("pin_gap_dismissed", {}); setTick(t => t + 1); }} style={{ background: "none", border: "none", color: "var(--text3)", fontSize: 18, cursor: "pointer", padding: 0, lineHeight: 1 }}>×</button>
+        </div>
+      )}
+
+      {/* Invite sheet */}
+      {sheet === "invite" && (
+        <div className="share-sheet-overlay" onClick={() => setSheet(null)}>
+          <div className="share-sheet" onClick={e => e.stopPropagation()} style={{ maxHeight: "85vh", overflowY: "auto" }}>
+            <div className="share-sheet-handle" />
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+              <div style={{ fontSize: 17, fontWeight: 800 }}>Invite to {view.mainStop.name}</div>
+              {sheetClose}
+            </div>
+            <div style={{ fontSize: 12, color: "var(--text3)", marginBottom: 14, lineHeight: 1.5 }}>
+              They'll see this note with your connection request. Edit it however you like — nothing is sent until you tap Send.
+            </div>
+            {view.companions.map(c => {
+              const text = drafts[c.person.id] ?? c.opener;
+              const st = sendState[c.person.id]?.s;
+              const already = invitedIds.includes(c.person.id) || st === "sent";
+              const why = c.sharedActivity || c.sharedThing;
+              return (
+                <div key={c.person.id} style={{ border: "1px solid var(--border)", borderRadius: 14, padding: 12, marginBottom: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                    {avatar(c.person, 36)}
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700 }}>{c.person.name}</div>
+                      <div style={{ fontSize: 12, color: "var(--text3)" }}>{why ? `Also wants to ${activityPhrase(why)}` : c.sharedInterest ? "Shares your interests" : ""}</div>
+                    </div>
+                  </div>
+                  <textarea className="ob-input" rows={3} maxLength={240} disabled={already} value={text} style={{ resize: "none", fontSize: 13 }}
+                    onChange={e => setDrafts(p => ({ ...p, [c.person.id]: e.target.value }))} />
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8, gap: 10 }}>
+                    <div style={{ fontSize: 11, color: st === "error" ? "var(--coral-dk)" : "var(--text3)", flex: 1 }}>
+                      {st === "error" ? sendState[c.person.id].msg : already ? (sendState[c.person.id]?.msg || "Request sent ✓") : `${text.length}/240`}
+                    </div>
+                    {!already && (
+                      <button disabled={st === "sending" || !text.trim() || !canInvite} onClick={() => sendInvite(c)}
+                        style={{ background: "var(--purple)", color: "white", border: "none", borderRadius: 10, padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: (st === "sending" || !canInvite) ? 0.5 : 1 }}>
+                        {st === "sending" ? "Sending…" : "Send request"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {!canInvite && <div style={{ fontSize: 12, color: "var(--text3)", textAlign: "center" }}>You've sent {PIN_MAX_INVITES} invites today — that's the daily limit.</div>}
+          </div>
+        </div>
+      )}
+
+      {/* Follow-up: add yesterday's stop to the Passport */}
+      {sheet === "followup" && followup && (
+        <div className="share-sheet-overlay" onClick={() => setSheet(null)}>
+          <div className="share-sheet" onClick={e => e.stopPropagation()} style={{ maxHeight: "85vh", overflowY: "auto" }}>
+            <div className="share-sheet-handle" />
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <div style={{ fontSize: 17, fontWeight: 800 }}>How was {followup.stop.name}?</div>
+              {sheetClose}
+            </div>
+            <ShareExperienceForm category={followup.stop.kind === "food" ? "food" : "places"} city={city} userId={userId}
+              prefillName={followup.stop.name} prefillLocation={followup.stop.area}
+              onDone={() => { savePinState(uid, followup.dateKey, { followupDone: true }); track("pin_stamped", {}); setSheet(null); setTick(t => t + 1); }} />
+          </div>
+        </div>
+      )}
+
+      {/* Gap: contribute the spot someone searched for */}
+      {sheet === "gap" && gap && (
+        <div className="share-sheet-overlay" onClick={() => setSheet(null)}>
+          <div className="share-sheet" onClick={e => e.stopPropagation()} style={{ maxHeight: "85vh", overflowY: "auto" }}>
+            <div className="share-sheet-handle" />
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <div style={{ fontSize: 17, fontWeight: 800 }}>Know a spot for “{gap.q}”?</div>
+              {sheetClose}
+            </div>
+            <ShareExperienceForm category={gap.kind === "places" ? "places" : "food"} city={city} userId={userId}
+              noteHint={`What makes it great for “${gap.q}”?`}
+              onDone={() => { dismissGap(uid, gap); track("pin_gap_contributed", { kind: gap.kind }); setSheet(null); setTick(t => t + 1); }} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── HOME SCREEN ──────────────────────────────────────────────────────────────
-function HomeScreen({ user, userId, city, onNavigate, onOpenProfile }) {
+function HomeScreen({ user, userId, city, onNavigate, onOpenProfile, onToggleFoodSave, onToggleExploreSave }) {
   const [topPeople, setTopPeople] = useState([]);
   const [viewProfile, setViewProfile] = useState(null);
   const [activityView, setActivityView] = useState(null);
   const [allPeople, setAllPeople] = useState([]);
+  const [peopleReady, setPeopleReady] = useState(!userId);
+  const [chatOpen, setChatOpen] = useState(null);   // { person, connectionId, draft }
+  const [stopOpen, setStopOpen] = useState(null);   // { kind: "food" | "place", item }
   const cd = CITIES[city] || CITIES.mumbai;
 
   useEffect(() => {
     if (!userId) return;
-    getPeople(city, userId).then(p => {
-      setTopPeople((p || []).slice(0, 4));
-      setAllPeople(p || []);
-    }).catch(() => {});
+    let active = true;
+    // People you've blocked never show up here, in the strip or in Today's Pin.
+    Promise.all([getPeople(city, userId), getBlockedIds(userId).catch(() => [])])
+      .then(([p, blocked]) => {
+        if (!active) return;
+        const visible = (p || []).filter(x => !(blocked || []).includes(x.id));
+        setTopPeople(visible.slice(0, 4));
+        setAllPeople(visible);
+      })
+      .catch(() => {})
+      .finally(() => { if (active) setPeopleReady(true); });
+    return () => { active = false; };
   }, [city, userId]);
+
+  // Invite someone from Today's Pin. New people get a connection request carrying a short
+  // intro note; people you're already connected with open straight into a chat.
+  const handleInvite = async (person, text) => {
+    const first = (person.name || "them").split(" ")[0];
+    if (!userId) return { ok: false, message: "Sign in to invite people." };
+    try {
+      const conn = await getOrCreateConnection(userId, person.id, text);
+      if (conn.status === "accepted") { setChatOpen({ person, connectionId: conn.id, draft: text }); return { ok: true, opened: true }; }
+      if (conn.status === "pending" && conn.requester_id === userId) return { ok: true, message: `Request sent to ${first} ✓` };
+      if (conn.status === "pending") return { ok: false, message: `${first} already sent you a request — find it in Messages → Requests.` };
+      return { ok: false, message: "Couldn't send that — please try again." };
+    } catch (e) {
+      console.error(e);
+      return { ok: false, message: "Couldn't send that — please try again." };
+    }
+  };
 
   const sections = [
     user.photo_urls?.filter(Boolean).length > 0,
@@ -1770,6 +2149,34 @@ function HomeScreen({ user, userId, city, onNavigate, onOpenProfile }) {
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  if (chatOpen) return (
+    <ChatView
+      connectionId={chatOpen.connectionId} person={chatOpen.person} userId={userId}
+      initialDraft={chatOpen.draft} source="pin"
+      onBack={() => setChatOpen(null)}
+      onBlocked={() => {
+        const id = chatOpen.person.id;
+        setChatOpen(null);
+        setAllPeople(p => p.filter(x => x.id !== id));
+        setTopPeople(p => p.filter(x => x.id !== id));
+      }}
+    />
+  );
+
+  if (stopOpen) return stopOpen.kind === "food" ? (
+    <FoodDetail
+      restaurant={stopOpen.item} onBack={() => setStopOpen(null)} userId={userId} userName={user.name}
+      isSaved={(user.saved_food_places || []).includes(stopOpen.item.name)}
+      onToggleSave={name => onToggleFoodSave?.(name)}
+    />
+  ) : (
+    <PlaceDetailView
+      place={stopOpen.item} onBack={() => setStopOpen(null)} userId={userId} userName={user.name}
+      isSaved={(user.saved_explore_places || []).includes(String(stopOpen.item.id))}
+      onToggleSave={id => onToggleExploreSave?.(String(id))}
+    />
+  );
 
   if (viewProfile) return (
     <FullProfileView
@@ -1843,6 +2250,15 @@ function HomeScreen({ user, userId, city, onNavigate, onOpenProfile }) {
       <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.03em", color: "var(--text)", marginBottom: 24 }}>
         {greeting}, <span style={{ color: "var(--purple)" }}>{user.name?.split(" ")[0] || "there"}</span>
       </h1>
+
+      {/* Today's Pin — one plan for right now, with a person and a memory attached */}
+      <TodaysPin
+        user={user} userId={userId} city={city} people={allPeople} peopleReady={peopleReady}
+        onOpenStop={setStopOpen}
+        onOpenActivity={setActivityView}
+        onInvite={handleInvite}
+        onBrowsePeople={() => onNavigate("connections")}
+      />
 
       {/* People you might enjoy meeting */}
       {topPeople.length > 0 && (
@@ -2537,6 +2953,18 @@ function PlacesToExploreScreen({ city, userId, userName, savedExplorePlaces, onT
     return matchSearch && matchTag;
   });
 
+  // Remember what this person searched for — on their own device only (see Today's Pin).
+  useEffect(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (q.length < 3) return;
+    const t = setTimeout(() => {
+      const n = places.filter(p => p.name.toLowerCase().includes(q) || p.area.toLowerCase().includes(q) || p.tags.some(tg => tg.toLowerCase().includes(q))).length;
+      recordSearch(userId, q, n, "places");
+    }, 700);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
+
   // Show detail view
   if (openPlace) return (
     <PlaceDetailView
@@ -2838,7 +3266,7 @@ function PassportCard({ entry, isSaved, onToggleSave, onOpen }) {
   );
 }
 
-function ShareExperienceForm({ category, city, userId, onDone, prefillName, prefillLocation }) {
+function ShareExperienceForm({ category, city, userId, onDone, prefillName, prefillLocation, noteHint }) {
   const meta = CATEGORY_META[category];
   const [placeName, setPlaceName] = useState(prefillName || "");
   const [location, setLocation] = useState(prefillLocation || "");
@@ -2884,7 +3312,7 @@ function ShareExperienceForm({ category, city, userId, onDone, prefillName, pref
       <input className="ob-input" style={{ marginBottom: 10 }} placeholder={`Name of the ${meta.label.split(" ")[0]}`} value={placeName}
         readOnly={!!prefillName} onChange={e => !prefillName && setPlaceName(e.target.value)} />
       <input className="ob-input" style={{ marginBottom: 10 }} placeholder="Location / neighbourhood" value={location} onChange={e => setLocation(e.target.value)} />
-      <textarea className="ob-input" rows={3} style={{ resize: "none", marginBottom: 10 }} placeholder="What was it like?" value={note} onChange={e => setNote(e.target.value)} />
+      <textarea className="ob-input" rows={3} style={{ resize: "none", marginBottom: 10 }} placeholder={noteHint || "What was it like?"} value={note} onChange={e => setNote(e.target.value)} />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
         {meta.tagOptions.map(({ label, icon }) => (
           <button key={label} type="button" onClick={() => toggleTag(label)}
@@ -3216,6 +3644,19 @@ function FoodScreen({ city, userCuisines, userBudget, userId, userName, savedPla
     getCommunityPlaces(city).then(data => { if (active) setCommunityPlaces(data || []); }).catch(e => console.error(e));
     return () => { active = false; };
   }, [city]);
+
+  // Remember what this person searched for — on their own device only — so Today's Pin
+  // can follow up when a search came up empty. (Results are counted across all areas.)
+  useEffect(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (q.length < 3) return;
+    const t = setTimeout(() => {
+      const n = (cd.food || []).filter(p => [p.name, p.cuisine, p.hood].some(f => f?.toLowerCase().includes(q))).length;
+      recordSearch(userId, q, n, "food");
+    }, 700);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
 
   if (detailOpen) return (
     <FoodDetail
@@ -4034,6 +4475,7 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour,
     interestsSaveTimer.current = setTimeout(() => save({ interests: next }), 800);
   };
   const [prompts, setPrompts] = useState(user.prompts || {});
+  const [searchCleared, setSearchCleared] = useState(false);
   const [privacy, setPrivacy] = useState(user.privacy_settings || {});
   useEffect(() => { setPrivacy(user.privacy_settings || {}); }, [user.privacy_settings]);
   const savePrivacy = (next) => {
@@ -4426,6 +4868,7 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour,
         <div className="profile-sec-body">
           <div className="profile-sec-title">Privacy Settings</div>
           <div className="profile-sec-sub">Control what other users can see on your profile.</div>
+
           {[
             { key: "hide_age", label: "Hide my age" },
             { key: "hide_gender", label: "Hide my gender" },
@@ -4443,6 +4886,18 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour,
               </div>
             </div>
           ))}
+
+          {/* Today's Pin personalisation */}
+          <div style={{ paddingTop: 14 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>Today's Pin and your searches</div>
+            <div style={{ fontSize: 12, color: "var(--text3)", margin: "4px 0 10px", lineHeight: 1.5 }}>
+              Today's Pin uses what you save and search for. Your search history stays on this device and is never sent to our servers.
+            </div>
+            <button onClick={() => { clearSearchHistory(userId); setSearchCleared(true); setTimeout(() => setSearchCleared(false), 2500); }}
+              style={{ background: "var(--bg2)", border: "1.5px solid var(--border)", borderRadius: 10, padding: "9px 14px", fontSize: 13, fontWeight: 700, color: searchCleared ? "var(--purple)" : "var(--text2)", cursor: "pointer" }}>
+              {searchCleared ? "✓ Cleared" : "Clear my search history"}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -4712,7 +5167,9 @@ export default function App() {
         {messagesOpen && <MessagesPanel userId={session.user.id} onClose={() => { setMessagesOpen(false); getPendingRequests(session.user.id).then(reqs => { setPendingCount((reqs||[]).length); setUnreadCount((reqs||[]).length); }).catch(()=>{}); }} onPendingChange={n => { setPendingCount(n); setUnreadCount(n); }} />}
         {tourStep !== null && <TourOverlay stepIndex={tourStep} onNext={() => { if (tourStep >= TOUR_STEPS.length - 1) finishTour(); else setTourStep(s => s + 1); }} onBack={() => setTourStep(s => Math.max(0, s - 1))} onSkip={finishTour} />}
         <main className="site-main">
-          {tab === "home" && <HomeScreen user={user} userId={session.user.id} city={user.city} onNavigate={setTab} onOpenProfile={() => setTab("profile")} />}
+          {tab === "home" && <HomeScreen user={user} userId={session.user.id} city={user.city} onNavigate={setTab} onOpenProfile={() => setTab("profile")}
+            onToggleFoodSave={async name => { const cur = user.saved_food_places || []; const next = cur.includes(name) ? cur.filter(n => n !== name) : [...cur, name]; try { await updateProfile(session.user.id, { saved_food_places: next }); await refreshProfile(); } catch (e) { console.error(e); } }}
+            onToggleExploreSave={async placeId => { const cur = user.saved_explore_places || []; const next = cur.includes(placeId) ? cur.filter(id => id !== placeId) : [...cur, placeId]; try { await updateProfile(session.user.id, { saved_explore_places: next }); await refreshProfile(); } catch (e) { console.error(e); } }} />}
           {tab === "connections" && <ConnectionsScreen city={user.city} userId={session.user.id} me={user} />}
           {tab === "places" && <PlacesToExploreScreen city={user.city} userId={session.user.id} userName={user.name}
             savedExplorePlaces={user.saved_explore_places || []}
@@ -4838,7 +5295,9 @@ export default function App() {
         </nav>
         {tourStep !== null && <TourOverlay stepIndex={tourStep} onNext={() => { if (tourStep >= TOUR_STEPS.length - 1) setTourStep(null); else setTourStep(s => s + 1); }} onBack={() => setTourStep(s => Math.max(0, s - 1))} onSkip={() => setTourStep(null)} />}
         <main className="site-main">
-          {tab === "home" && <HomeScreen user={localUser} userId={null} city={localUser.city} onNavigate={setTab} onOpenProfile={() => setTab("profile")} />}
+          {tab === "home" && <HomeScreen user={localUser} userId={null} city={localUser.city} onNavigate={setTab} onOpenProfile={() => setTab("profile")}
+            onToggleFoodSave={name => { setLocalUser(u => { const cur = u.saved_food_places || []; const next = cur.includes(name) ? cur.filter(n => n !== name) : [...cur, name]; return { ...u, saved_food_places: next }; }); }}
+            onToggleExploreSave={placeId => { setLocalUser(u => { const cur = u.saved_explore_places || []; const next = cur.includes(placeId) ? cur.filter(id => id !== placeId) : [...cur, placeId]; return { ...u, saved_explore_places: next }; }); }} />}
           {tab === "connections" && <ConnectionsScreen city={localUser.city} userId={null} me={localUser} />}
           {tab === "places" && <PlacesToExploreScreen city={localUser.city} userId={null} userName={localUser.name}
             savedExplorePlaces={localUser.saved_explore_places || []}

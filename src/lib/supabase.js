@@ -343,7 +343,7 @@ export async function getPeople(city, userId) {
     .eq('city', city)
     .eq('profile_complete', true)
     .neq('id', userId)
-    .limit(100) // fetch more so we can sort by match score
+    .limit(120) // fetch more so we can sort by match score
 
   if (passedIds.length > 0) {
     query = query.not('id', 'in', `(${passedIds.join(',')})`)
@@ -412,7 +412,7 @@ export async function sendResonance(fromUserId, toUserId, promptIndex, message) 
   return data
 }
  
-export async function getOrCreateConnection(userId, otherId) {
+export async function getOrCreateConnection(userId, otherId, introNote) {
   const { data: existing } = await supabase
     .from('connections')
     .select('*')
@@ -420,14 +420,17 @@ export async function getOrCreateConnection(userId, otherId) {
     .maybeSingle()
   if (existing) return existing
 
-  // New connection starts as 'pending' — recipient must accept before full chat opens
-  const { data, error } = await supabase
-    .from('connections')
-    .insert({ user1_id: userId, user2_id: otherId, requester_id: userId, status: 'pending' })
-    .select()
-    .single()
-  if (error) throw error
-  return data
+  // New connection starts as 'pending' — recipient must accept before full chat opens.
+  // An optional short intro note (e.g. from Today's Pin) rides along; if the
+  // intro_note column hasn't been added yet, retry without it.
+  const base = { user1_id: userId, user2_id: otherId, requester_id: userId, status: 'pending' }
+  const note = introNote && introNote.trim() ? introNote.trim().slice(0, 240) : null
+  let res = await supabase.from('connections').insert(note ? { ...base, intro_note: note } : base).select().single()
+  if (res.error && note) {
+    res = await supabase.from('connections').insert(base).select().single()
+  }
+  if (res.error) throw res.error
+  return res.data
 }
 
 export async function getConnections(userId) {
