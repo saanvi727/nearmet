@@ -1,0 +1,64 @@
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Inter+Tight:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+
+/* NearMet v2 theme — loaded AFTER App.css so these tokens win.
+   Palette + type come from the clickable prototype. To go back to the old
+   purple look, delete the `import "./theme.css"` line in App.jsx. */
+:root{
+  --purple:#2A1D45;          /* plum: primary buttons, active states */
+  --purple-mid:#4A3570;
+  --purple-lt:#ECE8F8;       /* lilac tint */
+  --coral:#EF6A47;           /* tomato accent */
+  --coral-lt:#FDE9E3;
+  --coral-dk:#C4452A;
+  --navy:#1B1530;
+  --text:#1B1530;
+  --text2:#4B4660;
+  --text3:#7A768D;
+  --bg:#E4E6EE;
+  --bg2:#F3F3F7;
+  --border:rgba(27,21,48,.12);
+  --radius:20px;--radius-sm:14px;
+  --shadow:0 2px 0 rgba(27,21,48,.05);--shadow2:0 10px 30px rgba(27,21,48,.14);
+  --green:#2A1D45;--green2:#2A1D45;--green-bg:#ECE8F8;--green-light:#ECE8F8;
+  --sage:#EF6A47;--sage-bg:#FDE9E3;--sage-dk:#C4452A;
+  --font-display:'Inter Tight','Inter',system-ui,sans-serif;
+  --font-hand:'Caveat',cursive;
+  --safe-b:env(safe-area-inset-bottom,0px);
+}
+html,body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);-webkit-tap-highlight-color:transparent;overscroll-behavior-y:none}
+h1,h2,h3,.nm-logo,.msgs-panel-title,.tour-card-title{font-family:var(--font-display);letter-spacing:-.025em}
+button,input,textarea,select{font-family:inherit}
+input,textarea,select{font-size:16px} /* stops iOS zoom-on-focus */
+
+/* header */
+.topnav{background:rgba(228,230,238,.9);border-bottom:none;padding-top:env(safe-area-inset-top,0px);height:calc(64px + env(safe-area-inset-top,0px))}
+.topnav-msg-btn{width:44px;height:44px;border:none;background:#fff;box-shadow:var(--shadow)}
+.city-pill{background:#fff;border:none}
+.section-tab-bar{top:calc(64px + env(safe-area-inset-top,0px));background:transparent;border-bottom:none}
+.section-tab.active::after{display:none}
+.section-tab.active{color:var(--purple)}
+
+/* soften shared surfaces */
+.tour-modal,.msgs-panel{border-radius:28px}
+.msgs-panel{border-radius:28px 0 0 28px}
+
+/* ── MOBILE: floating bottom tab bar, like the prototype ── */
+@media(max-width:700px){
+  .section-tab-bar{
+    position:fixed;left:12px;right:12px;top:auto;bottom:calc(10px + var(--safe-b));z-index:120;
+    background:#fff;border-radius:26px;padding:6px;gap:2px;
+    box-shadow:0 12px 34px rgba(27,21,48,.22);
+    overflow-x:auto;scrollbar-width:none;
+  }
+  .section-tab-bar::-webkit-scrollbar{display:none}
+  .section-tab{min-width:56px;padding:8px 4px 7px;border-radius:20px;gap:3px}
+  .section-tab.active{background:var(--purple);color:#fff}
+  .section-tab-icon{font-size:19px}
+  .section-tab-label{font-size:10px;font-weight:700}
+  .site-main{padding-bottom:calc(110px + var(--safe-b))}
+  .msgs-panel{width:100%;max-width:100vw;border-radius:0}
+}
+@media (display-mode: standalone){
+  body{user-select:none;-webkit-user-select:none}
+  input,textarea{user-select:text;-webkit-user-select:text}
+}

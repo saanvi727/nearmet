@@ -1,16 +1,18 @@
-# React + Vite
+# NearMet app v1 — PWA + new look (Phase 1)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Copy into your project
+src/App.jsx          -> src/App.jsx          (now imports ./theme.css; colours use CSS tokens; People "browse strip")
+src/AuthPage.jsx     -> src/AuthPage.jsx     (colours use tokens)
+src/theme.css        -> src/theme.css        (NEW: prototype palette, fonts, mobile bottom tab bar)
+src/lib/supabase.js  -> src/lib/supabase.js
+src/lib/pinEngine.js -> src/lib/pinEngine.js
+public/*.png         -> public/              (placeholder PWA icons — swap in your real logo later)
 
-Currently, two official plugins are available:
+## PWA setup (3 steps)
+1. npm i -D vite-plugin-pwa
+2. Merge vite.config.pwa-snippet.js into your vite.config.js
+3. Apply index.html.snippet.txt to index.html
+Then: npm run build && npm run preview, open on your phone (or Chrome > Install app).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Undo the new look
+Delete the `import "./theme.css"` line in App.jsx. Everything else keeps working.

@@ -461,8 +461,8 @@ Acceptance
 By creating an account or using NearMet, you acknowledge that you have read and understood this Privacy Policy.`
 
   if (showTermsModal) return (
-    <div style={{ minHeight: "100vh", background: "#FAF8F4", display: "flex", flexDirection: "column" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 20px", borderBottom: "1px solid #E8D5F0", background: "white" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", flexDirection: "column" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 20px", borderBottom: "1px solid var(--border)", background: "white" }}>
         <button onClick={() => setShowTermsModal(false)} style={{ fontSize: 20, background: "none", border: "none", cursor: "pointer", color: "#4A4A6A" }}>←</button>
         <div style={{ fontSize: 16, fontWeight: 700, color: "#2F2F33" }}>{termsDoc === 'terms' ? 'Terms of Service' : 'Privacy Policy'}</div>
       </div>
@@ -471,9 +471,9 @@ By creating an account or using NearMet, you acknowledge that you have read and 
           {termsDoc === 'terms' ? TERMS_TEXT : PRIVACY_TEXT}
         </div>
       </div>
-      <div style={{ padding: "16px 20px 32px", background: "white", borderTop: "1px solid #E8D5F0" }}>
+      <div style={{ padding: "16px 20px 32px", background: "white", borderTop: "1px solid var(--border)" }}>
         <button onClick={() => setShowTermsModal(false)}
-          style={{ width: "100%", background: "#581073", color: "white", border: "none", borderRadius: 14, padding: "15px", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
+          style={{ width: "100%", background: "var(--purple)", color: "white", border: "none", borderRadius: 14, padding: "15px", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
           Close
         </button>
       </div>
@@ -482,7 +482,7 @@ By creating an account or using NearMet, you acknowledge that you have read and 
 
   // ── Landing ─────────────────────────────────────────────────────────────────
   if (mode === 'landing') return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#FAF8F4" }}>
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg)" }}>
       <div style={{ flex: 1, padding: "28px 28px 0", maxWidth: 420, width: "100%", margin: "0 auto", textAlign: "center" }}>
 
         {/* Logo lockup */}
@@ -507,7 +507,7 @@ By creating an account or using NearMet, you acknowledge that you have read and 
 
           <h1 style={{ fontSize: 29, fontWeight: 800, color: "#1E1B29", letterSpacing: "-0.02em", lineHeight: 1.35, margin: 0 }}>
             Experience what you love<br />
-            with <span style={{ color: "#581073" }}>like-minded</span> people.
+            with <span style={{ color: "var(--purple)" }}>like-minded</span> people.
           </h1>
         </div>
 
@@ -528,24 +528,24 @@ By creating an account or using NearMet, you acknowledge that you have read and 
 
       {/* Buttons + footer */}
       <div style={{ padding: "0 28px 40px", maxWidth: 420, width: "100%", margin: "0 auto" }}>
-        <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", marginBottom: 16, padding: "13px 15px", background: "#F5EDF9", borderRadius: 14, border: "1.5px solid #E8D5F0", textAlign: "left" }}>
+        <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", marginBottom: 16, padding: "13px 15px", background: "#F5EDF9", borderRadius: 14, border: "1.5px solid var(--border)", textAlign: "left" }}>
           <input type="checkbox" checked={accepted} onChange={e => setAccepted(e.target.checked)}
-            style={{ marginTop: 2, width: 18, height: 18, accentColor: "#581073", flexShrink: 0, cursor: "pointer" }} />
+            style={{ marginTop: 2, width: 18, height: 18, accentColor: "var(--purple)", flexShrink: 0, cursor: "pointer" }} />
           <span style={{ fontSize: 12.5, color: "#4A4A6A", lineHeight: 1.6 }}>
             I have read and agree to the{' '}
             <span onClick={e => { e.stopPropagation(); setTermsDoc('terms'); setShowTermsModal(true); }}
-              style={{ color: "#581073", fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}>Terms of Service</span>
+              style={{ color: "var(--purple)", fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}>Terms of Service</span>
             {' '}and{' '}
             <span onClick={e => { e.stopPropagation(); setTermsDoc('privacy'); setShowTermsModal(true); }}
-              style={{ color: "#581073", fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}>Privacy Policy</span>
+              style={{ color: "var(--purple)", fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}>Privacy Policy</span>
           </span>
         </label>
         <button onClick={() => { if (accepted) { onCreateAccount ? onCreateAccount() : setMode('signup'); } }}
-          style={{ width: "100%", background: accepted ? "#581073" : "#D8C3E6", color: "white", border: "none", borderRadius: 16, padding: "16px", fontSize: 16, fontWeight: 700, cursor: accepted ? "pointer" : "not-allowed", marginBottom: 12 }}>
+          style={{ width: "100%", background: accepted ? "var(--purple)" : "#D8C3E6", color: "white", border: "none", borderRadius: 16, padding: "16px", fontSize: 16, fontWeight: 700, cursor: accepted ? "pointer" : "not-allowed", marginBottom: 12 }}>
           Get started
         </button>
         <button onClick={() => setMode('signin')}
-          style={{ width: "100%", background: "white", color: "#581073", border: "1.5px solid #581073", borderRadius: 16, padding: "15px", fontSize: 16, fontWeight: 600, cursor: "pointer" }}>
+          style={{ width: "100%", background: "white", color: "var(--purple)", border: "1.5px solid var(--purple)", borderRadius: 16, padding: "15px", fontSize: 16, fontWeight: 600, cursor: "pointer" }}>
           I already have an account
         </button>
       </div>
@@ -562,11 +562,11 @@ By creating an account or using NearMet, you acknowledge that you have read and 
         <p style={{ fontSize: 14, color: "#9090B0", lineHeight: 1.6 }}>
           We sent a confirmation link to<br /><strong style={{ color: "#2F2F33" }}>{signedUpEmail}</strong>
         </p>
-        <div style={{ marginTop: 24, background: "#F5E8F9", border: "1px solid #F5E8F9", borderRadius: 12, padding: "14px 16px", fontSize: 13, color: "#581073", textAlign: "left" }}>
+        <div style={{ marginTop: 24, background: "var(--purple-lt)", border: "1px solid var(--purple-lt)", borderRadius: 12, padding: "14px 16px", fontSize: 13, color: "var(--purple)", textAlign: "left" }}>
           <strong>Didn't get it?</strong> Check your spam folder.
         </div>
         <button onClick={() => setMode('signin')}
-          style={{ width: "100%", background: "#581073", color: "white", border: "none", borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 700, cursor: "pointer", marginTop: 24 }}>
+          style={{ width: "100%", background: "var(--purple)", color: "white", border: "none", borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 700, cursor: "pointer", marginTop: 24 }}>
           Go to sign in →
         </button>
       </div>
@@ -576,7 +576,7 @@ By creating an account or using NearMet, you acknowledge that you have read and 
   // ── Sign in ──────────────────────────────────────────────────────────────────
   return (
     <div style={{ minHeight: "100vh", background: "#fff", display: "flex", flexDirection: "column" }}>
-      <div style={{ padding: "20px 20px 12px", borderBottom: "1px solid #F5E8F9", display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ padding: "20px 20px 12px", borderBottom: "1px solid var(--purple-lt)", display: "flex", alignItems: "center", gap: 12 }}>
         <button onClick={() => { if (onBack) onBack(); else setMode('landing'); }}
           style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#4A4A6A" }}>←</button>
         <NearMetLogo size={32} />
@@ -595,20 +595,20 @@ By creating an account or using NearMet, you acknowledge that you have read and 
               <input className="ob-input" type="password" placeholder="Your password" value={form.password} onChange={e => set('password', e.target.value)} required />
               {onForgotPassword && (
                 <button type="button" onClick={onForgotPassword}
-                  style={{ background: "none", border: "none", padding: 0, marginTop: 8, fontSize: 13, fontWeight: 600, color: "#581073", cursor: "pointer" }}>
+                  style={{ background: "none", border: "none", padding: 0, marginTop: 8, fontSize: 13, fontWeight: 600, color: "var(--purple)", cursor: "pointer" }}>
                   Forgot password?
                 </button>
               )}
             </div>
           </div>
-          {error && <div style={{ marginTop: 12, background: "#FFF0EE", border: "1px solid #FF9A8B", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#C94E3A" }}>{error}</div>}
+          {error && <div style={{ marginTop: 12, background: "#FFF0EE", border: "1px solid var(--coral)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#C94E3A" }}>{error}</div>}
           <button className="ob-save-btn" type="submit" disabled={loading} style={{ width: "100%", marginTop: 24 }}>
             {loading ? 'Signing in…' : 'Sign in →'}
           </button>
         </form>
         <button onClick={() => onCreateAccount ? onCreateAccount() : setMode('landing')}
           style={{ width: "100%", marginTop: 16, textAlign: "center", fontSize: 14, color: "#9090B0", background: "none", border: "none", cursor: "pointer" }}>
-          Don't have an account? <span style={{ color: "#581073", fontWeight: 700 }}>Create one</span>
+          Don't have an account? <span style={{ color: "var(--purple)", fontWeight: 700 }}>Create one</span>
         </button>
       </div>
     </div>

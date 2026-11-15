@@ -13,6 +13,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import posthog from "posthog-js";
 import "./App.css";
+import "./theme.css";
 import { useAuth } from "./context/AuthContext.jsx";
 import AuthPage from "./pages/AuthPage.jsx";
 import {
@@ -324,7 +325,7 @@ function TourOverlay({ stepIndex, onNext, onBack, onSkip }) {
         {/* Progress dots */}
         <div style={{ display: "flex", gap: 5, justifyContent: "center", marginBottom: 14 }}>
           {TOUR_STEPS.map((_, i) => (
-            <div key={i} style={{ width: i === stepIndex ? 22 : 7, height: 7, borderRadius: 4, background: i === stepIndex ? "#581073" : i < stepIndex ? "#FF9A8B" : "#E8D5F0", transition: "all .2s" }}/>
+            <div key={i} style={{ width: i === stepIndex ? 22 : 7, height: 7, borderRadius: 4, background: i === stepIndex ? "var(--purple)" : i < stepIndex ? "var(--coral)" : "var(--border)", transition: "all .2s" }}/>
           ))}
         </div>
 
@@ -335,7 +336,7 @@ function TourOverlay({ stepIndex, onNext, onBack, onSkip }) {
           <button onClick={onSkip} style={{ fontSize: 12, color: "#C0B8D8", background: "none", border: "none", cursor: "pointer" }}>Skip</button>
           <div style={{ display: "flex", gap: 8 }}>
             {stepIndex > 0 && <button onClick={onBack} style={{ fontSize: 13, color: "#4A4A6A", background: "#F0EEF8", border: "none", borderRadius: 9, padding: "8px 14px", fontWeight: 600, cursor: "pointer" }}>←</button>}
-            <button onClick={onNext} style={{ fontSize: 13, color: "white", background: "#581073", border: "none", borderRadius: 9, padding: "8px 20px", fontWeight: 700, cursor: "pointer" }}>
+            <button onClick={onNext} style={{ fontSize: 13, color: "white", background: "var(--purple)", border: "none", borderRadius: 9, padding: "8px 20px", fontWeight: 700, cursor: "pointer" }}>
               {isLast ? "Let's go →" : "Next →"}
             </button>
           </div>
@@ -603,7 +604,7 @@ function StepDots({ total, current }) {
       {Array.from({ length: total }).map((_, i) => (
         <div key={i} style={{
           width: i === current ? 20 : 7, height: 7, borderRadius: 4,
-          background: i === current ? "#581073" : i < current ? "#FF9A8B" : "#E8D5F0",
+          background: i === current ? "var(--purple)" : i < current ? "var(--coral)" : "var(--border)",
           transition: "all .2s"
         }} />
       ))}
@@ -649,7 +650,7 @@ function RecForm({ rec, idx, setter, tags, placeholder, exampleText }) {
   const commitBecause = (val) => setter(p => { const n = [...p]; n[idx] = { ...n[idx], because: val }; return n; });
 
   return (
-    <div style={{ background: "#fff", border: "1px solid #E8D5F0", borderRadius: 16, padding: 16, marginBottom: 12 }}>
+    <div style={{ background: "#fff", border: "1px solid var(--border)", borderRadius: 16, padding: 16, marginBottom: 12 }}>
       <div style={{ marginBottom: 10 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: "#2F2F33", marginBottom: 6 }}>Name</div>
         <input className="ob-input" placeholder={placeholder} value={localName}
@@ -676,7 +677,7 @@ function RecForm({ rec, idx, setter, tags, placeholder, exampleText }) {
             const sel = (rec.tags || []).includes(label);
             return (
               <button key={label} type="button" onClick={() => toggle(label)}
-                style={{ display: "flex", alignItems: "center", gap: 8, border: "1.5px solid " + (sel ? "#581073" : "#E8D5F0"), borderRadius: 10, padding: "9px 10px", fontSize: 12, fontWeight: 600, color: sel ? "#581073" : "#4A4A6A", background: sel ? "#F5E8F9" : "#F8F8FC", cursor: "pointer" }}>
+                style={{ display: "flex", alignItems: "center", gap: 8, border: "1.5px solid " + (sel ? "var(--purple)" : "var(--border)"), borderRadius: 10, padding: "9px 10px", fontSize: 12, fontWeight: 600, color: sel ? "var(--purple)" : "#4A4A6A", background: sel ? "var(--purple-lt)" : "#F8F8FC", cursor: "pointer" }}>
                 {icon && <span>{icon}</span>}{label}
               </button>
             );
@@ -686,13 +687,13 @@ function RecForm({ rec, idx, setter, tags, placeholder, exampleText }) {
       <div>
         <div style={{ fontSize: 13, fontWeight: 600, color: "#2F2F33", marginBottom: 4 }}>Photos <span style={{ color: "#9090B0", fontWeight: 400 }}>(Optional)</span></div>
         <div style={{ fontSize: 12, color: "#9090B0", marginBottom: 8 }}>Help others discover this place by adding a photo.</div>
-        <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: "2px dashed #E8D5F0", borderRadius: 12, padding: 20, cursor: "pointer", background: "#F8F8FC" }}>
+        <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: "2px dashed var(--border)", borderRadius: 12, padding: 20, cursor: "pointer", background: "#F8F8FC" }}>
           {rec.photoUrl && typeof rec.photoUrl === "string" && rec.photoUrl.startsWith("http") ? (
             <img src={rec.photoUrl} alt="" style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 8 }} />
           ) : rec.photo && rec.photo instanceof File ? (
             <img src={URL.createObjectURL(rec.photo)} alt="" style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 8 }} />
           ) : (
-            <><div style={{ width: 40, height: 40, borderRadius: "50%", background: "#F5E8F9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#581073", marginBottom: 8 }}>+</div><span style={{ fontSize: 13, color: "#581073", fontWeight: 600 }}>Add Photo</span></>
+            <><div style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--purple-lt)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "var(--purple)", marginBottom: 8 }}>+</div><span style={{ fontSize: 13, color: "var(--purple)", fontWeight: 600 }}>Add Photo</span></>
           )}
           <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => {
             const f = e.target.files?.[0];
@@ -778,7 +779,7 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
     city_recs: placeRecs.filter(r => r.name.trim()),
   });
 
-  const headerStyle = { display: "flex", alignItems: "center", padding: "16px 20px 12px", borderBottom: "1px solid #F5E8F9" };
+  const headerStyle = { display: "flex", alignItems: "center", padding: "16px 20px 12px", borderBottom: "1px solid var(--purple-lt)" };
   // ── Confirm email screen ───────────────────────────────────────────────────
   if (showConfirm) return (
     <div style={{ minHeight: "100vh", background: "#fff", display: "flex", flexDirection: "column", padding: "48px 24px" }}>
@@ -793,7 +794,7 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
         <p style={{ fontSize: 13, color: "#9090B0", lineHeight: 1.6, marginBottom: 24 }}>
           Click the link in the email to verify your account, then come back and sign in.
         </p>
-        <div style={{ background: "#F5E8F9", border: "1px solid #F5E8F9", borderRadius: 12, padding: "14px 16px", fontSize: 13, color: "#581073", textAlign: "left", marginBottom: 24 }}>
+        <div style={{ background: "var(--purple-lt)", border: "1px solid var(--purple-lt)", borderRadius: 12, padding: "14px 16px", fontSize: 13, color: "var(--purple)", textAlign: "left", marginBottom: 24 }}>
           <strong>Didn't get it?</strong> Check your spam folder. The email is sent from hello@nearmet.com
         </div>
         <button className="ob-btn-primary ob-btn-full" onClick={onShowSignIn}>
@@ -838,7 +839,7 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
             <input className="ob-input" placeholder="Your answer" value={securityAnswer} onChange={e => setSecurityAnswer(e.target.value)} />
           </div>
         </div>
-        {signupError && <div style={{ marginTop: 12, background: "#FFF0EE", border: "1px solid #FF9A8B", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#C94E3A" }}>{signupError}</div>}
+        {signupError && <div style={{ marginTop: 12, background: "#FFF0EE", border: "1px solid var(--coral)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#C94E3A" }}>{signupError}</div>}
         <button className="ob-btn-primary ob-btn-full" style={{ marginTop: 24 }}
           disabled={signupLoading || !email || !password || !securityAnswer.trim()}
           onClick={async () => {
@@ -870,7 +871,7 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
           {signupLoading ? "Creating account…" : "Create account →"}
         </button>
         <button className="auth-switch" onClick={onShowSignIn} style={{ width: "100%", marginTop: 16, textAlign: "center", fontSize: 14 }}>
-          Already have an account? <span style={{ color: "#581073", fontWeight: 700 }}>Sign in</span>
+          Already have an account? <span style={{ color: "var(--purple)", fontWeight: 700 }}>Sign in</span>
         </button>
       </div>
     </div>
@@ -913,7 +914,7 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {["Man", "Woman", "Non-binary", "Prefer not to say", "Other"].map(g => (
                 <button key={g} type="button"
-                  style={{ border: "1.5px solid " + (gender === g ? "#581073" : "#E8D5F0"), borderRadius: 999, padding: "7px 14px", fontSize: 13, fontWeight: 600, color: gender === g ? "white" : "#4A4A6A", background: gender === g ? "#581073" : "#fff", cursor: "pointer" }}
+                  style={{ border: "1.5px solid " + (gender === g ? "var(--purple)" : "var(--border)"), borderRadius: 999, padding: "7px 14px", fontSize: 13, fontWeight: 600, color: gender === g ? "white" : "#4A4A6A", background: gender === g ? "var(--purple)" : "#fff", cursor: "pointer" }}
                   onClick={() => setGender(g)}>{g}</button>
               ))}
             </div>
@@ -950,7 +951,7 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
             const sel = selEnjoy.includes(item);
             return (
               <button key={item} type="button" onClick={() => toggleEnjoy(item)}
-                style={{ border: "1.5px solid " + (sel ? "#581073" : "#E8D5F0"), borderRadius: 999, padding: "7px 14px", fontSize: 13, fontWeight: 600, color: sel ? "white" : "#4A4A6A", background: sel ? "#581073" : "#F8F8FC", cursor: "pointer" }}>
+                style={{ border: "1.5px solid " + (sel ? "var(--purple)" : "var(--border)"), borderRadius: 999, padding: "7px 14px", fontSize: 13, fontWeight: 600, color: sel ? "white" : "#4A4A6A", background: sel ? "var(--purple)" : "#F8F8FC", cursor: "pointer" }}>
                 {item}
               </button>
             );
@@ -966,7 +967,7 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
             return (
               <button key={t} type="button"
                 onClick={() => setThings(p => p.includes(t) ? p.filter(x => x !== t) : [...p, t])}
-                style={{ border: "1.5px solid " + (sel ? "#581073" : "#E8D5F0"), borderRadius: 999, padding: "7px 14px", fontSize: 12, fontWeight: 600, color: sel ? "white" : "#4A4A6A", background: sel ? "#581073" : "#F8F8FC", cursor: "pointer" }}>
+                style={{ border: "1.5px solid " + (sel ? "var(--purple)" : "var(--border)"), borderRadius: 999, padding: "7px 14px", fontSize: 12, fontWeight: 600, color: sel ? "white" : "#4A4A6A", background: sel ? "var(--purple)" : "#F8F8FC", cursor: "pointer" }}>
                 {t}
               </button>
             );
@@ -985,9 +986,9 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
         {things.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
             {things.map(t => (
-              <span key={t} style={{ background: "#F5E8F9", color: "#581073", borderRadius: 999, padding: "5px 12px", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+              <span key={t} style={{ background: "var(--purple-lt)", color: "var(--purple)", borderRadius: 999, padding: "5px 12px", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
                 {t}
-                <button type="button" onClick={() => setThings(p => p.filter(x => x !== t))} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "#581073", padding: 0, lineHeight: 1 }}>×</button>
+                <button type="button" onClick={() => setThings(p => p.filter(x => x !== t))} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "var(--purple)", padding: 0, lineHeight: 1 }}>×</button>
               </span>
             ))}
           </div>
@@ -1001,7 +1002,7 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
             const sel = funTopics.includes(question);
             return (
               <button key={question} type="button" onClick={() => toggleFunTopic(question)}
-                style={{ border: "1.5px solid " + (sel ? "#581073" : "#E8D5F0"), borderRadius: 999, padding: "8px 14px", fontSize: 13, fontWeight: 600, color: sel ? "white" : "#4A4A6A", background: sel ? "#581073" : "#F8F8FC", cursor: "pointer" }}>
+                style={{ border: "1.5px solid " + (sel ? "var(--purple)" : "var(--border)"), borderRadius: 999, padding: "8px 14px", fontSize: 13, fontWeight: 600, color: sel ? "white" : "#4A4A6A", background: sel ? "var(--purple)" : "#F8F8FC", cursor: "pointer" }}>
                 {label}
               </button>
             );
@@ -1019,7 +1020,7 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
           );
         })}
       </div>
-      <div style={{ padding: "12px 24px 20px", background: "#fff", borderTop: "1px solid #F5E8F9" }}>
+      <div style={{ padding: "12px 24px 20px", background: "#fff", borderTop: "1px solid var(--purple-lt)" }}>
         <StepDots total={5} current={1} />
         <button className="ob-btn-primary ob-btn-full" onClick={() => setStep(4)}>
           Continue →
@@ -1046,7 +1047,7 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
         <h2 style={{ fontSize: 24, fontWeight: 800, color: "#2F2F33", letterSpacing: "-0.02em", marginBottom: 4, textAlign: "center" }}>Share a food spot you enjoy</h2>
         <p style={{ fontSize: 14, color: "#9090B0", marginBottom: 24, textAlign: "center" }}>Help others discover great places.</p>
 
-        <div style={{ background: "#fff", border: "1px solid #E8D5F0", borderRadius: 16, padding: 20 }}>
+        <div style={{ background: "#fff", border: "1px solid var(--border)", borderRadius: 16, padding: 20 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
             <span style={{ fontSize: 18 }}>🏠</span>
             <span style={{ fontSize: 14, fontWeight: 700, color: "#2F2F33" }}>Food spot name</span>
@@ -1076,7 +1077,7 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
               return (
                 <button key={label} type="button"
                   onClick={() => setRec({ tags: sel ? rec.tags.filter(t => t !== label) : [...(rec.tags || []), label] })}
-                  style={{ display: "flex", alignItems: "center", gap: 8, border: "1.5px solid " + (sel ? "#581073" : "#E8D5F0"), borderRadius: 10, padding: "10px 12px", fontSize: 13, fontWeight: 600, color: sel ? "#581073" : "#4A4A6A", background: sel ? "#F5E8F9" : "#F8F8FC", cursor: "pointer" }}>
+                  style={{ display: "flex", alignItems: "center", gap: 8, border: "1.5px solid " + (sel ? "var(--purple)" : "var(--border)"), borderRadius: 10, padding: "10px 12px", fontSize: 13, fontWeight: 600, color: sel ? "var(--purple)" : "#4A4A6A", background: sel ? "var(--purple-lt)" : "#F8F8FC", cursor: "pointer" }}>
                   <span>{icon}</span>{label}
                 </button>
               );
@@ -1087,19 +1088,19 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
             <span style={{ fontSize: 18 }}>📷</span>
             <span style={{ fontSize: 14, fontWeight: 700, color: "#2F2F33" }}>Add a photo <span style={{ fontWeight: 400, color: "#9090B0" }}>(optional)</span></span>
           </div>
-          <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: "2px dashed #E8D5F0", borderRadius: 12, padding: 24, cursor: "pointer", background: "#F8F8FC" }}>
+          <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: "2px dashed var(--border)", borderRadius: 12, padding: 24, cursor: "pointer", background: "#F8F8FC" }}>
             {rec.photo ? <img src={URL.createObjectURL(rec.photo)} alt="" style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: 8 }} /> : (
-              <><div style={{ width: 40, height: 40, borderRadius: "50%", background: "#F5E8F9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#581073", marginBottom: 8 }}>+</div><span style={{ fontSize: 13, color: "#581073", fontWeight: 600 }}>Add Photo</span></>
+              <><div style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--purple-lt)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "var(--purple)", marginBottom: 8 }}>+</div><span style={{ fontSize: 13, color: "var(--purple)", fontWeight: 600 }}>Add Photo</span></>
             )}
             <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) setRec({ photo: f }); }} />
           </label>
           <div style={{ fontSize: 11, color: "#9090B0", marginTop: 8 }}>Help others discover this place by adding a photo.</div>
         </div>
       </div>
-      <div style={{ padding: "12px 24px 20px", background: "#fff", borderTop: "1px solid #F5E8F9" }}>
+      <div style={{ padding: "12px 24px 20px", background: "#fff", borderTop: "1px solid var(--purple-lt)" }}>
         <StepDots total={5} current={2} />
         <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={() => setStep(3)} style={{ flex: 1, background: "#F5E8F9", color: "#581073", border: "none", borderRadius: 12, padding: "14px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>← Back</button>
+          <button onClick={() => setStep(3)} style={{ flex: 1, background: "var(--purple-lt)", color: "var(--purple)", border: "none", borderRadius: 12, padding: "14px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>← Back</button>
           <button className="ob-btn-primary" style={{ flex: 2, borderRadius: 12, padding: "14px", fontSize: 14, fontWeight: 700, cursor: "pointer" }} onClick={() => setStep(STEP_4B)}>Save & Continue →</button>
         </div>
       </div>
@@ -1121,7 +1122,7 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
         <h2 style={{ fontSize: 24, fontWeight: 800, color: "#2F2F33", letterSpacing: "-0.02em", marginBottom: 4, textAlign: "center" }}>Share a place worth exploring</h2>
         <p style={{ fontSize: 14, color: "#9090B0", marginBottom: 24, textAlign: "center" }}>Help others discover great places.</p>
 
-        <div style={{ background: "#fff", border: "1px solid #E8D5F0", borderRadius: 16, padding: 20 }}>
+        <div style={{ background: "#fff", border: "1px solid var(--border)", borderRadius: 16, padding: 20 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
             <span style={{ fontSize: 18 }}>📍</span>
             <span style={{ fontSize: 14, fontWeight: 700, color: "#2F2F33" }}>Place name</span>
@@ -1151,7 +1152,7 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
               return (
                 <button key={label} type="button"
                   onClick={() => setRec({ tags: sel ? rec.tags.filter(t => t !== label) : [...(rec.tags || []), label] })}
-                  style={{ display: "flex", alignItems: "center", gap: 8, border: "1.5px solid " + (sel ? "#581073" : "#E8D5F0"), borderRadius: 10, padding: "10px 12px", fontSize: 13, fontWeight: 600, color: sel ? "#581073" : "#4A4A6A", background: sel ? "#F5E8F9" : "#F8F8FC", cursor: "pointer" }}>
+                  style={{ display: "flex", alignItems: "center", gap: 8, border: "1.5px solid " + (sel ? "var(--purple)" : "var(--border)"), borderRadius: 10, padding: "10px 12px", fontSize: 13, fontWeight: 600, color: sel ? "var(--purple)" : "#4A4A6A", background: sel ? "var(--purple-lt)" : "#F8F8FC", cursor: "pointer" }}>
                   <span>{icon}</span>{label}
                 </button>
               );
@@ -1162,19 +1163,19 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
             <span style={{ fontSize: 18 }}>📷</span>
             <span style={{ fontSize: 14, fontWeight: 700, color: "#2F2F33" }}>Add a photo <span style={{ fontWeight: 400, color: "#9090B0" }}>(optional)</span></span>
           </div>
-          <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: "2px dashed #E8D5F0", borderRadius: 12, padding: 24, cursor: "pointer", background: "#F8F8FC" }}>
+          <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: "2px dashed var(--border)", borderRadius: 12, padding: 24, cursor: "pointer", background: "#F8F8FC" }}>
             {rec.photo ? <img src={URL.createObjectURL(rec.photo)} alt="" style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: 8 }} /> : (
-              <><div style={{ width: 40, height: 40, borderRadius: "50%", background: "#F5E8F9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#581073", marginBottom: 8 }}>+</div><span style={{ fontSize: 13, color: "#581073", fontWeight: 600 }}>Add Photo</span></>
+              <><div style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--purple-lt)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "var(--purple)", marginBottom: 8 }}>+</div><span style={{ fontSize: 13, color: "var(--purple)", fontWeight: 600 }}>Add Photo</span></>
             )}
             <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) setRec({ photo: f }); }} />
           </label>
           <div style={{ fontSize: 11, color: "#9090B0", marginTop: 8 }}>Help others discover this place by adding a photo.</div>
         </div>
       </div>
-      <div style={{ padding: "12px 24px 20px", background: "#fff", borderTop: "1px solid #F5E8F9" }}>
+      <div style={{ padding: "12px 24px 20px", background: "#fff", borderTop: "1px solid var(--purple-lt)" }}>
         <StepDots total={5} current={3} />
         <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={() => setStep(4)} style={{ flex: 1, background: "#F5E8F9", color: "#581073", border: "none", borderRadius: 12, padding: "14px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>← Back</button>
+          <button onClick={() => setStep(4)} style={{ flex: 1, background: "var(--purple-lt)", color: "var(--purple)", border: "none", borderRadius: 12, padding: "14px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>← Back</button>
           <button className="ob-btn-primary" style={{ flex: 2, borderRadius: 12, padding: "14px", fontSize: 14, fontWeight: 700, cursor: "pointer" }} onClick={() => setStep(STEP_PHOTO)}>Finish →</button>
         </div>
       </div>
@@ -1191,15 +1192,15 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
         <h2 style={{ fontSize: 26, fontWeight: 800, color: "#2F2F33", marginBottom: 6 }}>Add your photo</h2>
         <p style={{ fontSize: 14, color: "#9090B0", marginBottom: 32, maxWidth: 320 }}>One clear photo of you — this is what people will see first.</p>
         <label style={{ cursor: "pointer", position: "relative" }}>
-          <div style={{ width: 200, height: 200, borderRadius: "50%", border: "3px solid #E8D5F0", overflow: "hidden", background: "#F5E8F9", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 24px rgba(88,16,115,0.12)" }}>
+          <div style={{ width: 200, height: 200, borderRadius: "50%", border: "3px solid var(--border)", overflow: "hidden", background: "var(--purple-lt)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 24px rgba(88,16,115,0.12)" }}>
             {photo ? <img src={URL.createObjectURL(photo)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> :
-              <div style={{ fontSize: 40, color: "#581073" }}>+</div>}
+              <div style={{ fontSize: 40, color: "var(--purple)" }}>+</div>}
           </div>
           <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) setPhoto(f); }} />
         </label>
-        <div style={{ fontSize: 13, color: "#581073", fontWeight: 600, marginTop: 14 }}>{photo ? "Tap to change" : "Tap to add a photo"}</div>
+        <div style={{ fontSize: 13, color: "var(--purple)", fontWeight: 600, marginTop: 14 }}>{photo ? "Tap to change" : "Tap to add a photo"}</div>
       </div>
-      <div style={{ padding: "12px 24px 20px", background: "#fff", borderTop: "1px solid #F5E8F9" }}>
+      <div style={{ padding: "12px 24px 20px", background: "#fff", borderTop: "1px solid var(--purple-lt)" }}>
         <StepDots total={5} current={4} />
         <button className="ob-btn-primary ob-btn-full" disabled={!photo} onClick={() => setStep(5)}>Continue →</button>
         {!photo && <p style={{ textAlign: "center", fontSize: 12, color: "var(--coral-dk)", marginTop: 8 }}>Please add a photo to continue.</p>}
@@ -1211,11 +1212,11 @@ function Onboarding({ onDone, onShowSignIn, onBackToLanding, initialCity, initia
   return (
     <div style={{ minHeight: "100vh", background: "#F8F8FC", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32 }}>
       <NearMetLogo size={52} />
-      <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#F5E8F9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, marginTop: 32, marginBottom: 16 }}>✓</div>
+      <div style={{ width: 72, height: 72, borderRadius: "50%", background: "var(--purple-lt)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, marginTop: 32, marginBottom: 16 }}>✓</div>
       <h1 style={{ fontSize: 26, fontWeight: 800, color: "#2F2F33", textAlign: "center", marginBottom: 8 }}>Your NearMet profile is ready.</h1>
       <p style={{ fontSize: 14, color: "#9090B0", textAlign: "center", lineHeight: 1.6, marginBottom: 24 }}>Time to meet like-minded people and create lasting memories.</p>
       {finishError && (
-        <div style={{ maxWidth: 340, width: "100%", background: "#FFF0EE", border: "1px solid #FF9A8B", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#C94E3A", marginBottom: 16 }}>
+        <div style={{ maxWidth: 340, width: "100%", background: "#FFF0EE", border: "1px solid var(--coral)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#C94E3A", marginBottom: 16 }}>
           {finishError}
         </div>
       )}
@@ -1481,13 +1482,13 @@ function MessagesPanel({ userId, onClose, onPendingChange }) {
       <div className="msgs-panel">
         <div className="msgs-panel-header">
           <div className="msgs-panel-title">Messages</div>
-          {pending.length > 0 && <div style={{ background: "#581073", color: "white", borderRadius: 999, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>{pending.length}</div>}
+          {pending.length > 0 && <div style={{ background: "var(--purple)", color: "white", borderRadius: 999, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>{pending.length}</div>}
           <button className="msgs-panel-close" onClick={onClose}>×</button>
         </div>
         {pending.length > 0 && (
           <div style={{ display: "flex", borderBottom: "1px solid var(--border)" }}>
             {[["messages", "Messages"], ["requests", `Requests (${pending.length})`]].map(([id, lbl]) => (
-              <button key={id} onClick={() => setActiveTab(id)} style={{ flex: 1, padding: "11px 8px", fontSize: 13, fontWeight: 600, border: "none", background: "none", cursor: "pointer", color: activeTab === id ? "#581073" : "var(--text3)", borderBottom: activeTab === id ? "2.5px solid #581073" : "2.5px solid transparent" }}>{lbl}</button>
+              <button key={id} onClick={() => setActiveTab(id)} style={{ flex: 1, padding: "11px 8px", fontSize: 13, fontWeight: 600, border: "none", background: "none", cursor: "pointer", color: activeTab === id ? "var(--purple)" : "var(--text3)", borderBottom: activeTab === id ? "2.5px solid var(--purple)" : "2.5px solid transparent" }}>{lbl}</button>
             ))}
           </div>
         )}
@@ -1521,7 +1522,7 @@ function MessagesPanel({ userId, onClose, onPendingChange }) {
                   </div>
                 )}
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={() => handleAccept(c)} disabled={!!actionLoading} style={{ flex: 2, background: "#581073", color: "white", border: "none", borderRadius: 10, padding: "10px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>{actionLoading === c.id + "_accept" ? "Accepting…" : "Accept"}</button>
+                  <button onClick={() => handleAccept(c)} disabled={!!actionLoading} style={{ flex: 2, background: "var(--purple)", color: "white", border: "none", borderRadius: 10, padding: "10px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>{actionLoading === c.id + "_accept" ? "Accepting…" : "Accept"}</button>
                   <button onClick={() => handleReject(c.id, requester.id)} disabled={!!actionLoading} style={{ flex: 1, background: "var(--bg2)", color: "var(--text2)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{actionLoading === c.id + "_reject" ? "…" : "✕"}</button>
                 </div>
               </div>
@@ -1545,11 +1546,11 @@ function MessagesPanel({ userId, onClose, onPendingChange }) {
               <button key={c.id} className="msgs-list-row" style={{ background: hasNew ? "var(--purple-lt)" : "transparent" }} onClick={() => { markSeen(c.id, msgCount); setOpenChat({ id: c.id, otherPerson: other }); }}>
                 <div style={{ position: "relative", flexShrink: 0 }}>
                   {photo ? <img src={photo} alt="" className="msgs-list-avatar-img" /> : <div className="msgs-list-avatar">{initials}</div>}
-                  {hasNew && <div style={{ position: "absolute", top: 0, right: 0, width: 10, height: 10, borderRadius: "50%", background: "#FF9A8B", border: "2px solid white" }} />}
+                  {hasNew && <div style={{ position: "absolute", top: 0, right: 0, width: 10, height: 10, borderRadius: "50%", background: "var(--coral)", border: "2px solid white" }} />}
                 </div>
                 <div className="msgs-list-info">
                   <div className="msgs-list-name" style={{ fontWeight: hasNew ? 800 : 600 }}>{other.name}{other.age ? `, ${other.age}` : ""}</div>
-                  <div className="msgs-list-sub" style={{ color: hasNew ? "#581073" : undefined, fontWeight: hasNew ? 600 : undefined }}>{hasNew ? "New message" : "Tap to open conversation"}</div>
+                  <div className="msgs-list-sub" style={{ color: hasNew ? "var(--purple)" : undefined, fontWeight: hasNew ? 600 : undefined }}>{hasNew ? "New message" : "Tap to open conversation"}</div>
                 </div>
                 <span className="msgs-list-chevron">›</span>
               </button>
@@ -1914,7 +1915,7 @@ function TodaysPin({ user, userId, city, people, peopleReady, onOpenStop, onOpen
 
       {/* The pin */}
       <div style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: 20, overflow: "hidden", boxShadow: "var(--shadow)" }}>
-        <div style={{ background: "linear-gradient(135deg, #581073 0%, #8B2FA8 100%)", color: "white", padding: "16px 18px" }}>
+        <div style={{ background: "linear-gradient(135deg, var(--purple) 0%, #8B2FA8 100%)", color: "white", padding: "16px 18px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".12em", opacity: 0.85 }}>📍 TODAY'S PIN</div>
             <div style={{ fontSize: 20 }}>{view.moment.emoji}</div>
@@ -2377,7 +2378,7 @@ function ProfileSlideshow({ photos, name }) {
   const [idx, setIdx] = useState(0);
   if (!photos || !photos.length) return (
     <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ width: 100, height: 100, borderRadius: "50%", background: "#581073", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, fontWeight: 800, color: "white", boxShadow: "0 4px 20px rgba(91,79,212,0.35)" }}>
+      <div style={{ width: 100, height: 100, borderRadius: "50%", background: "var(--purple)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, fontWeight: 800, color: "white", boxShadow: "0 4px 20px rgba(91,79,212,0.35)" }}>
         {(name || "?").slice(0, 2).toUpperCase()}
       </div>
     </div>
@@ -2586,10 +2587,33 @@ function ConnectionsScreen({ city, userId, me }) {
             </div>
           )}
 
+          {/* Browse strip — tap anyone to open their card (no swiping needed) */}
+          {displayPeople.length > 1 && (
+            <div style={{ display: "flex", gap: 10, overflowX: "auto", padding: "2px 2px 14px", scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}>
+              {displayPeople.slice(0, 24).map((p, i) => {
+                const ph = (p.photo_urls || p.photos || []).filter(Boolean)[0];
+                const common = sharedInterests(p.interests || [], me?.interests || []).length;
+                const active = i === idx;
+                return (
+                  <button key={p.id} type="button" onClick={() => setIdx(i)} aria-label={`Open ${p.name}`}
+                    style={{ flexShrink: 0, width: 62, textAlign: "center", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                    <div style={{ position: "relative", width: 56, height: 56, margin: "0 auto" }}>
+                      {ph
+                        ? <img src={ph} alt="" loading="lazy" decoding="async" style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", border: `3px solid ${active ? "var(--coral)" : "#fff"}`, boxShadow: active ? "0 0 0 2px var(--purple)" : "var(--shadow)" }} />
+                        : <div style={{ width: 56, height: 56, borderRadius: "50%", background: "var(--purple)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, border: `3px solid ${active ? "var(--coral)" : "#fff"}` }}>{(p.name || "?")[0]}</div>}
+                      {common > 0 && <span style={{ position: "absolute", top: -3, right: -5, minWidth: 18, height: 18, borderRadius: 9, background: "var(--coral)", color: "#fff", fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", border: "2px solid var(--bg)" }}>✦{common}</span>}
+                    </div>
+                    <div style={{ fontSize: 11, fontWeight: active ? 800 : 600, color: active ? "var(--text)" : "var(--text3)", marginTop: 5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{(p.name || "").split(" ")[0]}</div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {current ? (
             <div style={{ background: "var(--white)", borderRadius: 20, overflow: "hidden", border: "1px solid var(--border)", boxShadow: "var(--shadow2)" }}>
               {/* Photo banner */}
-              <div style={{ position: "relative", padding: "20px 0", overflow: "hidden", background: "linear-gradient(135deg, #FFF0EE 0%, #FAF8F4 50%, #F5E8F9 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ position: "relative", padding: "20px 0", overflow: "hidden", background: "linear-gradient(135deg, #FFF0EE 0%, var(--bg) 50%, var(--purple-lt) 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {(() => {
                   const photo = (current.photo_urls || current.photos || []).filter(Boolean)[0];
                   return photo
@@ -4431,7 +4455,7 @@ function BlockedUsersSection({ userId }) {
                 <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>{b.name || "Unknown"}{b.age ? `, ${b.age}` : ""}</div>
               </div>
               <button onClick={() => handleUnblock(b.id)} disabled={unblocking === b.id}
-                style={{ fontSize: 12, fontWeight: 700, color: "#581073", background: "var(--bg2)", border: "none", borderRadius: 8, padding: "6px 12px", cursor: "pointer" }}>
+                style={{ fontSize: 12, fontWeight: 700, color: "var(--purple)", background: "var(--bg2)", border: "none", borderRadius: 8, padding: "6px 12px", cursor: "pointer" }}>
                 {unblocking === b.id ? "…" : "Unblock"}
               </button>
             </div>
@@ -4679,9 +4703,9 @@ function ProfileScreen({ user, userId, onSignOut, onUpdateProfile, onReplayTour,
           {things.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 10, marginBottom: 10 }}>
               {things.map(t => (
-                <span key={t} style={{ background: "#F5E8F9", color: "#581073", borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                <span key={t} style={{ background: "var(--purple-lt)", color: "var(--purple)", borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
                   {t}
-                  <button onClick={() => removeThing(t)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "#581073", padding: 0, lineHeight: 1 }}>×</button>
+                  <button onClick={() => removeThing(t)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "var(--purple)", padding: 0, lineHeight: 1 }}>×</button>
                 </span>
               ))}
             </div>
@@ -4928,9 +4952,9 @@ function ForgotPasswordFlow({ onDone, onBack }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const headerStyle = { display: "flex", alignItems: "center", padding: "16px 20px 12px", borderBottom: "1px solid #F5E8F9" };
+  const headerStyle = { display: "flex", alignItems: "center", padding: "16px 20px 12px", borderBottom: "1px solid var(--purple-lt)" };
   const labelStyle = { fontSize: 11, fontWeight: 700, color: "#9090B0", letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 6 };
-  const errorBox = <div style={{ marginTop: 12, background: "#FFF0EE", border: "1px solid #FF9A8B", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#C94E3A" }}>{error}</div>;
+  const errorBox = <div style={{ marginTop: 12, background: "#FFF0EE", border: "1px solid var(--coral)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#C94E3A" }}>{error}</div>;
 
   const handleFindQuestion = async () => {
     if (!email.trim()) { setError("Enter your email."); return; }
@@ -5026,7 +5050,7 @@ function ForgotPasswordFlow({ onDone, onBack }) {
         )}
         {step === "done" && (
           <>
-            <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#F5E8F9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, margin: "0 auto 20px" }}>✓</div>
+            <div style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--purple-lt)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, margin: "0 auto 20px" }}>✓</div>
             <h2 style={{ fontSize: 24, fontWeight: 800, color: "#2F2F33", marginBottom: 8, textAlign: "center" }}>Password reset!</h2>
             <p style={{ fontSize: 14, color: "#9090B0", marginBottom: 24, textAlign: "center" }}>You can now sign in with your new password.</p>
             <button className="ob-btn-primary ob-btn-full" onClick={onDone}>Back to sign in →</button>
@@ -5100,7 +5124,7 @@ export default function App() {
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f7f7f5" }}>
       <div style={{ textAlign: "center" }}>
         <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: "-0.04em", marginBottom: 12 }}>
-          <span style={{ color: "#581073" }}>Near</span><span style={{ color: "#581073" }}>Met</span>
+          <span style={{ color: "var(--purple)" }}>Near</span><span style={{ color: "var(--purple)" }}>Met</span>
         </div>
         <div style={{ fontSize: 13, color: "#999" }}>Loading…</div>
       </div>
@@ -5149,7 +5173,7 @@ export default function App() {
               <button className="topnav-msg-btn" onClick={() => setMessagesOpen(true)} title="Messages" style={{ position: "relative" }}>
                 💬
                 {unreadCount > 0 && (
-                  <span style={{ position: "absolute", top: -4, right: -4, background: "#581073", color: "white", borderRadius: "50%", width: 16, height: 16, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>{unreadCount}</span>
+                  <span style={{ position: "absolute", top: -4, right: -4, background: "var(--purple)", color: "white", borderRadius: "50%", width: 16, height: 16, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>{unreadCount}</span>
                 )}
               </button>
               <button data-tour="profile-btn" className="topnav-msg-btn" title="Profile" onClick={() => setTab("profile")}>👤</button>
